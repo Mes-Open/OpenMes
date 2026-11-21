@@ -47,12 +47,12 @@ class ToolController extends Controller
     {
         $cf = app(CustomFieldService::class);
         $validated = $request->validate(array_merge([
-            'code'                => 'required|string|max:50|unique:tools',
-            'name'                => 'required|string|max:255',
-            'description'         => 'nullable|string|max:2000',
+            'code' => 'required|string|max:50|unique:tools',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
             'workstation_type_id' => 'nullable|exists:workstation_types,id',
-            'status'              => 'nullable|string|in:available,in_use,maintenance,retired',
-            'next_service_at'     => 'nullable|date',
+            'status' => 'nullable|string|in:available,in_use,maintenance,retired',
+            'next_service_at' => 'nullable|date',
         ], $cf->rules('tool')), [], $cf->attributeNames('tool'));
 
         $validated['status'] = $validated['status'] ?? Tool::STATUS_AVAILABLE;
@@ -72,7 +72,13 @@ class ToolController extends Controller
     public function edit(Tool $tool)
     {
         return Inertia::render('admin/tools/Edit', [
-            'tool' => $tool->only('id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'next_service_at', 'custom_fields'),
+            'tool' => [
+                ...$tool->only('id', 'code', 'name', 'description', 'workstation_type_id', 'status', 'custom_fields'),
+                // only() hands Inertia the Carbon itself, which encodes as a UTC
+                // instant: in a plant east of UTC that is the previous day, and
+                // the form would save it back one day earlier on every edit.
+                'next_service_at' => $tool->next_service_at?->toDateString(),
+            ],
             'workstationTypes' => WorkstationType::active()->orderBy('name')->get(['id', 'name']),
             'customFields' => app(CustomFieldService::class)->clientConfig('tool'),
         ]);
@@ -85,12 +91,12 @@ class ToolController extends Controller
     {
         $cf = app(CustomFieldService::class);
         $validated = $request->validate(array_merge([
-            'code'                => 'required|string|max:50|unique:tools,code,' . $tool->id,
-            'name'                => 'required|string|max:255',
-            'description'         => 'nullable|string|max:2000',
+            'code' => 'required|string|max:50|unique:tools,code,'.$tool->id,
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
             'workstation_type_id' => 'nullable|exists:workstation_types,id',
-            'status'              => 'nullable|string|in:available,in_use,maintenance,retired',
-            'next_service_at'     => 'nullable|date',
+            'status' => 'nullable|string|in:available,in_use,maintenance,retired',
+            'next_service_at' => 'nullable|date',
         ], $cf->rules('tool')), [], $cf->attributeNames('tool'));
 
         unset($validated['custom_field_files']);

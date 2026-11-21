@@ -151,6 +151,9 @@ class CurrencyRegistry
         'materials' => 'price_currency',
         'material_allocations' => 'price_currency_snapshot',
         'additional_costs' => 'currency',
+        // Both default to the installation currency when left blank.
+        'cost_sources' => 'currency',
+        'maintenance_events' => 'currency',
     ];
 
     /**

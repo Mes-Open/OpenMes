@@ -1756,10 +1756,14 @@ function OutputScalarInput({ output, initial, disabled, onSubmit }) {
 // Create Batch Modal
 // ---------------------------------------------------------------------------
 
-function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClose }) {
-    // Server-computed: planned minus what existing batches already cover (a
-    // short finished batch frees the rest, an open one holds its full target).
-    const remaining = workOrder.batch_capacity ?? Math.max((workOrder.planned_qty ?? 0) - (workOrder.produced_qty ?? 0), 0);
+function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, batchableQty, onClose }) {
+    // With overproduction off the server says how much new batches may still
+    // add up to (a short finished batch frees the rest, an open one holds its
+    // full target); with it on (null) there is no ceiling.
+    const limited = batchableQty !== null && batchableQty !== undefined;
+    const remaining = limited
+        ? Number(batchableQty)
+        : Math.max((workOrder.planned_qty ?? 0) - (workOrder.produced_qty ?? 0), 0);
 
     const form = useForm({
         work_order_id: workOrder.id,
@@ -1770,11 +1774,11 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
     });
 
     // Said under the field instead of left to the browser's max bubble or to
-    // the server, whose refusal closes the modal (assertCanCreateBatch).
+    // the server's target_qty error (assertCanCreateBatch).
     const qty = parseFloat(form.data.target_qty);
     const refusal = !(qty > 0) ? null
         : workOrder.whole_pieces && !Number.isInteger(qty) ? __('Whole pieces only')
-        : !workOrder.overproduction_allowed && qty > remaining
+        : limited && qty > remaining
             ? __('Batch quantity :qty exceeds what the order still needs (:remaining). Allow overproduction in Settings → Production to plan more.', { qty: fmtQty(qty), remaining: fmtQty(remaining) })
             : null;
 
@@ -1797,7 +1801,8 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, onClo
                             aria-label={__('Quantity')}
                             step={workOrder.whole_pieces ? '1' : '0.01'}
                             min={workOrder.whole_pieces ? '1' : '0.01'}
-                            max={workOrder.overproduction_allowed ? undefined : remaining}
+                            // No `max`: the browser's own bubble would hide the message
+                            // below, which says how much may still be added.
                             value={form.data.target_qty}
                             onChange={(v) => form.setData('target_qty', v)}
                             className={`${inputCls} font-mono text-[15px]`}
@@ -2261,7 +2266,7 @@ function MaterialsTable({ lines = [], filter, onFilter }) {
 }
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], materialLines = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {} } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], materialLines = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {}, batchableQty = null } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2342,7 +2347,7 @@ export default function WorkOrderDetail() {
             <Head title={`Work Order ${workOrder.order_no}`} />
 
             {/* Live-refresh when the work order changes on the line */}
-            {line && <LineSync lineId={line.id} reloadOnly={['workOrder']} />}
+            {line && <LineSync lineId={line.id} reloadOnly={['workOrder', 'batchableQty']} />}
 
             <div className="h-full flex flex-col overflow-auto xl:overflow-hidden">
                 {/* Hero — the order, how far it has got, and what can be done to it, in one row */}
@@ -2613,6 +2618,7 @@ export default function WorkOrderDetail() {
                     workOrder={workOrder}
                     workstations={workstations}
                     defaultWorkstationId={defaultWorkstationId}
+                    batchableQty={batchableQty}
                     onClose={() => setCreateBatchOpen(false)}
                 />
             )}

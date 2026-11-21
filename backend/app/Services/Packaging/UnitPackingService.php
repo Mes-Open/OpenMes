@@ -198,6 +198,10 @@ class UnitPackingService
     public function palletClosed(Pallet $pallet): void
     {
         $this->consumePackaging($pallet->work_order_id, BomItem::PER_PALLET);
+        // Both close paths use a guarded query update, which fires no model
+        // events - so the finished-goods receipt the Pallet model books on a
+        // status change has to be asked for here (it books each pallet once).
+        app(\App\Services\Warehouse\PalletStockDocumentService::class)->statusChanged($pallet, auth()->user());
     }
 
     /**
@@ -611,6 +615,32 @@ class UnitPackingService
             if ($actor) {
                 $this->serials->recordStep($unit, $actor, null, [
                     'parameters' => ['event' => 'shipped', 'pallet_no' => $pallet->pallet_no],
+                ]);
+            }
+        }
+
+        return $units->count();
+    }
+
+    /**
+     * A loose carton left on a confirmed shipment: its units are shipped the
+     * same way a pallet's are, and a held unit keeps its hold.
+     */
+    public function markCartonShipped(UnitCarton $carton, ?User $actor = null, ?\DateTimeInterface $at = null): int
+    {
+        if ($carton->shipped_at === null) {
+            $carton->update(['shipped_at' => $at ?? now()]);
+        }
+
+        $units = SerialUnit::where('carton_id', $carton->id)
+            ->whereNotIn('status', [SerialUnit::STATUS_SCRAPPED, SerialUnit::STATUS_SHIPPED, SerialUnit::STATUS_BLOCKED])
+            ->get();
+
+        foreach ($units as $unit) {
+            $unit->update(['status' => SerialUnit::STATUS_SHIPPED, 'shipped_at' => $at ?? now()]);
+            if ($actor) {
+                $this->serials->recordStep($unit, $actor, null, [
+                    'parameters' => ['event' => 'shipped', 'carton_no' => $carton->carton_no],
                 ]);
             }
         }

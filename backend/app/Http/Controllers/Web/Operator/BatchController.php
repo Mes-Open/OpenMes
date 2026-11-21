@@ -480,31 +480,40 @@ class BatchController extends Controller
             return back()->with('error', 'This work order does not belong to the selected line.');
         }
 
-        try {
-            $this->workOrderService->assertCanCreateBatch($workOrder, (float) $request->input('target_qty'));
-        } catch (\DomainException $e) {
-            return back()->with('error', $e->getMessage())->withInput();
-        }
+        // The plan check and the new batch under one work-order lock (the one
+        // createBatch() takes too): two operators batching the last pieces at
+        // once must not both pass the check against the same remainder.
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
+            $workOrder = WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->firstOrFail();
 
-        try {
-            $lotNumber = $request->input('lot_number');
-
-            if ($request->boolean('auto_lot') && ! $lotNumber) {
-                $lotNumber = $this->lotService->generateLot($workOrder->productType);
+            // Closed order → flash; whole pieces / over the plan → a target_qty
+            // field error (ValidationException) the modal shows under the input.
+            try {
+                $this->workOrderService->assertCanCreateBatch($workOrder, (float) $request->input('target_qty'));
+            } catch (\DomainException $e) {
+                return back()->with('error', $e->getMessage())->withInput();
             }
 
-            $this->workOrderService->createBatch(
-                $workOrder,
-                $request->input('target_qty'),
-                $request->input('workstation_id'),
-                $lotNumber,
-            );
+            try {
+                $lotNumber = $request->input('lot_number');
 
-            return redirect()->route('operator.work-order.detail', $workOrder)
-                ->with('success', $lotNumber ? __('Batch created (LOT: :lot)', ['lot' => $lotNumber]) : __('Batch created'));
-        } catch (\Exception $e) {
-            return back()->with('error', 'Failed to create batch: '.$e->getMessage())->withInput();
-        }
+                if ($request->boolean('auto_lot') && ! $lotNumber) {
+                    $lotNumber = $this->lotService->generateLot($workOrder->productType);
+                }
+
+                $this->workOrderService->createBatch(
+                    $workOrder,
+                    $request->input('target_qty'),
+                    $request->input('workstation_id'),
+                    $lotNumber,
+                );
+
+                return redirect()->route('operator.work-order.detail', $workOrder)
+                    ->with('success', $lotNumber ? __('Batch created (LOT: :lot)', ['lot' => $lotNumber]) : __('Batch created'));
+            } catch (\Exception $e) {
+                return back()->with('error', 'Failed to create batch: '.$e->getMessage())->withInput();
+            }
+        });
     }
 
     public function confirmParameters(Request $request, Batch $batch)

@@ -83,7 +83,7 @@ class ProductionGuardsTest extends TestCase
         $wo = $this->order(6);
         app(WorkOrderService::class)->createBatch($wo, 4);
 
-        $this->postBatch($wo, 3)->assertSessionHas('error');
+        $this->postBatch($wo, 3)->assertSessionHasErrors('target_qty');
         $this->assertSame(1, $wo->batches()->count());
 
         $this->postBatch($wo, 2)->assertSessionHas('success');
@@ -98,7 +98,7 @@ class ProductionGuardsTest extends TestCase
         $service = app(WorkOrderService::class);
 
         $this->assertSame(3.0, $service->remainingBatchCapacity($wo));
-        $this->postBatch($wo, 4)->assertSessionHas('error');
+        $this->postBatch($wo, 4)->assertSessionHasErrors('target_qty');
 
         $open = $service->createBatch($wo, 3);
         $this->assertSame(0.0, $service->remainingBatchCapacity($wo));
@@ -171,7 +171,7 @@ class ProductionGuardsTest extends TestCase
             ->assertStatus(422)->assertJsonValidationErrors('scrap_qty');
         $this->assertSame(0.0, (float) $step->fresh()->passed_qty);
 
-        $this->postBatch($this->order(4), 2.5)->assertSessionHas('error');
+        $this->postBatch($this->order(4), 2.5)->assertSessionHasErrors('target_qty');
     }
 
     public function test_a_product_measured_by_weight_keeps_its_fractions(): void

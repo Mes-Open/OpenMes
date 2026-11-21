@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\IssueDisposition;
+use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Line;
 use App\Models\ScrapEntry;
@@ -317,10 +318,10 @@ class IssueService
 
         if (! $hasBlockingIssues) {
             // Put back what the block replaced. Orders blocked before that was
-            // recorded fall back to guessing from the batches: IN_PROGRESS when
-            // one is running, otherwise PENDING.
+            // recorded fall back to guessing from the batches: IN_PROGRESS once
+            // one has run or is running, otherwise PENDING.
             $newStatus = $workOrder->status_before_block
-                ?? ($workOrder->batches()->where('status', 'IN_PROGRESS')->exists()
+                ?? ($workOrder->batches()->whereIn('status', [Batch::STATUS_IN_PROGRESS, Batch::STATUS_DONE])->exists()
                     ? WorkOrder::STATUS_IN_PROGRESS
                     : WorkOrder::STATUS_PENDING);
 

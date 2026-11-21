@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdateWebhookAllowlistRequest;
 use App\Http\Requests\WebhookRequest;
 use App\Jobs\DeliverWebhookJob;
+use App\Models\AuditLog;
 use App\Models\Webhook;
 use App\Models\WebhookDelivery;
 use App\Support\WebhookEventRegistry;
+use App\Support\WebhookNetworkAllowlist;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -23,7 +28,47 @@ class WebhookController extends Controller
             // Option lists for the list page's create/edit drawer. Optional, so the
             // queries only run once someone opens it — most visits never do.
             'generatedSecret' => Inertia::optional(fn () => Str::random(40)),
+            // Private-network allowlist (T2a): visible to whoever holds the tab,
+            // editable by administrators only.
+            'allowlist' => WebhookNetworkAllowlist::entries(),
+            'canEditAllowlist' => (bool) request()->user()?->hasRole('Admin'),
         ]);
+    }
+
+    /**
+     * Replace the private-network allowlist. A security-relevant change: it
+     * decides which internal hosts the server may POST to, so it is written to
+     * the audit log (who, before → after) and the application log.
+     */
+    public function updateAllowlist(UpdateWebhookAllowlistRequest $request)
+    {
+        $before = WebhookNetworkAllowlist::entries();
+
+        $after = DB::transaction(function () use ($request, $before) {
+            $after = WebhookNetworkAllowlist::save($request->validated('entries'));
+
+            AuditLog::create([
+                'user_id' => $request->user()->id,
+                'entity_type' => null,
+                'entity_id' => null,
+                'action' => 'webhook_network_allowlist_updated',
+                'before_state' => ['entries' => $before],
+                'after_state' => ['entries' => $after],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            return $after;
+        });
+
+        Log::notice('Security: webhook private-network allowlist changed', [
+            'user_id' => $request->user()->id,
+            'added' => array_values(array_diff($after, $before)),
+            'removed' => array_values(array_diff($before, $after)),
+        ]);
+
+        return redirect()->route('admin.webhooks.index')
+            ->with('success', __('Local network allowlist saved.'));
     }
 
     public function create()
@@ -38,6 +83,8 @@ class WebhookController extends Controller
     {
         $data = $this->payload($request);
         $data['is_active'] = $request->boolean('is_active', true);
+        // New endpoints use the timestamped signature unless asked otherwise.
+        $data['legacy_signature'] = $request->boolean('legacy_signature', false);
         $data['secret'] = $request->filled('secret') ? $request->input('secret') : Str::random(40);
 
         Webhook::create($data);
@@ -50,7 +97,7 @@ class WebhookController extends Controller
         return Inertia::render('admin/webhooks/Edit', [
             // Never send the secret to the browser; only whether one is set.
             'webhook' => array_merge(
-                $webhook->only('id', 'name', 'url', 'events', 'headers', 'is_active'),
+                $webhook->only('id', 'name', 'url', 'events', 'headers', 'is_active', 'legacy_signature'),
                 ['has_secret' => filled($webhook->secret)],
             ),
             'events' => WebhookEventRegistry::forForm(),
@@ -63,6 +110,7 @@ class WebhookController extends Controller
         // Default to the current state when the field is omitted, so an update
         // that doesn't carry is_active can't silently re-activate a disabled hook.
         $data['is_active'] = $request->boolean('is_active', $webhook->is_active);
+        $data['legacy_signature'] = $request->boolean('legacy_signature', $webhook->legacy_signature);
         // Keep the existing secret unless a new one is explicitly provided.
         if ($request->filled('secret')) {
             $data['secret'] = $request->input('secret');

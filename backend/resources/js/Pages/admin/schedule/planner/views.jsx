@@ -8,6 +8,8 @@ import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
 import { TwinChip, TierDot, ShortageChip } from './OrderCard';
 import { useOrderDrop } from './dnd';
+import { QualityMarker, ShortMarker, StaffBadge } from './insights';
+import { cellKey } from './insightsState';
 import {
     weeklySlot, weeklyPlacements, lineLoad, loadColor, shiftColor, statusOf, fmtQty, parseDate, onLine, chainChipMeta, segmentChain, placementsOf, projectSegment, MONO,
 } from './helpers';
@@ -22,6 +24,8 @@ const MIN_ROW = 56;
 // Height of the maintenance strip tucked directly under the work blocks, so an
 // order and a maintenance event sharing a cell are both visible and connected.
 const MAINT_H = 17;
+// Strip at the top of a row for the staffing badges (planners only).
+const STAFF_H = 19;
 
 const fmtDow = (d) => formatDate(parseDate(d), { weekday: 'short' });
 const fmtDayMon = (d) => formatDate(parseDate(d), { day: '2-digit', month: 'short' });
@@ -40,7 +44,7 @@ function MaintPill({ m }) {
 // Background drop cell — a react-dnd target for backlog cards + a pointer
 // hit-test target (data-cell) for moving scheduled blocks; click to assign.
 // Memoised so the drag preview re-render doesn't re-run every cell.
-const WeekDropCell = memo(function WeekDropCell({ line, date, shift, col, N, ctx, today, weekend, firstShift }) {
+const WeekDropCell = memo(function WeekDropCell({ line, date, shift, col, N, ctx, today, weekend, firstShift, staff }) {
     const target = { lineId: line.id, date, shift };
     const [isOver, drop] = useOrderDrop(target, ctx.onDropOrder);
     return (
@@ -50,14 +54,16 @@ const WeekDropCell = memo(function WeekDropCell({ line, date, shift, col, N, ctx
                 borderRight: '1px solid var(--om-line2)', borderLeft: firstShift ? '1px solid var(--om-line2)' : 'none',
                 background: isOver ? 'var(--om-accent-bg)' : today ? 'color-mix(in srgb, var(--om-accent-bg) 40%, transparent)' : weekend ? 'color-mix(in srgb, var(--om-chip) 50%, transparent)' : 'transparent',
                 boxShadow: isOver ? 'inset 0 0 0 1.5px var(--om-accent)' : 'none', cursor: 'pointer',
-            }} />
+            }}>
+            {staff && <StaffBadge cell={staff} style={{ position: 'absolute', top: 2, left: 4 }} onOpen={ctx.onStaffBadge && ctx.badgeOpens?.(line.id, date, shift) ? () => ctx.onStaffBadge(line.id, date, shift) : null} />}
+        </div>
     );
 });
 
 // A spanning, movable, resizable order block for ONE schedule segment.
 // `item.placementKey` says which segment ('primary' or an extra placement's
 // id) — drags reschedule only that segment, and ✕ on an extra detaches it.
-function WeekBlock({ item, ctx, N, laneH, setPreview }) {
+function WeekBlock({ item, ctx, N, laneH, setPreview, offset = 0, short = false }) {
     const { wo, placementKey, lineId: rowLineId } = item;
     const isPrimary = placementKey === 'primary';
     const twinMeta = chainChipMeta(wo, placementKey, ctx.data.allLines);
@@ -157,7 +163,7 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
     const left = (pos.startCol / N) * 100;
     const width = ((pos.endCol - pos.startCol + 1) / N) * 100;
     return (
-        <div data-wo={wo.id} data-pk={placementKey} style={{ position: 'absolute', left: left + '%', width: width + '%', top: LANE_GAP + item.lane * (laneH + LANE_GAP), height: laneH, zIndex: drag ? 30 : 5 }}>
+        <div data-wo={wo.id} data-pk={placementKey} style={{ position: 'absolute', left: left + '%', width: width + '%', top: offset + LANE_GAP + item.lane * (laneH + LANE_GAP), height: laneH, zIndex: drag ? 30 : 5 }}>
             <div className="om-wo relative" style={{ height: '100%', background: s.soft, border: '1px solid var(--om-line2)', borderRadius: 0, overflow: 'hidden', opacity: moving ? 0.3 : 1, boxShadow: item.conflict ? 'inset 0 0 0 1.5px var(--om-blocked)' : wo.is_overdue ? '0 0 0 1.5px var(--om-blocked)' : 'none', touchAction: 'none' }}>
                 <Tooltip label={isPrimary ? __('Send to backlog') : __('Remove from this line')}>
                     <span className="om-x" onClick={(e) => { e.stopPropagation(); isPrimary ? ctx.onUnassign(wo) : ctx.onDetachPlacement(wo, placementKey); }}
@@ -172,6 +178,12 @@ function WeekBlock({ item, ctx, N, laneH, setPreview }) {
                         <span className="whitespace-nowrap" style={{ fontFamily: MONO, fontSize: 10, fontWeight: 600, color: 'var(--om-ink)' }}>{wo.order_no}</span>
                         {twinMeta && <TwinChip code={twinMeta.code} dir={twinMeta.dir} />}
                         <span className="ml-auto flex items-center gap-1">
+                            {short && (
+                                <ShortMarker onOpen={ctx.onOrderMarker ? () => ctx.onOrderMarker(wo) : null}>
+                                    <Icon name="users" size={9} />!
+                                </ShortMarker>
+                            )}
+                            {ctx.qualityHold?.(wo) && <QualityMarker onOpen={ctx.onQualityMarker ? () => ctx.onQualityMarker(wo) : null} />}
                             <ShortageChip wo={wo} compact />
                             {wo.is_overdue && <span style={{ fontFamily: MONO, fontSize: 8, color: '#fff', background: 'var(--om-blocked)', borderRadius: 3, padding: '0 3px' }}>!</span>}
                         </span>
@@ -216,10 +228,15 @@ function WeekLineRow({ line, ctx, days, shiftsPerDay, today, gridMinW, preview, 
     // Work blocks fill the top area; the maintenance strip tucks directly under
     // them (a couple px gap) so they read as connected within the same cell.
     const maintReserve = hasMaint ? MAINT_H + 2 : 0;
-    const rowH = Math.max(MIN_ROW, lanes * (LANE_H + LANE_GAP) + LANE_GAP + maintReserve);
-    const blockAreaH = rowH - maintReserve;
+    const staffing = ctx.staffing;
+    const staffH = staffing ? STAFF_H : 0;
+    const rowH = Math.max(MIN_ROW, lanes * (LANE_H + LANE_GAP) + LANE_GAP + maintReserve + staffH);
+    const blockAreaH = rowH - maintReserve - staffH;
     const laneH = (blockAreaH - (lanes + 1) * LANE_GAP) / lanes;
-    const maintTop = blockAreaH - LANE_GAP + 2;
+    const staffAt = (col) => staffing?.byKey[cellKey(line.id, days[Math.floor(col / shiftsPerDay)]?.date, (col % shiftsPerDay) + 1)];
+    const isShort = (it) => { for (let c = it.startCol; c <= it.endCol; c++) { if (staffAt(c)?.short) return true; } return false; };
+    const highlighted = Array.from({ length: N }, (_, col) => col).filter((col) => ctx.highlight?.has(cellKey(line.id, days[Math.floor(col / shiftsPerDay)]?.date, (col % shiftsPerDay) + 1)));
+    const maintTop = staffH + blockAreaH - LANE_GAP + 2;
     const showGhost = preview && preview.lineId === line.id;
     return (
         <div className="flex" style={{ height: rowH, borderBottom: '1px solid var(--om-line2)' }}>
@@ -237,12 +254,16 @@ function WeekLineRow({ line, ctx, days, shiftsPerDay, today, gridMinW, preview, 
                     const di = Math.floor(col / shiftsPerDay);
                     const shift = (col % shiftsPerDay) + 1;
                     const d = days[di];
-                    return <WeekDropCell key={col} line={line} date={d.date} shift={shift} col={col} N={N} ctx={ctx} today={d.date === today} weekend={d.isWeekend} firstShift={col % shiftsPerDay === 0} />;
+                    return <WeekDropCell key={col} line={line} date={d.date} shift={shift} col={col} N={N} ctx={ctx} today={d.date === today} weekend={d.isWeekend} firstShift={col % shiftsPerDay === 0} staff={staffAt(col)} />;
                 })}
-                {items.map((it) => <WeekBlock key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} N={N} laneH={laneH} setPreview={setPreview} />)}
+                {items.map((it) => <WeekBlock key={it.wo.id + ':' + it.placementKey} item={it} ctx={ctx} N={N} laneH={laneH} setPreview={setPreview} offset={staffH} short={isShort(it)} />)}
+                {/* "Show on plan" — outline the cells an insight is about */}
+                {highlighted.map((col) => (
+                    <div key={'hl' + col} data-testid="plan-highlight" style={{ position: 'absolute', top: 0, bottom: 0, left: (col / N * 100) + '%', width: (100 / N) + '%', zIndex: 9, pointerEvents: 'none', boxShadow: 'inset 0 0 0 2.5px var(--om-accent)', background: 'color-mix(in srgb, var(--om-accent-bg) 30%, transparent)', animation: 'om-pulse 1.8s 2' }} />
+                ))}
                 {/* drop preview ghost — where the dragged block will land */}
                 {showGhost && (
-                    <div style={{ position: 'absolute', left: (preview.startCol / N * 100) + '%', width: ((preview.endCol - preview.startCol + 1) / N * 100) + '%', top: LANE_GAP, height: laneH, zIndex: 20, pointerEvents: 'none' }}>
+                    <div style={{ position: 'absolute', left: (preview.startCol / N * 100) + '%', width: ((preview.endCol - preview.startCol + 1) / N * 100) + '%', top: staffH + LANE_GAP, height: laneH, zIndex: 20, pointerEvents: 'none' }}>
                         <div style={{ height: '100%', border: '2px dashed var(--om-accent)', borderRadius: 0, background: 'color-mix(in srgb, var(--om-accent-bg) 70%, transparent)' }} />
                     </div>
                 )}
@@ -369,11 +390,24 @@ export function WeeklyView({ ctx }) {
                             {days.map((d) => {
                                 const isToday = d.date === today;
                                 return (
-                                    <div key={d.date} className="flex items-baseline justify-center gap-1.5" style={{ padding: '9px 6px', borderRight: '1px solid var(--om-line2)', background: isToday ? 'var(--om-accent-bg)' : (d.isWeekend ? 'var(--om-chip)' : 'transparent') }}>
+                                    <button
+                                        type="button"
+                                        key={d.date}
+                                        onClick={() => ctx.onSelectDay(d.date)}
+                                        aria-label={formatDate(parseDate(d.date), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                                        className="flex items-baseline justify-center gap-1.5 cursor-pointer hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-om-accent focus-visible:-outline-offset-2"
+                                        style={{ padding: '9px 6px', borderTop: 0, borderBottom: 0, borderLeft: 0, borderRight: '1px solid var(--om-line2)', background: isToday ? 'var(--om-accent-bg)' : (d.isWeekend ? 'var(--om-chip)' : 'transparent'), font: 'inherit', width: '100%' }}
+                                    >
                                         <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: isToday ? 'var(--om-accent)' : 'var(--om-faint)' }}>{fmtDow(d.date)}</span>
                                         <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: isToday ? 'var(--om-accent)' : (d.isWeekend ? 'var(--om-faint)' : 'var(--om-ink)') }}>{fmtDayMon(d.date)}</span>
                                         {isToday && <div style={{ height: 2, width: 18, background: 'var(--om-accent)', borderRadius: 2, alignSelf: 'center' }} />}
-                                    </div>
+                                        {ctx.staffing?.days?.[d.date]?.absent > 0 && (
+                                            <span data-testid="day-absent" title={ctx.staffing.days[d.date].names.join(', ')}
+                                                style={{ fontFamily: MONO, fontSize: 9, fontWeight: 600, color: 'var(--om-blocked)', background: 'var(--om-blocked-bg)', borderRadius: 999, padding: '0 6px', alignSelf: 'center' }}>
+                                                {__(':count absent', { count: ctx.staffing.days[d.date].absent })}
+                                            </span>
+                                        )}
+                                    </button>
                                 );
                             })}
                         </div>

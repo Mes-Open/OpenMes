@@ -8,9 +8,11 @@ use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\WorkOrder;
 use App\Support\ProductionFlow;
+use App\Support\ProductionRules;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class WorkOrderService
 {
@@ -699,21 +701,18 @@ class WorkOrderService
      */
     public function remainingBatchCapacity(WorkOrder $workOrder): float
     {
-        $committed = $workOrder->batches()
-            ->where('status', '!=', Batch::STATUS_CANCELLED)
-            ->get(['status', 'target_qty', 'produced_qty'])
-            ->sum(fn (Batch $b) => $b->status === Batch::STATUS_DONE ? (float) $b->produced_qty : (float) $b->target_qty);
-
-        return max(0.0, (float) $workOrder->planned_qty - $committed);
+        return max(0.0, (float) $workOrder->planned_qty - ProductionRules::batchedQty($workOrder));
     }
 
     /**
      * Refuse a batch a user asks for when the order is closed or the batch would
      * plan more than the order still needs (unless overproduction is allowed in
      * Settings → Production). The planner and importers create batches through
-     * createBatch() directly and are not subject to this check.
+     * createBatch() directly and are not subject to this check. Callers that
+     * must not race another batch run it under the work-order row lock.
      *
-     * @throws \DomainException with a message meant for the user
+     * @throws \DomainException when the order is closed (message meant for the user)
+     * @throws ValidationException on `target_qty`: a fraction of a piece, or more than the order still needs
      */
     public function assertCanCreateBatch(WorkOrder $workOrder, float $targetQty): void
     {
@@ -726,10 +725,10 @@ class WorkOrderService
 
         $productType = $workOrder->productType;
         if ($productType?->isCountedInPieces() && abs($targetQty - round($targetQty)) > 0.000001) {
-            throw new \DomainException(__('Enter whole pieces — :product is counted in :unit.', [
+            throw ValidationException::withMessages(['target_qty' => __('Enter whole pieces — :product is counted in :unit.', [
                 'product' => $productType->name,
                 'unit' => $productType->unit_of_measure ?: 'pcs',
-            ]));
+            ])]);
         }
 
         if (self::overproductionAllowed()) {
@@ -738,29 +737,17 @@ class WorkOrderService
 
         $remaining = $this->remainingBatchCapacity($workOrder);
         if ($targetQty - $remaining > 0.0001) {
-            throw new \DomainException(__('Batch quantity :qty exceeds what the order still needs (:remaining). Allow overproduction in Settings → Production to plan more.', [
+            throw ValidationException::withMessages(['target_qty' => __('Batch quantity :qty exceeds what the order still needs (:remaining). Allow overproduction in Settings → Production to plan more.', [
                 'qty' => rtrim(rtrim(number_format($targetQty, 4, '.', ''), '0'), '.'),
                 'remaining' => rtrim(rtrim(number_format($remaining, 4, '.', ''), '0'), '.'),
-            ]));
+            ])]);
         }
     }
 
-    /**
-     * Settings → Production "Allow overproduction". The stored system setting
-     * wins; the ALLOW_OVERPRODUCTION env value is the fallback for installs that
-     * never saved the settings page.
-     */
+    /** Settings → Production "Allow overproduction" — see ProductionRules. */
     public static function overproductionAllowed(): bool
     {
-        try {
-            $raw = DB::table('system_settings')->where('key', 'allow_overproduction')->value('value');
-        } catch (\Throwable) {
-            $raw = null;
-        }
-
-        return $raw === null
-            ? (bool) config('openmmes.allow_overproduction', false)
-            : (bool) json_decode($raw, true);
+        return ProductionRules::allowOverproduction();
     }
 
     /**
@@ -897,11 +884,14 @@ class WorkOrderService
             return;
         }
 
-        // A finished transfer batch can leave a shortfall (including 100% scrap).
-        // The order has started and still needs replacement production.
-        $hasFinishedTransferBatch = ProductionFlow::isTransfer() && $workOrder->batches()
+        // A finished batch means the order has started, in either flow: between
+        // two batches, or after one that fell short (including 100% scrap), it is
+        // still on the floor. Back at PENDING it could be deleted or rejected with
+        // parts already made, could not be paused, and MRP would plan its whole
+        // material demand again.
+        $hasFinishedBatch = $workOrder->batches()
             ->where('status', Batch::STATUS_DONE)->exists();
-        if ($hasInProgressBatch || $hasFinishedTransferBatch) {
+        if ($hasInProgressBatch || $hasFinishedBatch) {
             $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
             return;
@@ -1021,6 +1011,10 @@ class WorkOrderService
      * (wrapped, code-supplied) column name is interpolated; the term is bound.
      * ILIKE on Postgres, LIKE (ASCII case-insensitive) elsewhere.
      *
+     * The escape character is `!`, not a backslash: PDO's pgsql placeholder
+     * parser reads `'\'` as an escaped quote that never closes, swallows the
+     * `?` after it and fails every search with "parameter was not defined".
+     *
      * @template TBuilder of \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
      *
      * @param  TBuilder  $query
@@ -1029,10 +1023,10 @@ class WorkOrderService
     private function whereContains($query, string $column, string $term)
     {
         $operator = $query->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
-        $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $term).'%';
 
         return $query->whereRaw(
-            $query->getGrammar()->wrap($column)." {$operator} ? escape '\\'",
+            $query->getGrammar()->wrap($column)." {$operator} ? escape '!'",
             [$pattern],
         );
     }

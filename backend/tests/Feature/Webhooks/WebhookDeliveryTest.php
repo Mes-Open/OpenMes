@@ -3,6 +3,7 @@
 namespace Tests\Feature\Webhooks;
 
 use App\Jobs\DeliverWebhookJob;
+use App\Models\ApiKey;
 use App\Models\Batch;
 use App\Models\Issue;
 use App\Models\Webhook;
@@ -10,6 +11,7 @@ use App\Models\WebhookDelivery;
 use App\Models\WorkOrder;
 use App\Services\Webhooks\WebhookDispatcher;
 use App\Support\WebhookEventRegistry;
+use App\Support\WebhookNetworkAllowlist;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -109,6 +111,7 @@ class WebhookDeliveryTest extends TestCase
 
     public function test_delivery_sends_valid_hmac_signature(): void
     {
+        $this->freezeTime();
         Http::fake(fn () => Http::response('ok', 200));
 
         $webhook = Webhook::factory()->create([
@@ -122,10 +125,16 @@ class WebhookDeliveryTest extends TestCase
 
         (new DeliverWebhookJob($delivery->id))->handle();
 
-        Http::assertSent(function ($request) use ($delivery) {
-            $expected = 'sha256='.hash_hmac('sha256', $request->body(), 'shhh-this-is-the-secret');
+        $now = now()->getTimestamp();
+        Http::assertSent(function ($request) use ($delivery, $now) {
+            $timestamp = $request->header('X-OpenMES-Timestamp')[0] ?? null;
+            if (! is_numeric($timestamp) || abs((int) $timestamp - $now) > 5) {
+                return false;
+            }
+            // Receiver-side verification: HMAC over "{timestamp}.{raw body}".
+            $expected = 'sha256='.hash_hmac('sha256', $timestamp.'.'.$request->body(), 'shhh-this-is-the-secret');
 
-            return $request->hasHeader('X-OpenMES-Signature', $expected)
+            return hash_equals($expected, $request->header('X-OpenMES-Signature')[0] ?? '')
                 && $request->hasHeader('X-OpenMES-Event', $delivery->event_type)
                 && $request->hasHeader('X-OpenMES-Delivery', (string) $delivery->id);
         });
@@ -134,8 +143,93 @@ class WebhookDeliveryTest extends TestCase
         $this->assertSame(WebhookDelivery::STATUS_SUCCESS, $delivery->status);
         $this->assertSame(200, $delivery->response_code);
         $this->assertSame(1, $delivery->attempts);
+        $this->assertSame($now, $delivery->signature_timestamp);
+        $this->assertSame(WebhookDelivery::SIGNATURE_V1, $delivery->signature_scheme);
         $this->assertNotNull($delivery->delivered_at);
         $this->assertNotNull($webhook->fresh()->last_triggered_at);
+    }
+
+    public function test_signature_does_not_verify_with_a_different_timestamp(): void
+    {
+        Http::fake(fn () => Http::response('ok', 200));
+
+        $webhook = Webhook::factory()->create(['url' => 'https://8.8.8.8/hook', 'secret' => 'shhh-this-is-the-secret']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        Http::assertSent(function ($request) {
+            $timestamp = (int) $request->header('X-OpenMES-Timestamp')[0];
+            $sent = $request->header('X-OpenMES-Signature')[0];
+
+            // A replay with a forged (fresh) timestamp no longer matches, and the
+            // body-only HMAC no longer verifies either.
+            $forged = 'sha256='.hash_hmac('sha256', ($timestamp + 1).'.'.$request->body(), 'shhh-this-is-the-secret');
+            $bodyOnly = 'sha256='.hash_hmac('sha256', $request->body(), 'shhh-this-is-the-secret');
+
+            return ! hash_equals($forged, $sent) && ! hash_equals($bodyOnly, $sent);
+        });
+    }
+
+    public function test_legacy_webhook_signs_body_only(): void
+    {
+        Http::fake(fn () => Http::response('ok', 200));
+
+        $webhook = Webhook::factory()->legacySignature()->create([
+            'url' => 'https://8.8.8.8/hook',
+            'secret' => 'shhh-this-is-the-secret',
+        ]);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        Http::assertSent(function ($request) {
+            $expected = 'sha256='.hash_hmac('sha256', $request->body(), 'shhh-this-is-the-secret');
+
+            return $request->hasHeader('X-OpenMES-Signature', $expected)
+                && is_numeric($request->header('X-OpenMES-Timestamp')[0] ?? null);
+        });
+
+        $this->assertSame(WebhookDelivery::SIGNATURE_LEGACY, $delivery->fresh()->signature_scheme);
+    }
+
+    public function test_custom_headers_cannot_override_signature_headers(): void
+    {
+        Http::fake(fn () => Http::response('ok', 200));
+
+        $webhook = Webhook::factory()->create([
+            'url' => 'https://8.8.8.8/hook',
+            'secret' => 'shhh-this-is-the-secret',
+            'headers' => ['X-OpenMES-Timestamp' => '1', 'X-OpenMES-Signature' => 'sha256=forged'],
+        ]);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        Http::assertSent(fn ($request) => $request->header('X-OpenMES-Timestamp')[0] !== '1'
+            && $request->header('X-OpenMES-Signature')[0] !== 'sha256=forged');
+    }
+
+    public function test_migration_switches_existing_webhooks_to_legacy_signature(): void
+    {
+        $migration = require database_path('migrations/2026_11_06_100000_add_legacy_signature_to_webhooks_table.php');
+        $migration->down();
+
+        $id = DB::table('webhooks')->insertGetId([
+            'name' => 'Pre-existing ERP hook',
+            'url' => 'https://8.8.8.8/hook',
+            'secret' => encrypt('x', false),
+            'events' => json_encode([WebhookEventRegistry::WORK_ORDER_STATUS_CHANGED]),
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $migration->up();
+
+        $this->assertTrue((bool) DB::table('webhooks')->where('id', $id)->value('legacy_signature'));
+        // New rows default to the timestamped scheme.
+        $this->assertFalse(Webhook::factory()->create()->fresh()->legacy_signature);
     }
 
     public function test_non_2xx_response_throws_to_retry_and_records_attempt(): void
@@ -202,5 +296,124 @@ class WebhookDeliveryTest extends TestCase
 
         $this->assertNotSame('plaintext-secret-value', $raw); // stored ciphertext
         $this->assertSame('plaintext-secret-value', $webhook->fresh()->secret); // decrypts via cast
+    }
+
+    // ── Private-network allowlist + key ownership at delivery time (T2a) ──
+
+    public function test_allowlisted_private_receiver_is_delivered_and_pinned(): void
+    {
+        Http::fake(fn () => Http::response('ok', 200));
+        WebhookNetworkAllowlist::save(['192.168.1.0/24']);
+
+        $webhook = Webhook::factory()->create(['url' => 'http://192.168.1.50:8069/openmes/hook']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $this->assertSame(WebhookDelivery::STATUS_SUCCESS, $delivery->fresh()->status);
+        Http::assertSent(fn ($request) => $request->url() === 'http://192.168.1.50:8069/openmes/hook');
+    }
+
+    public function test_allowlist_is_rechecked_at_delivery_time(): void
+    {
+        Http::fake();
+        WebhookNetworkAllowlist::save(['192.168.1.0/24']);
+        $webhook = Webhook::factory()->create(['url' => 'http://192.168.1.50:8069/openmes/hook']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        // The admin narrows the list after the webhook was saved.
+        WebhookNetworkAllowlist::save([]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $delivery->refresh();
+        $this->assertSame(WebhookDelivery::STATUS_FAILED, $delivery->status);
+        $this->assertStringContainsString('private/reserved', (string) $delivery->error);
+        Http::assertNothingSent();
+    }
+
+    public function test_loopback_is_blocked_at_delivery_even_when_listed(): void
+    {
+        Http::fake();
+        WebhookNetworkAllowlist::save(['127.0.0.0/8']); // bypassing validation on purpose
+
+        $webhook = Webhook::factory()->create(['url' => 'http://127.0.0.1/hook']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $this->assertSame(WebhookDelivery::STATUS_FAILED, $delivery->fresh()->status);
+        Http::assertNothingSent();
+    }
+
+    /** @return array<string, array{0: array<string, mixed>, 1: bool}> */
+    public static function unusableKeys(): array
+    {
+        return [
+            'deactivated' => [['is_active' => false], false],
+            'expired' => [['expires_at' => now()->subDay()], false],
+            'deleted' => [[], true],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('unusableKeys')]
+    public function test_webhook_of_an_unusable_key_is_not_delivered(array $state, bool $trash): void
+    {
+        Http::fake();
+        $key = ApiKey::factory()->create();
+        $webhook = Webhook::factory()->create(['url' => 'https://8.8.8.8/hook', 'api_key_id' => $key->id]);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        // Write the key state quietly so the model events (which would already
+        // deactivate the hook) don't fire — the job must hold on its own.
+        $key->forceFill($state)->saveQuietly();
+        if ($trash) {
+            ApiKey::withoutEvents(fn () => $key->delete());
+        }
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $delivery->refresh();
+        $this->assertSame(WebhookDelivery::STATUS_FAILED, $delivery->status);
+        $this->assertSame('Owning API key is no longer active.', $delivery->error);
+        Http::assertNothingSent();
+    }
+
+    public function test_webhook_of_a_usable_key_is_delivered(): void
+    {
+        Http::fake(fn () => Http::response('ok', 200));
+        $key = ApiKey::factory()->create();
+        $webhook = Webhook::factory()->create(['url' => 'https://8.8.8.8/hook', 'api_key_id' => $key->id]);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        (new DeliverWebhookJob($delivery->id))->handle();
+
+        $this->assertSame(WebhookDelivery::STATUS_SUCCESS, $delivery->fresh()->status);
+    }
+
+    public function test_redirects_are_not_followed(): void
+    {
+        // A receiver answering 302 → cloud metadata must not get the request
+        // bounced there: the Location target was never vetted or pinned.
+        Http::fake([
+            'https://8.8.8.8/*' => Http::response('', 302, ['Location' => 'http://169.254.169.254/latest/meta-data']),
+            '*' => Http::response('metadata', 200),
+        ]);
+
+        $webhook = Webhook::factory()->create(['url' => 'https://8.8.8.8/hook']);
+        $delivery = WebhookDelivery::factory()->create(['webhook_id' => $webhook->id]);
+
+        try {
+            (new DeliverWebhookJob($delivery->id))->handle();
+            $this->fail('Expected a 3xx to be treated as a failed attempt.');
+        } catch (\RuntimeException $e) {
+            // expected — retried like any other non-2xx.
+        }
+
+        $delivery->refresh();
+        $this->assertSame(302, $delivery->response_code);
+        $this->assertNotSame(WebhookDelivery::STATUS_SUCCESS, $delivery->status);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '169.254.169.254'));
     }
 }

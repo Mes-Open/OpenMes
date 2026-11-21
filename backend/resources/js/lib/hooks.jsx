@@ -9,6 +9,8 @@
 // fields that render as a standard card — so a module can contribute without
 // shipping any JSX at all.
 
+
+import { isSafeHref } from './moduleCards';
 // Same target as the page glob in app.jsx (backend/modules), one directory
 // deeper because this file sits in lib/: matches nothing, and yields {}, when
 // no module is installed.
@@ -39,7 +41,9 @@ function GenericCard({ title, metric, body, href, external }) {
         </>
     );
 
-    if (! href) {
+    // The server already drops an unsafe link; checked again so a javascript:
+    // or other-host href never reaches an <a> whatever sent it.
+    if (! isSafeHref(href)) {
         return <div className="rounded-om border border-om-line p-3">{content}</div>;
     }
 

@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { execSync } from 'child_process';
+import { login as signIn } from './support/app';
 
 // Manual test for #144 — disabling an optional module from Settings → System →
 // Modules hides its tab from the sidebar AND 404s its routes, then re-enabling
@@ -16,11 +17,15 @@ function tinker(php: string): string {
 }
 
 async function login(page: Page) {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', ADMIN);
-  await page.fill('input[name="password"]', PASS);
-  await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/login')), page.click('button[type="submit"]')]);
+  await signIn(page, ADMIN, PASS);
   await page.setViewportSize({ width: 1500, height: 1100 });
+}
+
+// Collapsed nav groups do not render their links, so look an entry up through
+// the sidebar's own menu search.
+async function sidebarFinds(page: Page, term: string, href: string) {
+  await page.getByRole('searchbox', { name: 'Search menu…' }).fill(term);
+  return page.locator(`aside a[href="${href}"]`);
 }
 
 test('disable a module → tab hidden + route 404, then re-enable', async ({ page }) => {
@@ -29,10 +34,11 @@ test('disable a module → tab hidden + route 404, then re-enable', async ({ pag
 
   await login(page);
 
-  // Packaging is reachable to begin with.
+  // Packaging is reachable to begin with, and listed in the sidebar.
   await page.goto('/admin/pallets');
   await expect(page).toHaveURL(/\/admin\/pallets/);
   await expect(page.getByText(/Page not found/i)).toHaveCount(0);
+  await expect(await sidebarFinds(page, 'Pallets', '/admin/pallets')).toBeVisible();
 
   // Settings → System → Modules: uncheck Packaging, save.
   await page.goto('/settings/system');
@@ -49,10 +55,11 @@ test('disable a module → tab hidden + route 404, then re-enable', async ({ pag
   // And the Packaging tab is gone from the sidebar — but other groups (a core
   // one and another optional module) remain.
   await page.goto('/admin/dashboard');
+  await expect(await sidebarFinds(page, 'Pallets', '/admin/pallets')).toHaveCount(0);
   const sidebar = page.locator('aside').first();
-  await expect(sidebar.getByText('Packaging', { exact: true })).toHaveCount(0);
-  await expect(sidebar.getByText('Admin', { exact: true }).first()).toBeVisible();
-  await expect(sidebar.getByText('Reports', { exact: true }).first()).toBeVisible();
+  await page.getByRole('searchbox', { name: 'Search menu…' }).fill('');
+  await expect(sidebar.getByRole('button', { name: 'Admin', exact: true })).toBeVisible();
+  await expect(sidebar.getByRole('button', { name: 'Analytics', exact: true })).toBeVisible();
 
   await page.screenshot({ path: 'test-results/module-disabled.png', fullPage: true });
 

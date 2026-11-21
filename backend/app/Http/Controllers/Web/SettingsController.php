@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Enums\ApiScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ImportSettingsRequest;
 use App\Http\Requests\UpdateProductionTargetsRequest;
@@ -44,6 +45,11 @@ class SettingsController extends Controller
             'pinLoginEnabled' => $pinLoginEnabled,
             'hasPin' => ! empty(auth()->user()->pin),
             'twoFactorEnabled' => (bool) auth()->user()->two_factor_enabled,
+            // Cards an installed module adds for its own settings page (title,
+            // body, href). Asked per user, so a module can leave someone out.
+            'hooks' => app(\App\Extension\HookRegistry::class)->renderMany([
+                'display.settings.index.cards',
+            ], ['user' => auth()->user()]),
         ]);
     }
 
@@ -69,7 +75,7 @@ class SettingsController extends Controller
 
         // Verify current password
         if (! Hash::check($validated['current_password'], $user->password)) {
-            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+            return back()->withErrors(['current_password' => __('Current password is incorrect.')]);
         }
 
         // Update password
@@ -109,13 +115,13 @@ class SettingsController extends Controller
             'name' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.\-\']+$/u'],
             'email' => 'required|string|email|max:255|unique:users,email,'.auth()->id(),
         ], [
-            'name.regex' => 'Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.',
+            'name.regex' => __('Name may only contain letters, numbers, spaces, dots, hyphens, and apostrophes.'),
         ]);
 
         auth()->user()->update($validated);
 
         return redirect()->route('settings.index')
-            ->with('success', 'Profile updated successfully.');
+            ->with('success', __('Profile updated successfully.'));
     }
 
     /**
@@ -127,13 +133,14 @@ class SettingsController extends Controller
 
         $settings = [
             'production_period' => json_decode($rows['production_period']?->value ?? '"none"', true) ?? 'none',
-            'allow_overproduction' => json_decode($rows['allow_overproduction']?->value ?? 'false', true) ?? false,
+            // Same reader the production code uses, so the switch shows what is enforced.
+            'allow_overproduction' => \App\Support\ProductionRules::allowOverproduction(),
             'block_negative_stock' => json_decode($rows['block_negative_stock']?->value ?? 'false', true) ?? false,
-            // Opt-out: an installation that was never asked reports.
+            // Opt-in: an installation that was never asked does not report.
             'telemetry_enabled' => json_decode($rows['telemetry_enabled']?->value ?? 'false', true) ?? false,
             'telemetry_last_sent_at' => json_decode($rows['telemetry_last_sent_at']?->value ?? 'null', true),
             'telemetry_last_status' => json_decode($rows['telemetry_last_status']?->value ?? 'null', true),
-            'force_sequential_steps' => json_decode($rows['force_sequential_steps']?->value ?? 'true', true) ?? true,
+            'force_sequential_steps' => \App\Support\ProductionRules::forceSequentialSteps(),
             'workstation_routing_enabled' => json_decode($rows['workstation_routing_enabled']?->value ?? 'false', true) ?? false,
             'backflush_on_pallet_creation' => json_decode($rows['backflush_on_pallet_creation']?->value ?? 'false', true) ?? false,
             'hold_on_material_shortage' => json_decode($rows['hold_on_material_shortage']?->value ?? 'false', true) ?? false,
@@ -142,19 +149,19 @@ class SettingsController extends Controller
             'lot_picking_strategy' => json_decode($rows['lot_picking_strategy']?->value ?? '"fefo"', true) ?? 'fefo',
             'workflow_mode' => json_decode($rows['workflow_mode']?->value ?? '"status"', true) ?? 'status',
             'pin_login_enabled' => json_decode($rows['pin_login_enabled']?->value ?? 'false', true) ?? false,
-            // The currently effective locale (session override applied by SetLocale,
-            // else the stored system default) — so the picker matches the language
-            // the page is actually rendered in, instead of only the system default.
-            'language' => app()->getLocale(),
+            // The stored system language, not this admin's session choice: the
+            // whole form is posted on every save, so showing the session locale
+            // here made saving any tab overwrite the plant-wide language with it.
+            'language' => $this->systemLanguage($rows['language']->value ?? null),
             'schedule_view_mode' => json_decode($rows['schedule_view_mode']?->value ?? '"weekly"', true) ?? 'weekly',
             'schedule_shifts_per_day' => json_decode($rows['schedule_shifts_per_day']?->value ?? '1', true) ?? 1,
-            'schedule_horizon_weeks' => json_decode($rows['schedule_horizon_weeks']?->value ?? '6', true) ?? 6,
             'schedule_show_weekends' => json_decode($rows['schedule_show_weekends']?->value ?? 'true', true) ?? true,
-            'schedule_slot_duration_hours' => json_decode($rows['schedule_slot_duration_hours']?->value ?? '8', true) ?? 8,
             'realtime_mode' => json_decode($rows['realtime_mode']?->value ?? '"polling"', true) ?? 'polling',
             'production_tracking_mode' => json_decode($rows['production_tracking_mode']?->value ?? '"per_operation"', true) ?? 'per_operation',
             'production_flow_mode' => \App\Support\ProductionFlow::mode(),
-            'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']?->value ?? '"*"', true) ?? '*',
+            // No row means no cross-origin access (DynamicCors): show that, not `*`,
+            // or saving the Security tab would open the API to every site.
+            'cors_allowed_origins' => json_decode($rows['cors_allowed_origins']?->value ?? '""', true) ?? '',
             'production_qty_edit_policy' => json_decode($rows['production_qty_edit_policy']?->value ?? '"none"', true) ?? 'none',
             'production_qty_edit_window_minutes' => json_decode($rows['production_qty_edit_window_minutes']?->value ?? '1', true) ?? 1,
             'scanner_mode' => json_decode($rows['scanner_mode']?->value ?? '"hid"', true) ?? 'hid',
@@ -225,6 +232,16 @@ class SettingsController extends Controller
         ]);
     }
 
+    /** The stored system language, or the configured default when none is valid. */
+    private function systemLanguage(?string $raw): string
+    {
+        $locale = $raw === null ? null : json_decode($raw, true);
+
+        return is_string($locale) && array_key_exists($locale, config('app.available_locales', []))
+            ? $locale
+            : (string) config('app.fallback_locale', 'en');
+    }
+
     /**
      * The Production targets card: the two stored quality targets plus the
      * current shift's figures, so an admin can see the calculation is live.
@@ -268,7 +285,7 @@ class SettingsController extends Controller
 
         if (! $pinEnabled) {
             return redirect()->route('settings.index')
-                ->with('error', 'PIN login is not enabled by administrator.');
+                ->with('error', __('PIN login is not enabled by administrator.'));
         }
 
         $hasPin = ! empty(auth()->user()->pin);
@@ -288,13 +305,13 @@ class SettingsController extends Controller
 
         if (! $pinEnabled) {
             return redirect()->route('settings.index')
-                ->with('error', 'PIN login is not enabled by administrator.');
+                ->with('error', __('PIN login is not enabled by administrator.'));
         }
 
         $validated = $request->validated();
 
         if (! Hash::check($validated['current_password'], auth()->user()->password)) {
-            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+            return back()->withErrors(['current_password' => __('Current password is incorrect.')]);
         }
 
         auth()->user()->update([
@@ -302,7 +319,7 @@ class SettingsController extends Controller
         ]);
 
         return redirect()->route('settings.index')
-            ->with('success', 'PIN set successfully. You can now use it to log in.');
+            ->with('success', __('PIN set successfully. You can now use it to log in.'));
     }
 
     /**
@@ -315,13 +332,13 @@ class SettingsController extends Controller
         ]);
 
         if (! Hash::check($validated['current_password'], auth()->user()->password)) {
-            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+            return back()->withErrors(['current_password' => __('Current password is incorrect.')]);
         }
 
         auth()->user()->update(['pin' => null]);
 
         return redirect()->route('settings.index')
-            ->with('success', 'PIN removed.');
+            ->with('success', __('PIN removed.'));
     }
 
     /**
@@ -329,7 +346,12 @@ class SettingsController extends Controller
      */
     public function showApiTokens()
     {
-        $tokens = PersonalAccessToken::where('tokenable_type', 'App\Models\User')
+        // Only what this admin can revoke (revokeApiToken allows own tokens
+        // only) and what still works: listing other users' tokens — and the
+        // expired 15-minute sign-in tokens of the mobile app — put a Revoke
+        // button next to each that ended on a 403 page.
+        $tokens = auth()->user()->tokens()
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->with('tokenable')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -343,6 +365,8 @@ class SettingsController extends Controller
                 'last_used_at_human' => $t->last_used_at?->diffForHumans(),
             ]);
 
+        $erpEnabled = ModuleRegistry::isModuleEnabled('erp');
+
         return Inertia::render('settings/ApiTokens', [
             'tokens' => $tokens,
             'newToken' => session('new_token'),
@@ -353,6 +377,10 @@ class SettingsController extends Controller
                 fn (\App\Enums\ApiTokenScope $scope) => ['value' => $scope->value, 'label' => $scope->label(), 'description' => $scope->description()],
                 \App\Enums\ApiTokenScope::cases(),
             ),
+            // ERP integration keys are managed client-side against /api/v1/api-keys;
+            // the section only exists while the ERP module (and that API) is on.
+            'erpEnabled' => $erpEnabled,
+            'erpScopes' => $erpEnabled ? ApiScope::options() : [],
         ]);
     }
 
@@ -383,7 +411,7 @@ class SettingsController extends Controller
         $token->delete();
 
         return redirect()->route('settings.api-tokens')
-            ->with('success', 'Token revoked successfully.');
+            ->with('success', __('Token revoked successfully.'));
     }
 
     /**
@@ -393,7 +421,7 @@ class SettingsController extends Controller
     {
         return \App\Support\SampleDataLock::run(
             fn () => $this->loadSampleDataUnderLock($request),
-            fn () => redirect()->route('settings.system')
+            fn () => redirect()->route('settings.system', ['tab' => 'data'])
                 ->with('info', __('Sample data is already being loaded. Please wait for it to finish.')),
         );
     }
@@ -415,7 +443,7 @@ class SettingsController extends Controller
         // re-running one over itself races on unique keys. So a switch is a
         // replacement — everything goes, then the chosen company is installed.
         if ($alreadyLoaded && ! $replace) {
-            return redirect()->route('settings.system')
+            return redirect()->route('settings.system', ['tab' => 'data'])
                 ->with('info', __('Sample data has already been loaded. Tick the confirmation to replace it with a different example company.'));
         }
 
@@ -434,7 +462,7 @@ class SettingsController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return redirect()->route('settings.system')
+            return redirect()->route('settings.system', ['tab' => 'data'])
                 ->with('error', __('Could not load sample data: :msg', ['msg' => $e->getMessage()]));
         }
 
@@ -443,7 +471,7 @@ class SettingsController extends Controller
             ['value' => json_encode($dataset), 'updated_at' => now()],
         );
 
-        return redirect()->route('settings.system')->with('success', __(
+        return redirect()->route('settings.system', ['tab' => 'data'])->with('success', __(
             'Sample data loaded successfully: :company. Lines, work orders, operators and product types have been created.',
             ['company' => \App\Support\DemoDatasetRegistry::labelFor($dataset)],
         ));
@@ -593,7 +621,6 @@ class SettingsController extends Controller
         $validated = $request->validated();
 
         $shiftsPerDay = (int) $validated['schedule_shifts_per_day'];
-        $slotDuration = $shiftsPerDay > 0 ? (int) (24 / $shiftsPerDay) : 8;
 
         $map = [
             ...($request->has('block_negative_stock') ? ['block_negative_stock' => (bool) $validated['block_negative_stock']] : []),
@@ -612,20 +639,24 @@ class SettingsController extends Controller
             'lot_picking_strategy' => $validated['lot_picking_strategy'] ?? 'fefo',
             'workflow_mode' => $validated['workflow_mode'],
             'pin_login_enabled' => (bool) ($validated['pin_login_enabled'] ?? false),
-            'language' => $validated['language'] ?? 'en',
+            // Only when sent: a form without the field must not reset the
+            // plant language to English.
+            ...(! empty($validated['language']) ? ['language' => $validated['language']] : []),
             'schedule_view_mode' => $validated['schedule_view_mode'],
             'schedule_shifts_per_day' => $shiftsPerDay,
-            'schedule_horizon_weeks' => (int) $validated['schedule_horizon_weeks'],
             'schedule_show_weekends' => (bool) ($validated['schedule_show_weekends'] ?? false),
-            'schedule_slot_duration_hours' => $slotDuration,
             'realtime_mode' => $validated['realtime_mode'],
             'production_tracking_mode' => $validated['production_tracking_mode'],
             'production_flow_mode' => $validated['production_flow_mode'] ?? \App\Support\ProductionFlow::mode(),
-            'cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: '',
-            'cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST',
-            'cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0))),
+            // Each only when sent (the page posts them from the Security tab): a
+            // form without one must neither clear nor reset what is stored.
+            ...($request->has('cors_allowed_origins') ? ['cors_allowed_origins' => trim($validated['cors_allowed_origins'] ?? '') ?: ''] : []),
+            ...($request->has('cors_allowed_methods') ? ['cors_allowed_methods' => trim($validated['cors_allowed_methods'] ?? 'GET, POST') ?: 'GET, POST'] : []),
+            ...($request->has('cors_max_age') ? ['cors_max_age' => max(0, min(86400, (int) ($validated['cors_max_age'] ?? 0)))] : []),
             'production_qty_edit_policy' => $validated['production_qty_edit_policy'],
-            'production_qty_edit_window_minutes' => (int) ($validated['production_qty_edit_window_minutes'] ?? 1),
+            // Only with the timed policy (the request drops it otherwise), so the
+            // stored window survives a switch to another policy and back.
+            ...(isset($validated['production_qty_edit_window_minutes']) ? ['production_qty_edit_window_minutes' => (int) $validated['production_qty_edit_window_minutes']] : []),
             'scanner_mode' => $validated['scanner_mode'],
             'unit_identifier_normalize' => (bool) ($validated['unit_identifier_normalize'] ?? false),
             'unit_serial_pattern' => trim($validated['unit_serial_pattern'] ?? ''),
@@ -643,11 +674,6 @@ class SettingsController extends Controller
                 ? (float) $validated['default_pay_rate']
                 : null,
         ];
-
-        $previousLanguage = json_decode(
-            DB::table('system_settings')->where('key', 'language')->value('value') ?? 'null',
-            true
-        );
 
         foreach ($map as $key => $value) {
             DB::table('system_settings')->updateOrInsert(
@@ -667,6 +693,7 @@ class SettingsController extends Controller
 
         // Plant timezone — only when submitted, and applied immediately so the
         // redirect that follows already renders in the new zone.
+        $timezoneChanged = ! empty($validated['app_timezone']) && $validated['app_timezone'] !== TimezoneRegistry::current();
         if (! empty($validated['app_timezone'])) {
             TimezoneRegistry::save($validated['app_timezone']);
             TimezoneRegistry::apply();
@@ -678,15 +705,50 @@ class SettingsController extends Controller
             \App\Support\ModuleRegistry::save($validated['enabled_modules'] ?? []);
         }
 
-        Cache::forget('cors_allowed_origins');
+        Cache::forget(\App\Http\Middleware\DynamicCors::CACHE_KEY);
 
-        // Always sync session locale with the saved language so the UI
-        // reflects the choice immediately — even when the session had a
-        // stale override from the login-screen switcher (#205).
-        $request->session()->put('locale', $map['language']);
+        // The page posts the language only from the General tab, where its
+        // picker is. Saved there, it shows straight away for this admin — even
+        // over a stale login-screen choice in the session (#205), and even when
+        // the system language itself did not change. Saving any other tab
+        // leaves this admin's own choice alone.
+        $languageChanged = isset($map['language']) && $map['language'] !== app()->getLocale();
+        if (isset($map['language'])) {
+            $request->session()->put('locale', $map['language']);
+        }
 
-        return redirect()->route('settings.system')
-            ->with('success', 'System settings updated.');
+        // A new UI language or plant timezone is read once when the page boots
+        // (locale chunk, date helpers), so the browser has to load the page
+        // afresh. A full visit from the server, rather than the page reloading
+        // itself after an Inertia redirect, so the flash survives into it.
+        if ($languageChanged || $timezoneChanged) {
+            // In the language the page will load in, not the one it was saved from.
+            $request->session()->flash('success', __('System settings updated.', [], $languageChanged ? $map['language'] : null));
+
+            return \Inertia\Inertia::location(route('settings.system', $this->tabSavedFrom()));
+        }
+
+        return redirect()->route('settings.system', $this->tabSavedFrom())
+            ->with('success', __('System settings updated.'));
+    }
+
+    /**
+     * The tab the settings form was saved from, so the admin lands back on it.
+     *
+     * Every tab posts to the same URL, and the page keeps the open tab only in
+     * its own address (?tab=…), so the referring URL is where it comes from.
+     * Only a tab name is taken from it, never the URL itself.
+     *
+     * @return array<string, string>
+     */
+    private function tabSavedFrom(): array
+    {
+        parse_str((string) parse_url(url()->previous(), PHP_URL_QUERY), $query);
+        $tab = $query['tab'] ?? null;
+
+        return is_string($tab) && preg_match('/^[a-z0-9-]{1,40}$/', $tab) && $tab !== 'general'
+            ? ['tab' => $tab]
+            : [];
     }
 
     /**
@@ -718,7 +780,7 @@ class SettingsController extends Controller
     {
         $ok = \App\Support\TelemetryIdentity::reset();
 
-        return redirect()->route('settings.system')->with(
+        return redirect()->route('settings.system', ['tab' => 'security'])->with(
             $ok ? 'success' : 'error',
             $ok
                 ? __('Installation ID reset. A new one will be created on the next report.')
@@ -734,7 +796,10 @@ class SettingsController extends Controller
         $export = [
             'exported_at' => now()->toISOString(),
             'version' => config('version.current'),
-            'system_settings' => DB::table('system_settings')->pluck('value', 'key')->toArray(),
+            // The webhook network allowlist is security config, not portable data.
+            'system_settings' => DB::table('system_settings')
+                ->where('key', '!=', \App\Support\WebhookNetworkAllowlist::SETTING_KEY)
+                ->pluck('value', 'key')->toArray(),
         ];
 
         // Everything the import reads back (its table list), so a file round-trips.
@@ -748,7 +813,8 @@ class SettingsController extends Controller
             if (Schema::hasColumn($table, 'deleted_at')) {
                 $query->whereNull('deleted_at'); // the trash stays here
             }
-            $export[$table] = $query->get()->map(fn ($r) => (array) $r)->toArray();
+            $excluded = array_flip(ConfigurationImporter::EXCLUDED_COLUMNS[$table] ?? []);
+            $export[$table] = $query->get()->map(fn ($r) => array_diff_key((array) $r, $excluded))->toArray();
         }
 
         return response()->json($export, 200, [

@@ -25,6 +25,8 @@ class WorkOrderChangeRequestController extends Controller
     /** Relations every response loads, so a client never has to follow up for the audit trail. */
     private const RELATIONS = [
         'requestedBy:id,name',
+        // The requester when an integration raised the request (no user behind it).
+        'requestedByApiKey:id,name,integration_config_id',
         'approvedBy:id,name',
         'rejectedBy:id,name',
         'appliedBy:id,name',

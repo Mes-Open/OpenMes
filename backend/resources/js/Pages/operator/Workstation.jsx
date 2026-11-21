@@ -68,7 +68,7 @@ function getCellValue(wo, col) {
         // which order is the urgent one; the countdown under it says so directly.
         return (
             <span className="inline-flex flex-col leading-tight">
-                <span>{formatDate(new Date(wo.due_date), { day: '2-digit', month: 'short' })}</span>
+                <span>{formatDate(wo.due_date, { day: '2-digit', month: 'short' })}</span>
                 <DueCountdown
                     due={wo.due_date}
                     settled={SETTLED_STATUSES.includes(wo.status)}

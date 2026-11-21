@@ -81,12 +81,26 @@ export const SUPERVISOR_GROUPS = [
         label: 'Production',
         lucide: 'factory',
         href: '/supervisor/issues',
-        match: ['/supervisor/issues', '/supervisor/quality-tasks', '/supervisor/shift-handover', '/admin/connectivity/counters'],
+        match: ['/supervisor/issues', '/supervisor/quality-tasks', '/supervisor/shift-handover', '/admin/connectivity/counters', '/supervisor/work-order-change-requests'],
         children: [
+            { label: 'Change requests', href: '/supervisor/work-order-change-requests', match: ['/supervisor/work-order-change-requests'], lucide: 'git-pull-request' },
             { label: 'Issues', href: '/supervisor/issues', match: ['/supervisor/issues'], lucide: 'triangle-alert', module: 'quality' },
             { label: 'Quality Tasks', href: '/supervisor/quality-tasks', match: ['/supervisor/quality-tasks'], lucide: 'clipboard-check', module: 'quality' },
             { label: 'Shift Handover', href: '/supervisor/shift-handover', match: ['/supervisor/shift-handover'], lucide: 'arrow-left-right' },
             { label: 'Machine counters', href: '/admin/connectivity/counters', match: ['/admin/connectivity/counters'], lucide: 'gauge', tab: 'machine_counters' },
+        ],
+    },
+    {
+        // Scan-to-load verification (#400): plan loads, then follow the dock.
+        key: 'supervisor-logistics',
+        label: 'Logistics',
+        lucide: 'truck',
+        href: '/supervisor/shipments',
+        match: ['/supervisor/shipments', '/logistics/loading'],
+        module: 'packaging',
+        children: [
+            { label: 'Shipments', href: '/supervisor/shipments', match: ['/supervisor/shipments'], lucide: 'truck' },
+            { label: 'Loading terminal', href: '/logistics/loading', match: ['/logistics/loading'], lucide: 'scan-barcode' },
         ],
     },
     {

@@ -12,6 +12,9 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     ignoreHTTPSErrors: true,
+    // A missing element should fail the step quickly, not run out a
+    // multi-minute scenario timeout.
+    actionTimeout: 15_000,
     video: 'on',
   },
   projects: [

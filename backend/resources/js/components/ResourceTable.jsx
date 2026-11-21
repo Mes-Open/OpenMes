@@ -264,7 +264,7 @@ const RAIL_TONE = {
     'ghost-danger': 'text-om-blocked hover:bg-om-blocked-bg',
 };
 
-function RowActions({ actions, row, confirm }) {
+export function RowActions({ actions, row, confirm }) {
     return (
         <div className="flex items-center justify-end gap-2">
             {actions(row).map((a, i) => {
@@ -329,7 +329,7 @@ const BULK_CHIP_WARNING = `inline-flex cursor-pointer items-center justify-cente
  * borrows the same primary/md classes — kept here rather than duplicated at
  * every call site.
  */
-const CREATE_BTN_CLASS =
+export const CREATE_BTN_CLASS =
     'inline-flex cursor-pointer items-center justify-center gap-2 rounded-om-sm bg-om-ink px-4 py-[9px] text-[13px] font-semibold text-om-on-ink transition-colors hover:bg-om-ink-hover';
 
 export default function ResourceTable({

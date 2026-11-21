@@ -26,6 +26,45 @@ class WorkOrderController extends Controller
     ) {}
 
     /**
+     * Every BOM line of the order against stock, for the Materials tab: what
+     * the order needs, what it has (already reserved for it plus usable stock),
+     * what is missing, and the store's on-hand and reserved-elsewhere figures.
+     * Lines of the same material are summed, as the shortage check sums them.
+     *
+     * @param  list<array<string, mixed>>  $preview  previewForWorkOrder()
+     * @param  list<array<string, mixed>>  $shortages  shortagesForWorkOrders() for this order
+     * @return list<array<string, mixed>>
+     */
+    private function materialLines(array $preview, array $shortages): array
+    {
+        $keyOf = fn (array $line) => $line['material_code'] ?? $line['material_name'] ?? '';
+        $short = collect($shortages)->keyBy($keyOf);
+
+        return collect($preview)
+            ->groupBy($keyOf)
+            ->map(function ($lines, $key) use ($short) {
+                $first = $lines->first();
+                $need = (float) $lines->sum('required_qty');
+                $missing = (float) ($short->get($key)['missing_qty'] ?? 0);
+
+                return [
+                    'material_code' => $first['material_code'],
+                    'material_name' => $first['material_name'],
+                    'unit_of_measure' => $first['unit_of_measure'],
+                    'material_exists' => $first['material_exists'],
+                    'need' => round($need, 4),
+                    'have' => round(max(0, $need - $missing), 4),
+                    'missing' => round($missing, 4),
+                    'on_hand' => $first['on_hand_qty'],
+                    'reserved' => $first['reserved_qty'],
+                    'short' => $short->has($key),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
      * Show work order queue for selected line.
      */
     public function queue(Request $request)
@@ -166,6 +205,9 @@ class WorkOrderController extends Controller
                     $updates['status'] = WorkOrder::STATUS_DONE;
                     $updates['completed_at'] = now();
                     if (isset($validated['produced_qty'])) {
+                        if (\App\Support\ProductionRules::exceedsPlan($workOrder, (float) $validated['produced_qty'])) {
+                            return back()->with('error', \App\Support\ProductionRules::exceedsPlanMessage((float) $workOrder->planned_qty - (float) $workOrder->produced_qty));
+                        }
                         $updates['produced_qty'] = $validated['produced_qty'];
                     }
                 }
@@ -350,7 +392,10 @@ class WorkOrderController extends Controller
         // was last seen - so the order shows which pieces it is made of, not only counts.
         $serialUnits = $this->serialUnitsOf($workOrder);
 
-        return Inertia::render('operator/WorkOrderDetail', compact('hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'materialLines', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+        // What a new batch may still add up to; null while overproduction is allowed.
+        $batchableQty = \App\Support\ProductionRules::batchableQty($workOrder);
+
+        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'materialLines', 'flowMode', 'selectedWorkstation', 'serialUnits'));
     }
 
     /**
@@ -563,45 +608,6 @@ class WorkOrderController extends Controller
      *
      * @return array{total: int, units: array<int, array<string, mixed>>}
      */
-    /**
-     * Every BOM line of the order against stock, for the Materials tab: what
-     * the order needs, what it has (already reserved for it plus usable stock),
-     * what is missing, and the store's on-hand and reserved-elsewhere figures.
-     * Lines of the same material are summed, as the shortage check sums them.
-     *
-     * @param  list<array<string, mixed>>  $preview  previewForWorkOrder()
-     * @param  list<array<string, mixed>>  $shortages  shortagesForWorkOrders() for this order
-     * @return list<array<string, mixed>>
-     */
-    private function materialLines(array $preview, array $shortages): array
-    {
-        $keyOf = fn (array $line) => $line['material_code'] ?? $line['material_name'] ?? '';
-        $short = collect($shortages)->keyBy($keyOf);
-
-        return collect($preview)
-            ->groupBy($keyOf)
-            ->map(function ($lines, $key) use ($short) {
-                $first = $lines->first();
-                $need = (float) $lines->sum('required_qty');
-                $missing = (float) ($short->get($key)['missing_qty'] ?? 0);
-
-                return [
-                    'material_code' => $first['material_code'],
-                    'material_name' => $first['material_name'],
-                    'unit_of_measure' => $first['unit_of_measure'],
-                    'material_exists' => $first['material_exists'],
-                    'need' => round($need, 4),
-                    'have' => round(max(0, $need - $missing), 4),
-                    'missing' => round($missing, 4),
-                    'on_hand' => $first['on_hand_qty'],
-                    'reserved' => $first['reserved_qty'],
-                    'short' => $short->has($key),
-                ];
-            })
-            ->values()
-            ->all();
-    }
-
     private function serialUnitsOf(WorkOrder $workOrder): array
     {
         $query = \App\Models\SerialUnit::where('work_order_id', $workOrder->id);

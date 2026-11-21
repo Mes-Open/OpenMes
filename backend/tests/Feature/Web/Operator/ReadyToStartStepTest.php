@@ -99,7 +99,10 @@ class ReadyToStartStepTest extends TestCase
 
     public function test_non_sequential_mode_marks_all_steps_ready(): void
     {
-        config(['openmmes.force_sequential_steps' => false]);
+        \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+            ['key' => 'force_sequential_steps'],
+            ['value' => json_encode(false)],
+        );
 
         $batch = $this->makeBatch();
 

@@ -24,11 +24,20 @@ interface WorkforceProvider
     /** Is the worker free across the whole inclusive [$start, $end] date span? */
     public function isAvailable(Worker $worker, CarbonInterface $start, CarbonInterface $end): bool;
 
-    /** Is the worker away on this single date? */
+    /**
+     * Is the worker away on this single date? A date means the shifts that
+     * start on it, not the calendar day's 24 hours — a night shift belongs to
+     * the evening it begins.
+     */
     public function isAbsentOn(Worker $worker, CarbonInterface $date): bool;
 
     /**
      * Workers away on a date — for "absent today" badges and capacity planning.
+     *
+     * A date means the shifts that start on it, not the calendar day's
+     * 24 hours: a worker returned here for Tuesday misses Tuesday's night
+     * shift (Tuesday 22:00 – Wednesday 06:00) but still works Monday's, which
+     * ends on Tuesday morning. Schedulers and the capacity grid read it so.
      *
      * @return array<int>
      */

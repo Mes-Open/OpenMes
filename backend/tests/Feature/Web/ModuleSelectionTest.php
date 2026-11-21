@@ -52,10 +52,12 @@ class ModuleSelectionTest extends TestCase
     public function test_disabled_module_route_returns_404(): void
     {
         // HR enabled → reachable.
+        $this->actingAs($this->admin)->get('/admin/workers')->assertOk();
 
         $this->disableModule('hr');
 
         // HR disabled → 404 (gone), not 403.
+        $this->actingAs($this->admin)->get('/admin/workers')->assertNotFound();
     }
 
     public function test_employee_scheduling_is_gated_by_the_hr_module(): void

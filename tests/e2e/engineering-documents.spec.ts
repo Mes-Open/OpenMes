@@ -3,6 +3,7 @@ import * as childProc from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { login as signIn } from './support/app';
 
 // E2E for Engineering CAD documents (#179) — the UI completion + operator access.
 // The panel/upload/lifecycle rules are covered by PHP feature tests and Vitest;
@@ -97,13 +98,7 @@ test.afterAll(() => {
 
 async function login(page: Page, user: string, pass: string) {
   await page.context().clearCookies();
-  await page.goto('/login');
-  await page.fill('input[name="username"]', user);
-  await page.fill('input[name="password"]', pass);
-  await Promise.all([
-    page.waitForURL((url) => !url.pathname.startsWith('/login')),
-    page.click('button[type="submit"]'),
-  ]);
+  await signIn(page, user, pass);
 }
 
 test('admin: engineering panel on the product-revision page, with a real upload', async ({ page }) => {
@@ -135,9 +130,14 @@ test('admin: engineering panel on subassembly and process-template pages', async
 test('operator: sees and can download the documents frozen onto the work order', async ({ page }) => {
   await login(page, OP, OP_PASS);
 
+  // An operator with a single line is taken straight to that line's queue;
+  // with several, they pick one first.
   await page.goto('/operator/select-line');
-  await page.locator('form', { has: page.getByText('E2E Line') })
-    .getByRole('button', { name: 'Select' }).click();
+  if (!/\/operator\/queue/.test(page.url())) {
+    await page.locator('form', { has: page.getByText('E2E Line') })
+      .getByRole('button', { name: 'Select' }).click();
+  }
+  await expect(page).toHaveURL(/\/operator\/queue/);
   await page.waitForLoadState('networkidle');
 
   await page.goto(`/operator/work-order/${ids.wo}`);

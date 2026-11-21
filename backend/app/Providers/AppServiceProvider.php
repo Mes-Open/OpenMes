@@ -161,6 +161,12 @@ class AppServiceProvider extends ServiceProvider
         // failed-login attempts are written to the audit_logs table.
         Event::subscribe(LogAuthEvent::class);
 
+        // Logging out of the operator panel marks its roster row inactive.
+        Event::listen(
+            \Illuminate\Auth\Events\Logout::class,
+            \App\Listeners\MarkOperatorPanelInactive::class,
+        );
+
         // Warehousing (#212): a concluded work order owes the warehouse a
         // material release and a product receipt. The listener creates them as
         // drafts and no-ops when the module is off or no warehouse exists.
@@ -175,6 +181,8 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\WorkOrder::observe(\App\Observers\WorkOrderWebhookObserver::class);
         \App\Models\Issue::observe(\App\Observers\IssueWebhookObserver::class);
         \App\Models\Batch::observe(\App\Observers\BatchWebhookObserver::class);
+        \App\Models\StockDocument::observe(\App\Observers\StockDocumentWebhookObserver::class);
+        \App\Models\Shipment::observe(\App\Observers\ShipmentWebhookObserver::class);
 
         // Module hook system: dispatch the domain events modules listen to.
         // Typed lifecycle events (previously defined but never fired) — these make

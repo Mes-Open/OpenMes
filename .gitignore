@@ -128,6 +128,9 @@ magika/
 
 # E2E local specs (not upstream)
 tests/e2e/car-production-buildout.spec.ts
+# Recording scripts for demos; they assume a demo instance's data and are not
+# part of the regression suite.
+tests/e2e/demo/
 
 # CLA working files — contain contributor emails (PII), keep out of the repo.
 # Ignore the specific working docs only (NOT the whole docs/cla/ dir, so the

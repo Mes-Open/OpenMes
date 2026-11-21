@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { expectPage, login as signIn } from './support/app';
 import * as childProc from 'child_process';
 import * as fs from 'fs';
 
@@ -64,15 +65,7 @@ let seeded = false;
 test.beforeAll(() => { seeded = runInContainer(SEED_PHP); });
 test.afterAll(() => { if (seeded) runInContainer(CLEAR_PHP); });
 
-async function login(page) {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', ADMIN);
-  await page.fill('input[name="password"]', PASS);
-  await Promise.all([
-    page.waitForURL((url) => !url.pathname.startsWith('/login')),
-    page.click('button[type="submit"]'),
-  ]);
-}
+const login = (page) => signIn(page, ADMIN, PASS);
 
 test('material lot can be put on quality hold and released (#107)', async ({ page, context }) => {
   test.skip(!seeded, `docker exec seed failed — requires ${BACKEND} running`);
@@ -81,7 +74,7 @@ test('material lot can be put on quality hold and released (#107)', async ({ pag
   await page.setViewportSize({ width: 1500, height: 1100 });
 
   await page.goto('/admin/material-lots');
-  await expect(page.getByRole('heading', { name: /^Material Lots$/i })).toBeVisible();
+  await expectPage(page, 'Material Lots');
 
   // Locate the seeded lot's row (live shape may take a moment to stream in).
   const row = page.locator('tr', { hasText: LOT });

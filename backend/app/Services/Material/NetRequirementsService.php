@@ -2,9 +2,14 @@
 
 namespace App\Services\Material;
 
+use App\Models\BatchStep;
 use App\Models\Material;
 use App\Models\ProcessTemplate;
+use App\Models\StockDocument;
+use App\Models\StockDocumentLine;
+use App\Models\TemplateStep;
 use App\Models\WorkOrder;
+use App\Services\Warehouse\PalletStockDocumentService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -25,12 +30,28 @@ use Illuminate\Support\Collection;
  * (IN_PROGRESS/BLOCKED) have already pulled their materials out of
  * Material.stock_quantity via the allocation engine, so counting them would
  * double-count; their needs are reflected by the lower on-hand instead. On-hand
- * (Material.stock_quantity) is therefore the single, consistent supply figure.
+ * (Material.stock_quantity) is therefore the default, single supply figure.
+ *
+ * Optionally ($includeOpenOrders) the open work orders that make a semi-finished
+ * part count as supply of its material too: what is left of the order (planned,
+ * less what it has already received into stock) and due by the end of the period.
+ * Without it, planning an order for a subassembly and one for its parent asks
+ * for the subassembly's components twice.
  */
 class NetRequirementsService
 {
     /** Statuses whose un-started demand MRP plans for. */
     public const DEMAND_STATUSES = [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED];
+
+    /** Statuses of an order that will still deliver its output. */
+    public const SUPPLY_STATUSES = [
+        WorkOrder::STATUS_PENDING,
+        WorkOrder::STATUS_ACCEPTED,
+        WorkOrder::STATUS_IN_PROGRESS,
+        WorkOrder::STATUS_BLOCKED,
+        WorkOrder::STATUS_PAUSED,
+        WorkOrder::STATUS_CHANGE_HOLD,
+    ];
 
     /** @var array<int, list<array{material_id: int, required_per_unit: float}>> */
     private array $componentCache = [];
@@ -41,21 +62,28 @@ class NetRequirementsService
      * @return array{
      *     period: array{start: string, end: string},
      *     line_id: int|null,
+     *     include_open_orders: bool,
      *     requirements: array<int, array<string, mixed>>,
      *     shortages: array<int, array<string, mixed>>,
      *     totals: array{work_orders: int, components: int, shortage_components: int, total_shortfall: float},
      * }
      */
-    public function report(Carbon $from, Carbon $to, ?int $lineId = null): array
+    public function report(Carbon $from, Carbon $to, ?int $lineId = null, bool $includeOpenOrders = false): array
     {
         $workOrders = WorkOrder::query()
             ->whereIn('status', self::DEMAND_STATUSES)
             ->whereNotNull('due_date')
             ->whereBetween('due_date', [$from, $to])
             ->when($lineId, fn ($q) => $q->where('line_id', $lineId))
-            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'line_id', 'due_date']);
+            ->with('bomTemplates:process_templates.id')
+            ->get(['id', 'order_no', 'product_type_id', 'planned_qty', 'line_id', 'due_date', 'process_snapshot']);
 
-        $templates = $this->activeTemplateByProductType($workOrders->pluck('product_type_id')->unique()->filter());
+        // Orders without a frozen BOM or a selected one fall back to the newest
+        // active template, the same rule the work order itself uses when none is picked.
+        $fallback = $this->activeTemplateByProductType(
+            $workOrders->filter(fn (WorkOrder $wo) => $this->snapshotBom($wo) === null && $wo->bomTemplates->isEmpty())
+                ->pluck('product_type_id')->unique()->filter()
+        );
 
         // Level 1 demand: the direct components of each order's product. Nothing
         // is exploded yet — a subassembly is demand in its own right first.
@@ -63,12 +91,7 @@ class NetRequirementsService
         $relatedWos = [];     // material_id => [order_no => true]
 
         foreach ($workOrders as $wo) {
-            $template = $templates->get($wo->product_type_id);
-            if (! $template) {
-                continue;
-            }
-
-            foreach ($this->directComponents($template) as $line) {
+            foreach ($this->levelOneComponents($wo, $fallback) as $line) {
                 $required = round($line['required_per_unit'] * (float) $wo->planned_qty, 4);
                 if ($required <= 0) {
                     continue;
@@ -80,8 +103,10 @@ class NetRequirementsService
         }
 
         if (empty($pending)) {
-            return $this->emptyReport($from, $to, $lineId, $workOrders->count());
+            return $this->emptyReport($from, $to, $lineId, $workOrders->count(), $includeOpenOrders);
         }
+
+        $onOrder = $includeOpenOrders ? $this->openOrderSupply($to) : [];
 
         $rows = [];        // material_id => requirement row
         $stockLeft = [];   // material_id => on-hand not yet claimed by a higher level
@@ -98,11 +123,12 @@ class NetRequirementsService
             foreach ($pending as $materialId => $grossQty) {
                 $material = $materials->get($materialId);
                 $onHand = (float) ($material?->stock_quantity ?? 0);
+                $incoming = (float) ($onOrder[$materialId] ?? 0);
 
-                // Stock is claimed once, by whichever level asks first — a
-                // material used both directly and inside a subassembly must not
-                // spend the same units twice.
-                $stockLeft[$materialId] ??= $onHand;
+                // Stock (and incoming output) is claimed once, by whichever level
+                // asks first — a material used both directly and inside a
+                // subassembly must not spend the same units twice.
+                $stockLeft[$materialId] ??= $onHand + $incoming;
                 $fromStock = min($grossQty, max(0.0, $stockLeft[$materialId]));
                 $stockLeft[$materialId] -= $fromStock;
                 $net = round($grossQty - $fromStock, 4);
@@ -114,6 +140,7 @@ class NetRequirementsService
                     'unit_of_measure' => $material?->unit_of_measure,
                     'required_qty' => 0.0,
                     'available_qty' => round($onHand, 4),
+                    'on_order_qty' => round($incoming, 4),
                     'net_qty' => 0.0,
                     'is_short' => false,
                     'is_manufactured' => (bool) ($material?->is_manufactured),
@@ -163,6 +190,7 @@ class NetRequirementsService
         return [
             'period' => ['start' => $from->toDateString(), 'end' => $to->toDateString()],
             'line_id' => $lineId,
+            'include_open_orders' => $includeOpenOrders,
             'requirements' => $requirements,
             'shortages' => $shortages,
             'totals' => [
@@ -172,6 +200,80 @@ class NetRequirementsService
                 'total_shortfall' => round(array_sum(array_column($shortages, 'net_qty')), 4),
             ],
         ];
+    }
+
+    /**
+     * The direct components of one order's product, per unit.
+     *
+     * The shop floor consumes the order's frozen BOM (`process_snapshot.bom`):
+     * the BOMs selected on it, merged when the order was created, so a template
+     * edited since does not change what the order uses. MRP reads the same
+     * lines. An order without a snapshot falls back to its selected BOMs
+     * (`work_order_boms`), summed per material as
+     * {@see \App\Services\WorkOrder\WorkOrderService::mergeBoms()} does, and
+     * one with neither to the newest active template.
+     *
+     * @param  Collection<int, ProcessTemplate>  $fallback
+     * @return list<array{material_id: int, required_per_unit: float}>
+     */
+    private function levelOneComponents(WorkOrder $wo, Collection $fallback): array
+    {
+        $frozen = $this->snapshotBom($wo);
+        if ($frozen !== null) {
+            return $frozen;
+        }
+
+        $templates = $wo->bomTemplates->isNotEmpty()
+            ? $wo->bomTemplates
+            : collect([$fallback->get($wo->product_type_id)])->filter();
+
+        $perUnit = [];
+        foreach ($templates as $template) {
+            foreach ($this->directComponents($template) as $line) {
+                $mid = $line['material_id'];
+                $perUnit[$mid] = ($perUnit[$mid] ?? 0) + $line['required_per_unit'];
+            }
+        }
+
+        return array_map(
+            fn (int $mid, float $qty) => ['material_id' => $mid, 'required_per_unit' => $qty],
+            array_keys($perUnit),
+            array_values($perUnit),
+        );
+    }
+
+    /**
+     * Material lines of the order's frozen BOM, per unit, scrap included, summed
+     * per material — or null when the order has no snapshot BOM. Snapshot
+     * quantities are already per finished unit (a per-carton or per-pallet line
+     * was divided by the packing step when it was frozen), the same figure
+     * allocation multiplies by the quantity. Product-type lines carry no
+     * material and are skipped, as consumption skips them.
+     *
+     * @return list<array{material_id: int, required_per_unit: float}>|null
+     */
+    private function snapshotBom(WorkOrder $wo): ?array
+    {
+        $bom = $wo->process_snapshot['bom'] ?? null;
+        if (! is_array($bom)) {
+            return null;
+        }
+
+        $perUnit = [];
+        foreach ($bom as $line) {
+            $mid = $line['material_id'] ?? null;
+            if ($mid === null || ($line['component_kind'] ?? 'material') === 'product_type') {
+                continue;
+            }
+            $qty = (float) ($line['quantity_per_unit'] ?? 0) * (1 + (float) ($line['scrap_percentage'] ?? 0) / 100);
+            $perUnit[(int) $mid] = round(($perUnit[(int) $mid] ?? 0) + $qty, 6);
+        }
+
+        return array_map(
+            fn (int $mid, float $qty) => ['material_id' => $mid, 'required_per_unit' => $qty],
+            array_keys($perUnit),
+            array_values($perUnit),
+        );
     }
 
     /**
@@ -228,11 +330,87 @@ class NetRequirementsService
         return $this->componentCache[$templateId] = $lines;
     }
 
-    private function emptyReport(Carbon $from, Carbon $to, ?int $lineId, int $woCount): array
+    /**
+     * Output still to come from open work orders, per material: for each order
+     * whose product type makes exactly one manufactured material, what is left of
+     * it (the larger of planned and produced, less what it has already received
+     * into stock through posted material receipts). Orders due after the period
+     * cannot cover it and are left out; an order with no due date is counted.
+     * Not filtered by line — stock is not either.
+     *
+     * @return array<int, float> material_id => quantity
+     */
+    private function openOrderSupply(Carbon $to): array
+    {
+        // product_type_id => material_id, only where the mapping is unambiguous.
+        $materialByProduct = Material::query()
+            ->where('is_manufactured', true)
+            ->whereHas('producingTemplate')
+            ->with('producingTemplate:id,product_type_id')
+            ->get(['id', 'producing_process_template_id'])
+            ->groupBy(fn (Material $m) => $m->producingTemplate->product_type_id)
+            ->filter(fn (Collection $rows) => $rows->count() === 1)
+            ->map(fn (Collection $rows) => (int) $rows->first()->id);
+
+        if ($materialByProduct->isEmpty()) {
+            return [];
+        }
+
+        $orders = WorkOrder::query()
+            ->whereIn('status', self::SUPPLY_STATUSES)
+            ->whereIn('product_type_id', $materialByProduct->keys())
+            ->where(fn ($q) => $q->whereNull('due_date')->orWhere('due_date', '<=', $to))
+            ->get(['id', 'product_type_id', 'planned_qty', 'produced_qty', 'process_snapshot']);
+
+        // An order whose pallets book its output receives it as a product, never
+        // as the material, so it is no supply of the material either — the same
+        // rule completion follows (WorkOrderStockDocumentService). An order not
+        // started yet has no batch steps, so its frozen routing decides.
+        if (PalletStockDocumentService::mode() !== PalletStockDocumentService::OFF) {
+            $packedByBatch = BatchStep::where('kind', TemplateStep::KIND_PACKING)
+                ->join('batches', 'batches.id', '=', 'batch_steps.batch_id')
+                ->whereIn('batches.work_order_id', $orders->pluck('id'))
+                ->distinct()
+                ->pluck('batches.work_order_id')
+                ->flip();
+            $orders = $orders->reject(fn (WorkOrder $order) => $packedByBatch->has($order->id)
+                || collect($order->process_snapshot['steps'] ?? [])->contains('kind', TemplateStep::KIND_PACKING));
+        }
+
+        if ($orders->isEmpty()) {
+            return [];
+        }
+
+        $received = StockDocumentLine::query()
+            ->join('stock_documents', 'stock_documents.id', '=', 'stock_document_lines.stock_document_id')
+            ->where('stock_documents.type', StockDocument::TYPE_MATERIAL_RECEIPT)
+            ->where('stock_documents.status', StockDocument::STATUS_POSTED)
+            ->whereNull('stock_documents.deleted_at')
+            ->whereIn('stock_documents.work_order_id', $orders->pluck('id'))
+            ->groupBy('stock_documents.work_order_id', 'stock_document_lines.material_id')
+            ->selectRaw('stock_documents.work_order_id as work_order_id, stock_document_lines.material_id as material_id, SUM(stock_document_lines.quantity) as qty')
+            ->get()
+            ->mapWithKeys(fn ($r) => [$r->work_order_id.':'.$r->material_id => (float) $r->qty]);
+
+        $supply = [];
+        foreach ($orders as $order) {
+            $materialId = $materialByProduct->get($order->product_type_id);
+            $expected = max((float) $order->planned_qty, (float) $order->produced_qty);
+            $left = $expected - ($received[$order->id.':'.$materialId] ?? 0);
+            if ($left > 0) {
+                $supply[$materialId] = round(($supply[$materialId] ?? 0) + $left, 4);
+            }
+        }
+
+        return $supply;
+    }
+
+    private function emptyReport(Carbon $from, Carbon $to, ?int $lineId, int $woCount, bool $includeOpenOrders): array
     {
         return [
             'period' => ['start' => $from->toDateString(), 'end' => $to->toDateString()],
             'line_id' => $lineId,
+            'include_open_orders' => $includeOpenOrders,
             'requirements' => [],
             'shortages' => [],
             'totals' => [

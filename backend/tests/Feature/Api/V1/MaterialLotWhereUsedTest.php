@@ -421,7 +421,9 @@ class MaterialLotWhereUsedTest extends TestCase
     {
         $material = Material::factory()->create();
         $target = MaterialLot::factory()->create(['lot_number' => 'L-2026-0431', 'material_id' => $material->id, 'supplier_lot_no' => 'SUP-1']);
-        MaterialLot::factory()->create(['lot_number' => 'L-2026-04310', 'material_id' => $material->id]);
+        // A fixed supplier number: the factory's random SUP-##### matches the
+        // substring filter `supplier_lot_no=SUP-1` about one run in ten.
+        MaterialLot::factory()->create(['lot_number' => 'L-2026-04310', 'material_id' => $material->id, 'supplier_lot_no' => 'OTHER-9']);
         MaterialLot::factory()->create(['lot_number' => 'L-2026-0432', 'supplier_lot_no' => 'SUP-1']);
 
         $response = $this->actingAs($this->user, 'sanctum')

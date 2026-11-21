@@ -4,6 +4,8 @@ namespace App\Services\WorkOrder;
 
 use App\Enums\ChangeEffectivePoint;
 use App\Enums\ChangeRequestStatus;
+use App\Enums\ChangeRequestType;
+use App\Models\ApiKey;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\ProductRevision;
@@ -68,12 +70,127 @@ class ChangeRequestService
             throw new \DomainException('A change request must propose at least one change.');
         }
 
-        // Two creates racing for the same sequence number: the unique index rejects
-        // the loser, and it simply takes the next one. Bounded, because a persistent
-        // failure is a real error and must not spin.
+        return $this->insertWithRetry($workOrder, $data, $proposed, [
+            'requested_by_id' => $user->id,
+        ]);
+    }
+
+    /**
+     * Raise a request on behalf of an integration (the ERP), identified by its API key.
+     *
+     * Goes straight to SUBMITTED: there is no person behind it to finish a draft, and
+     * the point is that a manager sees it and decides. A CANCEL request proposes no
+     * fields — the cancellation is the change.
+     *
+     * @param  array{title: string, reason: string, proposed?: array<string, mixed>}  $data
+     *
+     * @throws \DomainException When the order is terminal, or a CHANGE proposes nothing.
+     */
+    public function createFromIntegration(
+        WorkOrder $workOrder,
+        array $data,
+        ApiKey $apiKey,
+        ChangeRequestType $type = ChangeRequestType::Change,
+    ): WorkOrderChangeRequest {
+        if (in_array($workOrder->status, WorkOrder::TERMINAL_STATUSES, true)) {
+            throw new \DomainException('Change requests cannot be raised against a finished work order.');
+        }
+
+        $proposed = $type === ChangeRequestType::Cancellation
+            ? []
+            : $this->sanitizeProposed($data['proposed'] ?? []);
+
+        if ($type === ChangeRequestType::Change && $proposed === []) {
+            throw new \DomainException('A change request must propose at least one change.');
+        }
+
+        return $this->insertWithRetry($workOrder, $data, $proposed, [
+            'type' => $type,
+            'status' => ChangeRequestStatus::Submitted,
+            'submitted_at' => now(),
+            'requested_by_id' => null,
+            'requested_by_api_key_id' => $apiKey->id,
+        ]);
+    }
+
+    /**
+     * Replace what an open integration request proposes with the integration's latest
+     * desired state.
+     *
+     * The ERP sends the whole order every time, so its newest payload supersedes the
+     * previous one rather than adding to it. A request that was already APPROVED goes
+     * back to SUBMITTED: the manager approved different content, and that approval
+     * must not carry over to values nobody has looked at.
+     *
+     * @param  array<string, mixed>  $proposed
+     *
+     * @throws \DomainException When the request is no longer open, or nothing is proposed.
+     */
+    public function reviseFromIntegration(WorkOrderChangeRequest $changeRequest, array $proposed, ?string $reason = null): WorkOrderChangeRequest
+    {
+        return DB::transaction(function () use ($changeRequest, $proposed, $reason) {
+            $locked = WorkOrderChangeRequest::whereKey($changeRequest->getKey())->lockForUpdate()->first();
+
+            if ($locked === null || ! in_array($locked->status, [
+                ChangeRequestStatus::Draft, ChangeRequestStatus::Submitted, ChangeRequestStatus::Approved,
+            ], true)) {
+                throw new \DomainException('Only an open change request can be revised.');
+            }
+
+            $proposed = $this->sanitizeProposed($proposed);
+
+            if ($proposed === []) {
+                throw new \DomainException('A change request must propose at least one change.');
+            }
+
+            $attributes = [
+                'proposed' => $proposed,
+                'impact' => $this->analyzeImpact($this->workOrderOf($locked), $proposed),
+                'status' => ChangeRequestStatus::Submitted,
+                'submitted_at' => now(),
+                // Deliberately not a status transition: an approval of other content
+                // is void, not "rejected" — the request simply needs a fresh decision.
+                'approved_by_id' => null,
+                'approved_at' => null,
+            ];
+
+            if ($reason !== null) {
+                $attributes['reason'] = $reason;
+            }
+
+            $locked->update($attributes);
+
+            return $locked->fresh();
+        });
+    }
+
+    /**
+     * Withdraw a request on behalf of the integration that raised it — used when the
+     * ERP's desired state matches the order again, so nothing is left to decide.
+     */
+    public function withdrawFromIntegration(WorkOrderChangeRequest $changeRequest): WorkOrderChangeRequest
+    {
+        $this->assertTransition($changeRequest, ChangeRequestStatus::Cancelled);
+
+        $changeRequest->update(['status' => ChangeRequestStatus::Cancelled]);
+
+        return $changeRequest->fresh();
+    }
+
+    /**
+     * Two creates racing for the same sequence number: the unique index rejects the
+     * loser, and it simply takes the next one. Bounded, because a persistent failure
+     * is a real error and must not spin.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $proposed
+     * @param  array<string, mixed>  $requester
+     */
+    private function insertWithRetry(WorkOrder $workOrder, array $data, array $proposed, array $requester): WorkOrderChangeRequest
+    {
         for ($attempt = 1; ; $attempt++) {
             try {
-                return $this->insert($workOrder, $data, $user, $proposed);
+                return $this->insert($workOrder, $data, $proposed, $requester);
             } catch (UniqueConstraintViolationException $e) {
                 if ($attempt >= 3 || ! $this->isDuplicateCode($e)) {
                     throw $e;
@@ -85,10 +202,13 @@ class ChangeRequestService
     /**
      * @param  array<string, mixed>  $data
      * @param  array<string, mixed>  $proposed
+     * @param  array<string, mixed>  $requester  who asked (a user or an API key), plus
+     *                                           the type and status overrides an
+     *                                           integration request starts with
      */
-    private function insert(WorkOrder $workOrder, array $data, User $user, array $proposed): WorkOrderChangeRequest
+    private function insert(WorkOrder $workOrder, array $data, array $proposed, array $requester): WorkOrderChangeRequest
     {
-        return DB::transaction(function () use ($workOrder, $data, $user, $proposed) {
+        return DB::transaction(function () use ($workOrder, $data, $proposed, $requester) {
             $changeRequest = new WorkOrderChangeRequest([
                 'code' => $this->generateCode($workOrder),
                 'work_order_id' => $workOrder->id,
@@ -102,8 +222,8 @@ class ChangeRequestService
                 'effective_from_batch_id' => $data['effective_from_batch_id'] ?? null,
                 'produced_disposition' => $data['produced_disposition'] ?? null,
                 'material_disposition' => $data['material_disposition'] ?? null,
-                'requested_by_id' => $user->id,
                 'tenant_id' => $workOrder->tenant_id,
+                ...$requester,
             ]);
 
             $changeRequest->save();
@@ -218,9 +338,15 @@ class ChangeRequestService
         $this->assertTransition($changeRequest, ChangeRequestStatus::Applied);
 
         return DB::transaction(function () use ($changeRequest, $user, $data) {
+            // The order is locked before the request — the order every other writer
+            // uses (the ERP import and cancel lock the order, then revise its request).
+            // The opposite order here would deadlock against a sync of the same order.
+            // work_order_id never changes, so reading it before the lock is safe.
+            $workOrder = WorkOrder::whereKey($changeRequest->work_order_id)->lockForUpdate()->first();
+
             // Re-read the request under a row lock and check the transition again. The
             // assertion above is outside the transaction, so two concurrent applies on
-            // the same APPROVED request would both pass it; the work-order lock below
+            // the same APPROVED request would both pass it; the work-order lock above
             // only serializes them, it does not stop the second one from appending a
             // second snapshot version and regenerating the same steps again.
             $locked = WorkOrderChangeRequest::whereKey($changeRequest->getKey())->lockForUpdate()->first();
@@ -232,8 +358,6 @@ class ChangeRequestService
             $changeRequest->setRawAttributes($locked->getAttributes(), true);
             $this->assertTransition($changeRequest, ChangeRequestStatus::Applied);
 
-            $workOrder = WorkOrder::whereKey($changeRequest->work_order_id)->lockForUpdate()->first();
-
             // Null when the order was deleted while the request sat in review. Refuse
             // as a domain rule, or the refresh() below would be a fatal error the
             // controllers cannot turn into a 422.
@@ -242,6 +366,10 @@ class ChangeRequestService
             }
 
             $workOrder->refresh();
+
+            if ($changeRequest->isCancellation()) {
+                return $this->applyCancellation($changeRequest, $workOrder, $user, $data);
+            }
 
             if (! in_array($workOrder->status, self::APPLICABLE_STATUSES, true)) {
                 throw new \DomainException(
@@ -301,6 +429,50 @@ class ChangeRequestService
 
             return $changeRequest->fresh();
         });
+    }
+
+    /**
+     * Apply an approved cancellation: cancel the order through the same transition the
+     * UI's Cancel button uses, so the status rules and the audit trail are identical.
+     * No configuration version is written — nothing about the process changes.
+     *
+     * Runs inside apply()'s transaction, with the order already locked.
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws \DomainException When the order cannot be cancelled in its current status.
+     */
+    protected function applyCancellation(
+        WorkOrderChangeRequest $changeRequest,
+        WorkOrder $workOrder,
+        User $user,
+        array $data,
+    ): WorkOrderChangeRequest {
+        $previous = ['status' => $workOrder->status];
+
+        $result = WorkOrderService::applyTransition($workOrder, 'cancel');
+
+        if (! $result['ok']) {
+            throw new \DomainException($result['message']);
+        }
+
+        $changeRequest->update([
+            'status' => ChangeRequestStatus::Applied,
+            'previous_values' => $previous,
+            'implementation_notes' => $data['implementation_notes'] ?? $changeRequest->implementation_notes,
+            'applied_by_id' => $user->id,
+            'applied_at' => now(),
+        ]);
+
+        // A cancelled order has nothing left to change, so every other open request on
+        // it is dead. Cancelling them says so to whoever polls their status.
+        WorkOrderChangeRequest::where('work_order_id', $workOrder->id)
+            ->whereKeyNot($changeRequest->getKey())
+            ->open()
+            ->get()
+            ->each(fn (WorkOrderChangeRequest $sibling) => $sibling->update(['status' => ChangeRequestStatus::Cancelled]));
+
+        return $changeRequest->fresh();
     }
 
     /**

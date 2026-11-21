@@ -1,4 +1,5 @@
 import { test, expect, Page, Browser } from '@playwright/test';
+import { choose as pickFormSelect, chooseIn as pickDropdown, login as signIn } from './support/app';
 import { execSync } from 'child_process';
 
 // Full "produce a product end-to-end through the real UI" run, exercising every
@@ -52,25 +53,11 @@ function dbExec(php: string): void {
 }
 
 async function login(page: Page, user: string, pass: string) {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', user);
-  await page.fill('input[name="password"]', pass);
-  await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/login')), page.click('button[type="submit"]')]);
+  await signIn(page, user, pass);
   await page.setViewportSize({ width: 1500, height: 1100 });
 }
 
 const createBtn = (page: Page) => page.getByRole('button', { name: 'Create', exact: true });
-
-// Forms render selects as @openmes/ui Dropdowns (button[aria-haspopup=listbox]).
-async function pickFormSelect(page: Page, index: number, optionName: string | RegExp) {
-  await page.locator('form button[aria-haspopup="listbox"]').nth(index).click();
-  await page.getByRole('option', { name: optionName, exact: typeof optionName === 'string' }).click();
-}
-
-async function pickDropdown(button, optionName: string | RegExp) {
-  await button.click();
-  await button.page().getByRole('option', { name: optionName, exact: typeof optionName === 'string' }).click();
-}
 
 /** The packing station offers a handful of orders as chips and a long list as a dropdown. */
 async function pickPalletOrder(page: Page, order: RegExp, name = 'Create pallet for order') {
@@ -111,22 +98,26 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
 
   // ── 3. Active process template + one step ───────────────────────────────
   await test.step('create active process template with a step', async () => {
-    await page.goto(`/admin/product-types/${productTypeId}/process-templates/create`);
-    await page.fill('input#name', `Standard Assembly ${TS}`); // is_active defaults on
-    await page.getByRole('button', { name: 'Create Template', exact: true }).click();
+    await page.goto(`/admin/product-types/${productTypeId}/process-templates`);
+    await page.getByRole('button', { name: 'Create Template' }).first().click();
+    const create = page.getByRole('dialog', { name: 'Create Process Template' });
+    await create.getByLabel('Template Name').fill(`Standard Assembly ${TS}`); // Active is on by default
+    await create.getByRole('button', { name: 'Create Template' }).click();
     await page.waitForURL(new RegExp(`/admin/product-types/${productTypeId}/process-templates/\\d+`));
-    await page.getByRole('button', { name: 'Add Step', exact: true }).first().click();
-    await page.locator('input[placeholder*="Attach component"]').fill('Assemble headphones');
-    await page.locator('form').getByRole('button', { name: 'Add Step', exact: true }).click();
-    await expect(page.getByText('Assemble headphones')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Add First Step' }).click();
+    const step = page.getByRole('dialog', { name: 'Add New Step' });
+    await step.getByLabel('Step Name').fill('Assemble headphones');
+    await step.getByRole('button', { name: 'Add Step', exact: true }).click();
+    await expect(step).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Assemble headphones' })).toBeVisible({ timeout: 15_000 });
   });
 
   // ── 4. Work order (captures the active template's snapshot → batch steps) ─
   await test.step('create work order', async () => {
     await page.goto('/admin/work-orders/create');
     await page.fill('input[name="order_no"]', WO);
-    await pickFormSelect(page, 0, LINE);
-    await pickFormSelect(page, 1, PRODUCT);
+    await pickFormSelect(page, 'Line', LINE);
+    await pickFormSelect(page, 'Product Type', PRODUCT);
     await page.fill('input[name="planned_qty"]', '10');
     await createBtn(page).click();
     // The redirect to the index only happens on success (a 422 keeps us on
@@ -146,23 +137,26 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
   // ── 6. Register an EAN for the work order (needed for station scanning) ──
   await test.step('register work-order EAN', async () => {
     await page.goto('/packaging/eans');
-    await pickDropdown(page.locator('form button[aria-haspopup="listbox"]').first(), new RegExp(WO));
-    await page.locator('input[placeholder*="5901234123457"]').fill(EAN);
-    await page.getByRole('button', { name: /Dodaj EAN/ }).click();
+    await pickFormSelect(page, 'Production work order', new RegExp(WO));
+    await page.getByRole('textbox', { name: 'EAN code' }).fill(EAN);
+    await page.getByRole('button', { name: 'Add EAN' }).click();
     await expect(page.getByText(EAN)).toBeVisible({ timeout: 15_000 });
   });
 
   // ── 7. Create an Operator account (the operator console needs a real one) ─
   await test.step('create operator account', async () => {
-    await page.goto('/admin/users/create');
-    await page.locator('input[type="text"]').nth(0).fill(`Operator ${TS}`); // Name
-    await page.locator('input[type="text"]').nth(1).fill(OP_USER);          // Username
-    await page.locator('input[type="email"]').fill(`${OP_USER}@example.test`);
-    await page.locator('input[type="password"]').nth(0).fill(OP_PASS);
-    await page.locator('input[type="password"]').nth(1).fill(OP_PASS);
-    await pickFormSelect(page, 0, 'Operator'); // Role
-    await page.locator('form').getByRole('button', { name: /Create|Save/ }).first().click();
-    await page.waitForURL(/\/admin\/users(\?.*)?$/);
+    await page.goto('/admin/users');
+    await page.getByRole('button', { name: 'New Account' }).click();
+    const account = page.getByRole('dialog', { name: 'New Account' });
+    await account.getByLabel('Name', { exact: true }).fill(`Operator ${TS}`);
+    await account.getByLabel('Username', { exact: true }).fill(OP_USER);
+    await account.getByLabel('Email', { exact: true }).fill(`${OP_USER}@example.test`);
+    await account.getByLabel('Password', { exact: true }).fill(OP_PASS);
+    await account.getByLabel('Confirm Password', { exact: true }).fill(OP_PASS);
+    await pickFormSelect(account, 'Role', 'Operator');
+    await account.getByRole('button', { name: /^(Create|Save)/ }).click();
+    await expect(account).toBeHidden();
+    await expect(page.getByRole('row').filter({ hasText: OP_USER })).toBeVisible({ timeout: 15_000 });
   });
 
   // ── 8. Assign the operator to the line (line Show → Operators card) ──────
@@ -186,14 +180,23 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
 
   // ── 9. Operator: open WO → create batch → start the step (→ WO in prod) ─
   await test.step('operator starts a batch step', async () => {
+    // A single assigned line skips the picker and opens its queue directly.
     await op.goto('/operator/select-line');
-    await op.locator('form', { hasText: LINE }).getByRole('button', { name: /Select/ }).first().click();
+    if (!/\/operator\/queue/.test(op.url())) {
+      await op.locator('form', { hasText: LINE }).getByRole('button', { name: /Select/ }).first().click();
+    }
     await op.waitForURL(/\/operator\/queue/);
     await op.getByText(WO, { exact: false }).first().click();
     await op.waitForURL(/\/operator\/work-order\/\d+/);
+    await op.waitForLoadState('networkidle');
+    await expect(op.getByRole('heading', { name: WO, level: 1 })).toBeVisible();
 
-    await op.getByRole('button', { name: '+ Create Batch', exact: true }).click();
+    // Opens the "Create New Batch" modal (quantity defaults to the remainder);
+    // its own Create Batch button is the second one on the page.
     await op.getByRole('button', { name: 'Create Batch', exact: true }).click();
+    await expect(op.getByText('Create New Batch')).toBeVisible();
+    await op.getByRole('button', { name: 'Create Batch', exact: true }).last().click();
+    await expect(op.getByText('No batches created yet.')).toBeHidden({ timeout: 15_000 });
     await op.getByRole('button', { name: 'Start', exact: true }).first().click();
     await expect(op.getByRole('button', { name: 'Complete', exact: true }).first()).toBeVisible({ timeout: 15_000 });
   });
@@ -243,10 +246,10 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
     await expect(palletRow).toContainText('Passed');
 
     await palletRow.locator('[data-action="Edit"]').click();
-    await page.waitForURL(/\/admin\/pallets\/\d+\/edit/);
-    await pickFormSelect(page, 1, 'Shipped');
-    await page.locator('form').getByRole('button', { name: /Save|Create/ }).first().click();
-    await page.waitForURL(/\/admin\/pallets$/);
+    const edit = page.getByRole('dialog', { name: 'Edit Pallet' });
+    await pickFormSelect(edit, 'Status', 'Shipped');
+    await edit.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(edit).toBeHidden();
     await expect(page.getByText(/Cannot ship pallet/i)).toHaveCount(0);
     await expect(page.locator('tr', { hasText: palletNo })).toContainText('Shipped');
   });

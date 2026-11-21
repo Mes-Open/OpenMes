@@ -37,6 +37,7 @@ use App\Http\Controllers\Web\Admin\ScrapReportController;
 use App\Http\Controllers\Web\Admin\SubassemblyController;
 use App\Http\Controllers\Web\Admin\ToolController;
 // Gate 5 — Tracking advanced
+use App\Http\Controllers\Web\Admin\UnitAliasController;
 use App\Http\Controllers\Web\Admin\WorkOrderChangeControlController;
 use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrderController;
 // Gate 6 — Costing
@@ -45,6 +46,7 @@ use App\Http\Controllers\Web\Admin\WorkstationTypeController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\IssueManagementController;
 use App\Http\Controllers\Web\Logistics\PalletMovementController;
+use App\Http\Controllers\Web\Logistics\ShipmentLoadingController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
 use App\Http\Controllers\Web\Operator\InspectionController as OperatorInspectionController;
 use App\Http\Controllers\Web\Operator\IssueController as OperatorIssueController;
@@ -250,6 +252,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'showApiTokens'])->name('api-tokens')->middleware('role:Admin');
         Route::post('/api-tokens', [\App\Http\Controllers\Web\SettingsController::class, 'createApiToken'])->name('api-tokens.create')->middleware('role:Admin');
         Route::delete('/api-tokens/{token}', [\App\Http\Controllers\Web\SettingsController::class, 'revokeApiToken'])->name('api-tokens.revoke')->middleware('role:Admin');
+        // Admin-only ERP integration API keys, for the ERP section of the API Tokens
+        // page. Same controller and Form Request as /api/v1/api-keys, but on the
+        // session (web) guard so the page works whatever SANCTUM_STATEFUL_DOMAINS
+        // says — the same reason /api/collections lives here.
+        Route::middleware(['role:Admin', 'module:erp'])->group(function () {
+            Route::get('/api-keys', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'index'])->name('api-keys.index');
+            Route::post('/api-keys', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'store'])->name('api-keys.store');
+            Route::post('/api-keys/{apiKey}/toggle-active', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'toggleActive'])->name('api-keys.toggle-active');
+            Route::delete('/api-keys/{apiKey}', [\App\Http\Controllers\Api\V1\ApiKeyController::class, 'destroy'])->name('api-keys.destroy');
+        });
         // Admin-only role × tab access matrix
         Route::get('/access', [\App\Http\Controllers\Web\SettingsController::class, 'showAccess'])->name('access')->middleware('role:Admin');
         Route::post('/access', [\App\Http\Controllers\Web\SettingsController::class, 'updateAccess'])->name('update-access')->middleware('role:Admin');
@@ -315,6 +327,9 @@ Route::middleware('auth')->group(function () {
         // Production downtime (replaces the old Livewire DowntimeReporter).
         Route::post('/downtime/start', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'start'])->name('downtime.start');
         Route::post('/downtime/{downtime}/stop', [\App\Http\Controllers\Web\Operator\DowntimeController::class, 'stop'])->name('downtime.stop')->whereNumber('downtime');
+
+        // Operator panel presence on Admin -> Workstation devices.
+        Route::post('/heartbeat', \App\Http\Controllers\Web\Operator\OperatorPanelHeartbeatController::class)->name('heartbeat')->middleware('throttle:60,1');
 
         // Workstation production view
         Route::get('/workstation', [OperatorWorkstationController::class, 'index'])->name('workstation');
@@ -422,6 +437,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/work-orders/{workOrder}/reopen', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'reopen'])->name('work-orders.reopen');
         Route::get('/work-orders/{workOrder}/edit', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'edit'])->name('work-orders.edit');
         Route::put('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'update'])->name('work-orders.update');
+        // Change requests waiting for a decision (incl. the ERP's). Same list as the
+        // admin twin; each row opens the review page, which lives under /admin and
+        // is reachable through the `orders` tab supervisors hold.
+        Route::get('/work-order-change-requests', [WorkOrderChangeControlController::class, 'index'])
+            ->name('work-order-change-requests.index');
         // Authorized per-order by WorkOrderPolicy::delete — the Supervisor role
         // doesn't hold `delete work orders`, an Admin browsing this tree does.
         Route::delete('/work-orders/{workOrder}', [\App\Http\Controllers\Web\Supervisor\WorkOrderController::class, 'destroy'])->name('work-orders.destroy');
@@ -458,6 +478,13 @@ Route::middleware('auth')->group(function () {
             Route::post('/quality-tasks', [QualityControlTaskController::class, 'storeRoaming'])->name('quality-tasks.roaming');
             Route::post('/quality-tasks/{task}/perform', [QualityControlTaskController::class, 'perform'])->name('quality-tasks.perform');
             Route::post('/quality-tasks/{task}/skip', [QualityControlTaskController::class, 'skip'])->name('quality-tasks.skip');
+        });
+
+        // Shipments (#400) — same controller as the /admin twin, which gets its
+        // module gate from tab.access (packaging tab); this tree needs its own.
+        Route::middleware('module:packaging')->group(function () {
+            Route::resource('shipments', \App\Http\Controllers\Web\Admin\ShipmentController::class);
+            Route::post('/shipments/{shipment}/cancel', [\App\Http\Controllers\Web\Admin\ShipmentController::class, 'cancel'])->name('shipments.cancel');
         });
 
         Route::middleware('module:reports')->group(function () {
@@ -530,6 +557,7 @@ Route::middleware('auth')->group(function () {
         // Finite-capacity scheduling: what-if simulation, apply/discard, overrides.
         Route::get('/schedule/auto', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'index'])->name('schedule.auto');
         Route::post('/schedule/simulations', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'generate'])->name('schedule.simulations.store');
+        Route::get('/schedule/simulations/{simulation}/status', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'status'])->name('schedule.simulations.status');
         Route::post('/schedule/simulations/{simulation}/apply', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'apply'])->name('schedule.simulations.apply');
         Route::post('/schedule/simulations/{simulation}/discard', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'discard'])->name('schedule.simulations.discard');
         Route::put('/schedule/operations/{operation}', [\App\Http\Controllers\Web\Admin\Schedule\AutoScheduleController::class, 'override'])->name('schedule.operations.override');
@@ -537,6 +565,12 @@ Route::middleware('auth')->group(function () {
         Route::resource('schedule/changeover-rules', \App\Http\Controllers\Web\Admin\Schedule\ChangeoverRuleController::class)
             ->except(['show'])
             ->names('schedule.changeover-rules');
+        // Production Planner insights drawer (Admin + Supervisor, see PlanningInsightAcknowledgementPolicy).
+        Route::get('/schedule/insights', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'index'])->name('schedule.insights');
+        Route::post('/schedule/insights/acknowledge', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'acknowledge'])->name('schedule.insights.acknowledge');
+        Route::post('/schedule/insights/move', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'move'])->name('schedule.insights.move');
+        Route::post('/schedule/insights/substitute', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'substitute'])->name('schedule.insights.substitute');
+        Route::post('/schedule/insights/acknowledgements/{acknowledgement}/undo', [\App\Http\Controllers\Web\Admin\Schedule\PlanningInsightController::class, 'undo'])->name('schedule.insights.undo');
         Route::put('/schedule/{workOrder}', [SchedulePlannerController::class, 'updateOrder'])->name('schedule.update');
         Route::put('/schedule/{workOrder}/resize', [SchedulePlannerController::class, 'resizeOrder'])->name('schedule.resize');
         Route::post('/schedule/maintenance', [SchedulePlannerController::class, 'storeMaintenance'])->name('schedule.maintenance.store');
@@ -582,6 +616,9 @@ Route::middleware('auth')->group(function () {
             ->name('work-orders.stop');
         Route::post('/work-orders/{workOrder}/change-requests', [WorkOrderChangeControlController::class, 'storeChangeRequest'])
             ->name('work-orders.change-requests.store');
+        // The reviewer's queue — every request, including the ones an ERP raised.
+        Route::get('/work-order-change-requests', [WorkOrderChangeControlController::class, 'index'])
+            ->name('work-order-change-requests.index');
         Route::get('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'show'])
             ->name('work-order-change-requests.show');
         Route::patch('/work-order-change-requests/{changeRequest}', [WorkOrderChangeControlController::class, 'updateChangeRequest'])
@@ -740,6 +777,10 @@ Route::middleware('auth')->group(function () {
         // Pallets
         Route::resource('pallets', AdminPalletController::class)->except(['show']);
 
+        // Shipments / scan-to-load verification (#400) — packaging tab.
+        Route::resource('shipments', \App\Http\Controllers\Web\Admin\ShipmentController::class);
+        Route::post('/shipments/{shipment}/cancel', [\App\Http\Controllers\Web\Admin\ShipmentController::class, 'cancel'])->name('shipments.cancel');
+
         // Physical pallet movement history (#103) — who moved which pallet where.
         Route::get('pallet-movements', [PalletMovementController::class, 'index'])->name('pallet-movements.index');
 
@@ -773,6 +814,11 @@ Route::middleware('auth')->group(function () {
         Route::resource('integrations', IntegrationConfigController::class)->except(['show']);
 
         // Outgoing webhooks (#20)
+        // Private-network allowlist (T2a). Deliberately NOT under /webhooks/…
+        // (would collide with PUT /webhooks/{webhook}) and explicitly Admin-only:
+        // the Webhooks tab permission alone must not widen SSRF reach.
+        Route::put('/webhook-allowlist', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'updateAllowlist'])
+            ->name('webhooks.allowlist.update')->middleware('role:Admin');
         Route::resource('webhooks', \App\Http\Controllers\Web\Admin\WebhookController::class)->except(['show']);
         Route::post('/webhooks/{webhook}/toggle-active', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'toggleActive'])->name('webhooks.toggle-active');
         Route::post('/webhooks/{webhook}/test', [\App\Http\Controllers\Web\Admin\WebhookController::class, 'test'])->name('webhooks.test');
@@ -830,6 +876,7 @@ Route::middleware('auth')->group(function () {
 
         // Workstation Devices (shop-floor PCs running the OpenMES Workstation client)
         Route::get('/workstation-devices', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'index'])->name('workstation-devices.index')->middleware('role:Admin');
+        Route::patch('/workstation-devices/{workstationDevice}', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'update'])->name('workstation-devices.update')->middleware('role:Admin');
         Route::delete('/workstation-devices/{workstationDevice}', [\App\Http\Controllers\Web\Admin\WorkstationDeviceController::class, 'destroy'])->name('workstation-devices.destroy')->middleware('role:Admin');
 
         // Subassemblies
@@ -846,6 +893,11 @@ Route::middleware('auth')->group(function () {
             ->parameters(['custom-fields' => 'customField'])->except(['show']);
         Route::post('/custom-fields/{customField}/toggle-active', [CustomFieldDefinitionController::class, 'toggleActive'])->name('custom-fields.toggle-active');
         Route::get('/custom-field-files/{file}', [CustomFieldDefinitionController::class, 'downloadFile'])->name('custom-field-files.show');
+
+        // Unit aliases (Settings → Units) — ERP unit names → OpenMES units.
+        // Deliberately outside every TabRegistry prefix, which keeps it Admin-only.
+        Route::resource('unit-aliases', UnitAliasController::class)
+            ->parameters(['unit-aliases' => 'unitAlias'])->except(['show']);
 
         // Scrap Reasons
         // Personnel records. The optional workforce module adds crews, wage
@@ -991,6 +1043,18 @@ Route::middleware('auth')->group(function () {
             Route::get('/pallets', [PalletMovementController::class, 'pallets'])->name('pallets');
             Route::post('/pallets/destination', [PalletMovementController::class, 'assignDestination'])
                 ->name('pallets.destination');
+
+            // Scan-to-load verification terminal (#400). JSON writes: the page
+            // stays put and the lists update from the synced collections.
+            Route::middleware('module:packaging')->prefix('loading')->name('loading.')
+                ->controller(ShipmentLoadingController::class)
+                ->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::get('/{shipment}', 'show')->name('show');
+                    Route::post('/{shipment}/scan', 'scan')->name('scan')->middleware('throttle:240,1');
+                    Route::post('/{shipment}/items/{item}/unload', 'unload')->name('unload')->scopeBindings();
+                    Route::post('/{shipment}/confirm', 'confirm')->name('confirm');
+                });
         });
 
     // ── Packaging ───────────────────────────────────────────────────────────

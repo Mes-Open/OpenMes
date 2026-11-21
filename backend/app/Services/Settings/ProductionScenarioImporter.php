@@ -9,6 +9,7 @@ use App\Models\LotSequence;
 use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\Pallet;
+use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\ScrapReason;
 use App\Models\SerialUnit;
@@ -330,6 +331,9 @@ class ProductionScenarioImporter
             'received_at' => isset($row['received']) ? $this->parseTime((string) $row['received']) : $this->base,
             'status' => MaterialLot::STATUS_RELEASED,
             'supplier_lot_no' => $row['supplier_lot_no'] ?? null,
+            // Certificate data and anything else the plant keeps on a lot
+            // (heat number, steel grade, standard, 3.1 certificate number).
+            'extra_data' => is_array($row['extra_data'] ?? null) ? $row['extra_data'] : null,
         ]);
     }
 
@@ -355,7 +359,32 @@ class ProductionScenarioImporter
             'priority' => (int) ($e['priority'] ?? 0),
             'due_date' => isset($e['due']) ? $this->parseTime((string) $e['due'], true)->toDateString() : null,
             'description' => $e['description'] ?? null,
+            'bom_template_ids' => $this->bomTemplateIds($product, $e['bom'] ?? null),
         ]);
+    }
+
+    /**
+     * The routings (BOMs) an order is made with, named in the file by template
+     * name - one or a list. The newest version of a name wins. None named keeps
+     * the order on the product's newest active routing.
+     *
+     * @return list<int>
+     */
+    private function bomTemplateIds(ProductType $product, mixed $names): array
+    {
+        if ($names === null || $names === '' || $names === []) {
+            return [];
+        }
+
+        return array_values(array_map(function (mixed $name) use ($product) {
+            $name = (string) $name;
+
+            return ProcessTemplate::where('product_type_id', $product->id)
+                ->where('name', $name)
+                ->orderByDesc('version')
+                ->value('id')
+                ?? throw new ScenarioException(__('Unknown BOM ":name" for product ":code".', ['name' => $name, 'code' => $product->code]));
+        }, (array) $names));
     }
 
     /**

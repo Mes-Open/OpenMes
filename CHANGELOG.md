@@ -9,6 +9,562 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Workstation devices: operator panels.** *Admin → Workstation devices* now also lists
+  every browser running the operator panel. While an operator is logged in, the panel
+  reports itself every 20 seconds; the roster shows its status (**Active** / **Inactive**),
+  **who** is logged in, the IP address and the selected line. A panel that
+  is hidden, closed or logged out is shown inactive at once, and one that sends nothing for
+  over a minute is inactive too (the window for Workstation clients is now 60 s as well).
+  A **Type** column (Operator panel / Workstation client) with a filter and an
+  *Active: n / total* counter sit on top. Admins can **rename** a station (e.g. "Tablet –
+  Line 2, assembly"); the panel never overwrites that name. Panel rows not seen for
+  30 days move to the trash daily (`workstation-devices:prune-panels`,
+  `WORKSTATION_PANEL_PRUNE_DAYS`, 0 disables); Workstation client rows are never pruned.
+- **Modules can add a card to Settings.** Display hook `display.settings.index.cards`
+  (title, description, link; asked with the signed-in user) puts a module's own settings
+  page in the list on *Settings*, next to Profile and Password, so it can be found without
+  knowing its address. No module listening – no change.
+- **Modules can refuse a step start.** Filter `production.step_start_blockers` runs in
+  `BatchService::startStep()` after core's own checks, with the step and the user; a reason a
+  listener returns stops the start and is shown to the operator (422 in the API). Lets a
+  module enforce e.g. a valid welder qualification for the step. No listener – no change.
+- **Quality holds in the scheduler.** An order held back by quality — an open quality
+  control whose trigger is blocking, or an open or acknowledged issue that blocks the work
+  order — is no longer placed by *Automatic scheduling*. Its operations get the new status
+  *Infeasible — quality hold* with the control or issue named in the reason, and the next order
+  takes the freed slot; a step already running stays pinned and only later steps are held. A
+  material shortage still wins over a quality hold. A new **Quality holds** checkbox (on by
+  default, saved with each simulation as `respect_quality`) lets a planner plan as if the holds
+  were lifted. The *Production Planner* flags a held order already on the visible plan with an
+  amber **QC** marker in its shift and a new *Quality* insight (filter *Quality*) that names the
+  hold and links to *Quality tasks* or *Issues*; performing the control or resolving the issue
+  clears it, and an acknowledged insight reopens when a new hold appears.
+- **Scan-to-load verification (#400).** A shipment (one truck / load) now carries the list
+  of pallets and cartons it must take, and the dock scans every label against that list
+  before the truck leaves. Supervisors and admins plan loads under *Warehouses → Shipments*
+  (supervisors: *Logistics → Shipments*) by pasting label numbers — one per line, pallet or
+  carton detected or chosen — or uploading a CSV. Operators open the new **Loading terminal**
+  (`/logistics/loading`): one large input for a keyboard-wedge scanner answers each scan at
+  once without leaving the page — green *loaded*, amber *duplicate*, red *not on this load*,
+  *unknown code* or *blocked* (pallet still open, failed or not released by quality, held
+  units, a carton on a pallet not released by quality, already shipped, already loaded on
+  another truck — a carton and its pallet never go on two trucks). A carton riding on a
+  listed pallet is reported, not counted twice; labels scanned faster than the answers come
+  back are queued, never dropped. Every scan is written to an append-only scan log, a mistaken scan can be
+  undone (logged as *removed*), and the expected / loaded / missing list updates live on every
+  screen watching the load. Scans lock the shipment and then the unit, so a label scanned at
+  two terminals or two docks at once is loaded once. *Confirm loading* re-checks every loaded
+  unit and ships all or nothing: pallets become *shipped* (their units follow) and loose
+  cartons are stamped shipped with their units. A short load can only be confirmed by a supervisor
+  or admin, with a reason. Confirmed and cancelled shipments reject further scans.
+  REST: `/api/v1/shipments` (list, show, create with `items[]`, scan, unload, confirm). ERP:
+  `POST /api/v1/erp/shipments` (scope `erp:shipments:write`; re-sending a planned load
+  replaces it) and `GET /api/v1/erp/shipments/{shipment_no}` plus a `?since=` feed (scope
+  `erp:shipments:read`) return the load result — loaded units with counts, missing,
+  unexpected, who confirmed and when. A new webhook event, `shipment.confirmed`, sends the
+  same result. Shipments, their items and scans are soft-deleted (the load ID can be reused
+  after a delete). See [docs/shipment-loading.md](docs/shipment-loading.md).
+- **Planning insights in the Production Planner.** *Scheduler → Production Planner* (weekly
+  and daily views) now shows, in every line × shift cell, a staffing badge: people available
+  over people the planned work needs, green with people to spare, amber with exactly enough,
+  red when short, *not tracked* on a line nobody is assigned to. A person assigned to two lines
+  is counted once, exactly as automatic scheduling counts them. Work-order blocks in a short
+  shift get a red marker, and a day header shows how many people are away. A new **Insights**
+  button with the number of open insights opens a drawer on the right: how many need action,
+  how many to watch and how many were resolved today, filters *All / People / Skills / Plan*,
+  and one card per problem — a shift short of people (naming who is absent), an operator shared
+  with another line and booked there at the same time, a skill only one person on the line
+  holds (when qualifications are recorded), work on a line nobody is assigned to, and an order
+  whose staffing changed after it was planned (an operator taken off its line, a new absence).
+  Each card explains why with the numbers, lists the affected orders with their due date and
+  whether they would be late, and suggests actions ranked by their effect, the best one marked:
+  *Move order to* the first shift with enough people, *Bring in* a free operator from another
+  line (assigns them to the line after a confirmation), *Open in Automatic scheduling*,
+  *Assign operators*, *Acknowledge*. *Show on plan* outlines the cells on the board. Whatever
+  was done is listed under *Resolved today* with who did it and an **Undo** that puts the order
+  back or takes the operator off the line again — refused once the order was edited since, so
+  it never clobbers a later change. A moved order keeps its length in real shifts (shiftless
+  columns and weekends do not count). When two planners act on the same card, the second is
+  told who already handled it and nothing of theirs is applied. An acknowledged card stays
+  resolved in the weekly and the daily view alike. The drawer updates live when orders, line
+  assignments or acknowledgements change. An **Insights** tab fixed to the right edge of the
+  screen (red when something needs action, amber when only something to watch) is always in
+  reach; clicking a red or amber badge, or a card's warning marker, opens the drawer on its
+  explanation; `I` opens and closes it; and on the first visit of a session it opens by itself
+  when something needs action (*Don't open automatically* turns that off). Admins and
+  Supervisors with the Schedule tab see it; operators never do. See *Planning insights* in
+  [docs/finite-capacity-scheduling.md](docs/finite-capacity-scheduling.md).
+- **Auto-schedule staffing breakdown.** After *Simulate* on *Scheduler → Automatic
+  scheduling*, a *Staffing by shift* grid shows, per line and per day and shift, the people
+  available over the people the draft needs (e.g. *2/3*), in the same colours as the planner,
+  one week at a time; who is absent and who is busy on another line is in the cell and its
+  tooltip. A step that people pushed past the slot its machines allowed now says so:
+  *"Delayed by staffing: 12.10 06:00 → 13.10 06:00 — Needs 3 operators, 2 available (1 absent:
+  Jan Kowalski)."* — its status stays *Scheduled* / *Scheduled late*. An *Absences in this
+  horizon* list names each absent person with the work orders their absence delayed or
+  blocked. The same data is in the simulation API as `staffing` and as the
+  `delayed_by_staffing` reason.
+- **Auto-schedule explains people shortfalls.** When *Scheduler → Automatic scheduling*
+  cannot place a step for lack of people, the simulation now says how many it needs and how
+  many there were: *"Needs 3 operators, 2 available (1 absent: Jan Kowalski)."*, plus how many
+  were busy with other work and which window was checked. A qualification shortfall also names
+  the skills. The same numbers (`required`, `available`, `in_use`, `window_start`/`window_end`,
+  `absent_workers`, `required_skills`) are in the reason JSON of the finite-schedule API. A
+  new *Staffing* panel lists the operators assigned per line. A line nobody is assigned to is
+  flagged *"Staffing not tracked — scheduled on machine capacity only"*, with a link to assign
+  operators, and its steps carry a *staffing not tracked* chip. The simulation's `workforce`
+  section reports the same per line.
+- **Quantity entry per process step** (process template → step → *Quantity entry*, used by
+  the transfer flow). *Record quantities* (the default) has the operator type good and scrap
+  counts, with a small *+1* for a single piece and *All n good*. *+1 per piece* replaces the
+  fields with one large *+1* per good piece and one per scrapped piece, for a station that
+  hands pieces on one at a time. The choice is frozen into the order like the rest of the
+  routing.
+
+### Changed
+
+- **A step waiting for an earlier one says why.** On *Scheduler → Automatic scheduling*, a
+  step that cannot run because an earlier step of its order had too few people now reads
+  *"Waits for step 10, which is short of operators (needs 3, 2 available)."* instead of *"An
+  earlier step of this order could not be scheduled."*; other causes name the step too.
+- Assigning an operator to a line or taking them off it — on *Admin → Lines → Operators*
+  or through the REST API (`/api/v1/lines/{line}/users`, `/api/v1/users/{user}/lines`) —
+  now refreshes open planners live.
+- **Redesigned operator screens.** Queue and Workstation now share one shell:
+  - a top bar with the line, the shift, the view switch, connection, a Light / Dark switch
+    and the operator;
+  - a shift strip: in progress, made this shift, blocked, due today, workstations, and how far
+    through the shift the clock is.
+
+  The **Queue** lists orders grouped as Running / Blocked / Paused / Up next / Done, with
+  search and status filters. A **workstation picker** replaces the row of station buttons and
+  now appears on the Workstation view too. Stations can be searched by code or name, are grouped
+  by station type (or code family) in natural order, and each shows how many orders are waiting
+  at it. With a station picked, the list shows only that station's orders. The **Workstation** table is grouped the same way. Each row has a
+  *Log output* control: pick the shift, type the pieces, Add.
+
+  Selecting an order opens an **execution panel** beside the list, or a drawer on tablets.
+  It shows the order's figures, its process steps, and the current step's instructions,
+  media, read-confirmation and checklist, with the button that starts or completes the step.
+  Anything the panel has no form for (documents, typed outputs, quantity logs, new batches)
+  links to the order page on that step. The earlier table and card views are still available
+  from the view switch. The Report issue dialog now shows whether the chosen issue type stops
+  the order.
+
+- **Redesigned SN Label Station.** The scans sit in a panel on the left and the line's recent
+  units fill the right.
+  - **Scans:** each scan is a numbered step with a large field. The step the scanner is filling
+    is outlined and marked *Scan*; a filled step turns its number into a tick. The outcome of the
+    last scan stays in a fixed slot under the steps, and a counter shows how many scans went
+    through and how many were refused this sitting.
+  - **Recent units:** search by SN, PSN or order, status chips with counts, and the row actions
+    (label, components, block, release, scrap) as icon buttons.
+  - **Dialogs:** blocking a unit lists the error codes as choices instead of a dropdown;
+    release, scrap, re-bind and removing a component ask for the reason in a text box; a batch
+    is sized with large − / + buttons. A refusal stays in the dialog, and a done block,
+    release, scrap or removal shows as a toast.
+
+- **Redesigned Packing Station.** The packer's bench sits in a panel on the left and the
+  station's work fills the right; the header shows what was packed this shift, the plan, the
+  backlog and the completion.
+  - **Bench:** one large scan field takes a PSN or a serial number, and *Pack into* says where
+    the unit goes. A step that weighs units adds a weight field. The outcome of the last scan
+    stays in a fixed slot under the button, next to a count of packed and refused scans.
+  - **My carton and My pallet:** what is being filled, with a slot per piece from the step's
+    capacities. A pallet counts its closed cartons. Close, print, put down and resume stay on
+    the card; a pallet for an order is opened from chips, or a searchable list above six orders.
+  - **Tabs:** *Packing steps* expand to the step's packaging, per unit, carton and pallet, with
+    *Pick packaging* choosing the lots. *Open pallets* shows who is filling each one, with
+    *Take over* and *Resume*. EAN scanning has its own tab where the line uses it.
+
+- **Redesigned operator work order page.**
+  - **Header:** one row with the order, product, priority, due date (with days overdue),
+    produced / planned with what is left, and the Print label, Scrap, Report issue and
+    Create batch buttons. The page now fills the screen: the tabs and the sidebar scroll on
+    their own.
+  - **Material banner:** a shortage now reads as one line ("n of m components short · can build
+    x of y") with a link to the materials.
+  - **Tabs:** the body is split into Batches, Materials, Instructions and Serial units.
+    - Each batch shows its route as a row of steps grouped into segments, with what each
+      started step passed out of what it received. Below it is one card for the step on show:
+      the current one, or any step picked on the route. *Your station* and *All steps* lay out
+      the station's steps, or every step, as cards grouped by station.
+    - On the current step's card, the left side holds the instructions, the label and media
+      buttons, and a *Before completing* list (read confirmation, checklist, documents to
+      validate, outputs). The right side holds the step's incoming / waiting / passed / scrap
+      figures, the quantity log and *Complete step* with
+      the reason it is not ready yet.
+    - The routing graph is one click away, and the station the operator works at can be
+      cleared from the card.
+    - The Materials tab lists every BOM line against stock: need, have, missing, on hand and
+      reserved by other batches. You can filter it to the short lines and search by code. The
+      recipe table is kept below it.
+  - **Sidebar:** Issues, Scrap and Order details. On lines that record scrap per step, the
+    Scrap buttons say so instead of being hidden. Below 1280 px it moves under the order's
+    work instead of squeezing the step card.
+
+### Fixed
+
+- **"x minutes ago" and live status are no longer an hour off.** Rows that load from live
+  sync carry UTC timestamps without a time zone, and relative times read them as the
+  browser's local time. East of UTC a panel that had just reported in showed as
+  *Inactive*, "1 hour ago", until its next heartbeat. Relative times now read these
+  values as UTC and use each language's plural forms ("5 godzin temu", not "5 hours temu").
+- **An order between two batches stays in progress.** In whole-batch flow, finishing a
+  batch that left the order short of its plan put it back to `PENDING`. An order that had
+  already made parts could then be deleted or rejected through the API, could not be
+  paused, and MRP planned its whole material demand again (a 40%-done order of 100 at
+  2 per unit showed a shortage of 200). A finished batch now keeps the order
+  `IN_PROGRESS`, as the transfer flow already did. Unblocking an order whose pre-block
+  status was never recorded uses the same rule.
+- **The stale-draft warning in Automatic scheduling appears when you come back to the tab.** A change made elsewhere (an operator taken off a line in another tab) showed only after a reload or an Apply; the page now asks a cheap status endpoint when the tab regains focus or becomes visible.
+- **Only a badge an insight is about opens the drawer.** An amber "exactly enough" badge (or a shift that is over) shows its tooltip only, instead of opening the drawer on nothing.
+- **The insights drawer says why it is empty and names the range it shows**: "Nothing needs attention in this week: every shift has the people its work needs.", with "Week 07.12 – 13.12" or "Day 24.11" in its header instead of always "This week".
+- **Esc closes the insights drawer** (not while a confirm dialog is open — Esc closes the dialog first).
+- **The Planner's badges and insights follow line-operator changes live, for Admins and Supervisors.** The board watched `lines_active` for a change of `updated_at`, a column that collection does not carry, so an operator assigned or taken off a line only showed up with the drawer's minute poll — or not at all with the drawer closed. A new `lines_staffing` collection (line ids and `updated_at`, readable with the Schedule tab) carries the touch every assignment makes, and the Planner re-reads its badges and drawer on it.
+- **A draft stored before the upgrade keeps the shortfall it recorded.** Its staffing grid turned a red 3/4 into a green 3/2, because a step the people could not staff was never booked and only the booked peak was read. The grid now adds the stored shortfall, as the server does.
+- **Plural and Polish wording fixes.** "1 work order could not be fully scheduled and kept its placement.", "Kitting Cell 1 · 1 operator assigned" (the browser now has a `transChoice()` like Laravel's `trans_choice()`), Polish numbers take their Polish plural form ("2 miejsca zostają nieobsadzone", "5 miejsc zostaje nieobsadzonych"), and Polish strings no longer decline people's names ("Ściągnij: Adam Nowak").
+- **"Resolved today" is shown in the language of whoever reads it.** The title and summary are kept as a translation key with its values and worded when read; entries stored before keep their text.
+- **No insights for shifts that are over.** Their badges stay on the board, but they no longer count under *Needs action* or *To watch*.
+- **"Bring in substitute" on an insight with several places missing says "Covers 1 of N missing"**, and once the substitute is assigned the insight re-opens under *Needs action* while places stay empty, instead of staying resolved.
+- **Planning insights list each affected order once** — an order on two lines of a group was listed (and counted) twice.
+- **An overbooked group of lines sharing people is raised as the shortfall it is, even when only one of its lines ends short.** Two lines needing four people between three used to read "Shared operator holds back …" under *To watch* next to a red badge. The insight is now "<line> short of shared people on <shift>", "Need 4, 3 covered", under *Needs action*, and its explanation gives every line of the group its count. "Shared operator holds back" stays for a line short while its group as a whole has enough people.
+- **The auto-schedule grid and the Planner now agree on an order dropped onto a shift.** A drop saves the shift start to the midnight after the end date; the scheduler booked that whole stretch, so the evening shifts of the same day looked busy and short in the grid while the Planner showed them empty. Midnight is an exclusive end: the scheduler now books the cells the order was dropped on, as the Planner does.
+- **The auto-schedule staffing grid no longer shows a false shortage when lines sharing one person get their work one after another.** A step that waited for the shared person and moved to a later shift was counted as people missing in the shift it left, so a cell with one order for one person read 1/2 and an idle line 0/1. Only people a step lacks with nothing else running (an absence, too few qualified) now count against the shift it left.
+- **Employee schedule: night blocks across midnight.** An activity whose end time is earlier than its start (22:00–06:00) now ends the next day instead of being refused, and the day, team and month views show each part on the day it falls on. Adding or removing an activity shows its confirmation again, and the form validates through a Form Request.
+- **Lines that share operators no longer all show short when together they need more people than they have.** Each line used to count as if the other lines got the shared people first, so two lines needing four people between three showed three missing and raised a mirror-image warning on each line. The shortfall is now counted once, on the line actually left short, and the insight says what the lines need together and have.
+- **"Schedule applied to 1 work order."** The confirmation after applying a schedule is singular for one order.
+- **Automatic scheduling no longer shows "undefined/undefined" in the staffing grid for a draft generated before the upgrade.** A draft stored by an earlier version keeps its older staffing fields; the grid now reads them, and a cell without a count shows a dash.
+- **The staffing breakdown no longer counts a shared operator on two lines at once.** In the
+  auto-schedule *Staffing by shift* view, someone assigned to two lines showed as present on
+  both, so a shift could look covered while the other line's work held the only person. They
+  are now counted once, and the cell names who is busy where. A step that only waited within
+  its own shift (for a shared person to finish elsewhere) no longer shows that shift as short.
+- **Auto-schedule no longer books one operator on two lines at once.** An operator assigned
+  to several lines (Admin → Lines → Operators, or as a worker on another line's station) is
+  now counted as one person across those lines. Work on line B waits while the people it
+  shares with line A are busy there, and its reason says why: *"Waited for operators busy on
+  Line A."* An unplaced step names the line too: *"1 busy with other work on Line A."*
+  Capacity providers that only return counts behave as before; providers can name their
+  people through the new optional `WorkforceRosterAware` contract.
+- **Auto-schedule no longer books one multi-skilled operator on two skilled steps at once.**
+  When the only person holding both *Welding* and *Painting* is on a Welding step, a Painting
+  step on another machine now starts after it instead of alongside it. People are matched to
+  every step running at the same moment, each step to people holding its skills, so someone
+  with two skills counts once. The step's reason says why it waited: *"Waited: only 1
+  qualified operator for Painting (Jan Kowalski), busy with other work."* — with *"on CNC
+  Turning"* added when another line holds them. A step that cannot be
+  placed for lack of qualified people now names the scarcest skill and who holds it:
+  *"Painting is held only by Jan Kowalski."* The *Staffing* panel flags every required skill
+  only one person on a line holds, on the lines where a step needing it can run — *"Painting — single qualified operator: Jan Kowalski"* —
+  and the simulation's `workforce` section lists them as `single_holder_skills`. When several
+  machines of one line would finish a step at the same time, it now goes to the one only
+  people held back, so its reason shows the real cause; the order's own line still wins over
+  another line. Steps already in the plan keep holding the people with their skills when the
+  planner generates again. Providers that only return counts, or that do not
+  record skills, behave as before.
+
+- **Absences no longer block the night shift that started the evening before.** An absence
+  recorded for a date now takes the worker out of the shifts that *start* on that date, the
+  payroll convention. With a 22:00–06:00 night shift and the only operator away on Tuesday,
+  *Scheduler → Automatic scheduling* now plans an 8 h step Monday 22:00 → Tuesday 06:00,
+  instead of starting it Wednesday 00:00 in the middle of a shift and splitting it across two
+  nights. A Monday absence still blocks Monday's night shift. After a staffing conflict the
+  scheduler retries at the next shift start as well as an hour later, so back-to-back shifts
+  no longer get work started mid-shift. A draft also goes stale on an absence the day before
+  its horizon when a shift crosses midnight. The workforce contracts' docblocks now state this
+  meaning for providers outside core; the capacity grid's crew axis already counted night
+  shifts this way.
+- **Auto-schedule drafts go stale when staffing changes.** A simulation generated with
+  *Respect operator availability* now notices when, after *Generate*, an operator is assigned
+  to or removed from a line, a worker moves station, is deactivated or flagged logistics, a
+  crew's lines change, or someone on a line is reported absent on a day of the horizon. The
+  page shows *"Staffing changed since this draft was generated — generate it again."* above
+  the simulation, before *Apply* is clicked, and *Apply* refuses with the same message. Any
+  other stale reason (changed orders, shifts, maintenance) is flagged there the same way.
+- **Batches are checked on the server as well as in the Create batch dialog** (operator
+  screen and API). A batch may not plan more than the order still needs unless
+  *Settings → Production → Allow overproduction* is on. A finished short batch frees what it
+  did not make, an open batch holds its whole target and a cancelled one holds nothing. The
+  saved setting is now read; before, only the `ALLOW_OVERPRODUCTION` environment value counted.
+  Done, rejected and cancelled orders take no new batch. The dialog prefills and caps with the
+  same figure, and *Create batch* is hidden once the batches cover the order.
+- **Whole pieces for products counted in pieces.** Good, scrap, a correction or a batch
+  target of 1.5 is refused for a product measured in pcs (or `szt`, `ea`, … or no unit).
+  Products measured in kg, m, l and similar still take fractions.
+- **The *Create batch* dialog says why it refuses.** A quantity over what the order still needs,
+  or a fraction of a product counted in pieces, is explained under the field and *Create Batch*
+  stays disabled. Before, the first showed only the browser's own tooltip and the second closed
+  the dialog with an error at the top of the page.
+- **A process serial in the wrong format is refused in words.** *Start unit on PSN* now says
+  "The process serial number does not match the configured format." instead of "The psn field
+  format is invalid."
+- **Serial unit actions stay on the operator's line.** Blocking, releasing, scrapping,
+  starting, labelling and binding components are refused for a unit of another line's order,
+  even by a hand-made request. The station's unit list shows the line's own units only.
+  Admins act on any line.
+- **Edits that would strand a running order are refused** (admin, supervisor and API edit).
+  Planned below what was already produced is refused. So is moving the order to another line
+  while a batch is still open there, and changing the product (supervisor form) after
+  production has started.
+- **Packing counts every unit on the packing step, or refuses it.** A unit used to be packed
+  and marked done even when the routing's packing step could not count it, with nothing said.
+  This happened when the step was not reached yet, had nothing waiting, the order was blocked,
+  or the order had no batch. The scan is now refused with the reason. Orders without a packing
+  step pack as before.
+- **Operator screens on tablets.**
+  - The queue list fits at 768 px, with the step under the order number until there is room
+    for its own column. Before, the Open / Start buttons were cut off.
+  - The SN station's unit list keeps the serial number and the actions pinned while the
+    other columns scroll. Below 1280 px the action buttons show only their icons. Block and
+    Scrap are red as intended.
+  - The Workstation table keeps its actions pinned and shows one row of controls. The
+    four-line hint under a disabled *+1* is gone; *Record output* beside it opens the order.
+- **Routing graph on the order page** follows the step on show and its neighbours instead
+  of shrinking a long routing to unreadable size. Its zoom controls are no longer blank white
+  boxes in dark mode.
+- **Execution panel:** in the transfer flow, steps already running after the current one
+  show as running instead of greyed out like steps not reached yet.
+- `@openmes/ui` DataTable: a column can be pinned to the left or right edge with
+  `meta.sticky`.
+- **A unit scrapped after packing leaves its box's count.** The carton and pallet piece counts
+  drop by one and the carton label no longer lists it. The pallet's quality is re-read. The unit
+  keeps its carton and pallet link, so the packing list and the trace still show where it was
+  scrapped from.
+
+## [0.29.3] - 2026-11-18
+
+### Fixed
+
+- **Warehouse: consumed material no longer leaves stock twice.** When a work order
+  completed, the generated production material release listed what the shop floor had
+  consumed, and posting that release took every line off stock again. Allocation had
+  already moved the lot and the plant-wide quantity, and consumption had moved the
+  location balance, so a lot emptied by production went negative and the warehouse total
+  dropped by the order's consumption twice. Release lines for material allocated to the
+  order are now flagged `booked_at_source`: posting or cancelling such a line confirms the
+  paperwork for the warehouse and the ERP without moving stock again. Material that was
+  never allocated still leaves stock only when the release is posted. The flag is set only
+  by the release generator; the stock document form does not accept it.
+
+## [0.29.2] - 2026-11-17
+
+### Added
+
+- **ERP API: key introspection, read-only master data, multi-status export.** An ERP
+  integration (Odoo, SAP, …) can now ask `GET /api/v1/erp/me` what its key may do — name,
+  granted and missing scopes, tenant, expiry, whether the ERP and Warehouses modules are on,
+  and the app version; the key's prefix and hash are never returned. A new scope,
+  `erp:masterdata:read`, lets a key list lines (`/erp/lines`), product types
+  (`/erp/product-types`, with unit of measure and whether an active process template
+  exists) and warehouses (`/erp/warehouses`, with the ERP warehouse code; only while the
+  Warehouses module is on), cursor-paginated with `?since=` and `?active=`, so line and
+  product codes no longer have to be typed in on the ERP side.
+  `/erp/production/completions` accepts several statuses (`status[]=DONE&status[]=IN_PROGRESS`)
+  or `status=all` in one request; without `status` it still returns completed orders only.
+  *Settings → API Tokens* gains an **ERP API keys** section (while the ERP integration module
+  is on) to create a key with a name, scopes — each with a short description — and an
+  optional expiry, copy the full key once, and revoke keys. See the *ERP Integration API*
+  section of `docs/API_DOCUMENTATION.md`.
+- **Webhooks: full work-order payloads and new events.** Work-order events now carry the
+  same fields as the ERP production export (`GET /api/v1/erp/production/...`): `order_no`,
+  `customer_order_no`, `status`, quantities, `line_code`, `product_type_code`,
+  `completed_at` and `updated_at`, plus `id` and `previous_status`. The old `line_id` and
+  `product_type_id` keys stay. A receiver no longer has to call the API back to resolve
+  codes. Four new events can be ticked under *Admin → Webhooks → Edit → Subscribed events*:
+  *Work order created*, *Work order progress* (`produced_qty` changed, at most once per
+  order every 30 s, set with `WEBHOOK_PROGRESS_THROTTLE_SECONDS`), *Stock document posted*
+  (same shape as `/api/v1/erp/stock-documents`) and *Quality issue created* (same shape as
+  `/api/v1/erp/quality/issues`, for issues raised against a work order).
+- **Webhooks: timestamped signatures.** Every delivery sends `X-OpenMES-Timestamp` (unix
+  seconds). The delivery log (*Webhooks → Deliveries*) shows it in a new *Signed at* column,
+  next to the *Signature* scheme used (`v1` or *Legacy*). Each endpoint has a new **Legacy
+  signature** option; see *Changed* below. `docs/API_DOCUMENTATION.md` now has a *Webhooks*
+  section with step-by-step signature verification (with a 5-minute tolerance) and PHP,
+  Node and Python examples.
+
+- **Unit aliases and unit checks for ERP imports.** *Settings → Units of Measure* is a new
+  Admin page listing the names ERPs use for a unit and the unit OpenMES stores for each
+  (`Units`, `szt`, `Stück`, `C62` → `pcs`; `KGM` → `kg`; …), pre-filled with common
+  names and UN/ECE codes and editable per tenant. Product and material imports store
+  the OpenMES unit instead of the ERP's spelling; an unknown unit is still saved as sent,
+  and the import report lists it under a new `warnings` key. **Behaviour change:** a
+  stock or material-lot row whose unit does not match the item's unit (340 `g` for a
+  material kept in `kg`) now fails with a readable `unit_of_measure` error instead of
+  being stored with the wrong unit; quantities are never converted. Rows without a unit
+  behave as before. Each tenant gets its own copy of the defaults (new tenants on
+  creation), and deleting an alias really stops imports from using it.
+- `ResourceForm` text fields accept `maxLength`.
+- **ERP: read an order back by number, cancel it, and follow change requests.**
+  `GET /api/v1/erp/work-orders/{id}` now also takes the order number
+  (`?by=order_no`, with `/` sent as `%2F`) and returns the order's `id` and its
+  `change_requests`. The work-order import report gains `results` — one entry per row
+  with `order_no`, `id` and `action` (`created`, `updated`, `skipped`,
+  `change_requested`); the existing counters are unchanged. New
+  `POST /api/v1/erp/work-orders/{id}/cancel` (scope `erp:orders:import`, optional
+  `reason`) cancels an order that has not started at once and, for an order in
+  production, raises a cancellation request for a manager (`202`); a finished order
+  answers `409` with its status. New `GET /api/v1/erp/change-requests`
+  (scope `erp:production:read`, `since`, cursor) tells the ERP whether each request was
+  approved, rejected, applied or withdrawn, with `decided_at` and the rejection reason.
+- **Production → Change requests.** A list of every change request, open ones first,
+  filterable by status, in the admin and the supervisor menus. Requests raised by an ERP
+  show the API key as the requester (*"API key: SAP prod"*) and a *Requested via API
+  key* badge. A cancellation request reads *"This request cancels the work order."*;
+  approving and applying it cancels the order the same way the order's *Cancel* action
+  does.
+
+- **ERP work orders carry their source, customer and price currency.** The ERP import
+  (`POST /api/v1/erp/work-orders/import`) accepts `external_system`, `external_ref`,
+  `customer_name`, `price_currency` (ISO 4217, from the supported currency list) and
+  `extra_data` (an object of simple values, at most two levels and 16 KB) per order, on
+  create and on update. They come back in `GET /erp/work-orders/{id}` and
+  `production/completions`, and stock documents add `work_order_external_system` /
+  `work_order_external_ref`, so the ERP can match what production booked to its own order.
+  The admin work-order page shows them in a read-only *Source* card. Payloads without the
+  new fields behave as before.
+- **Routings from the ERP: process templates over the ERP API.** A product and its routing
+  sent from the ERP are now enough to accept the first work order — no manual work in
+  OpenMES first. The new `POST /api/v1/erp/process-templates/import` (scope
+  `erp:masterdata:write`) takes each product's operations — number, name, workstation (and
+  optionally line), setup time, run time per piece, instruction — and turns them into a
+  process template. By default it adds a new active version, exactly like *Production →
+  Product Types → Process Templates* does: earlier versions stay, orders already released
+  keep the steps they were frozen with, and the recipe moves onto the new version. Re-sending
+  an unchanged routing is reported as *skipped* instead of stacking versions; `mode:
+  replace_draft` rewrites an inactive draft instead. A routing naming an unknown product or
+  workstation fails as one row (207) and is written not at all. `POST
+  /api/v1/erp/products/import` also accepts `create_default_template: true`: a product type
+  with no template gets an active one with a single *Production* step (name configurable via
+  `default_step_name`, in the plant language by default), reported as `template_created` in
+  the new per-row `rows` list. See *ERP Integration API → Process Templates* in
+  `docs/API_DOCUMENTATION.md`.
+
+- **ERP API: settle a work order in one call.** `GET /api/v1/erp/work-orders/{id}` and
+  `GET /api/v1/erp/production/completions` accept `?include=consumption,scrap,costs`
+  (scope `erp:production:read`, API key only): actual material consumption with material
+  code, unit and picked lots; scrap with quantity, reason and production step; and costs —
+  materials, labour and additional costs with amounts and currency, the same figures as the
+  *Production Cost* report. Without `include` the response is unchanged; an unknown value is
+  a `422`. With `include`, `limit` on the completions list is capped at 100 (default 50) and
+  the sections are loaded per page, not per order. See `docs/API_DOCUMENTATION.md`.
+- **ERP integrations can register their own webhooks.** An API key with the new
+  `erp:webhooks:manage` scope can list, create, update and delete webhooks through
+  `/api/v1/erp/webhooks` (event catalog: `/api/v1/erp/webhook-event-types`). A key sees
+  only the webhooks it created itself: webhooks created by an administrator or by another
+  key return 404. The signing secret appears once, in the create response. Deactivating
+  or deleting a key deactivates its webhooks; reactivating the key leaves them off.
+  Deliveries for a key that has expired are not sent. One key can own at most 25
+  webhooks. *Settings → API Keys* has a new *ERP integration keys* section for creating
+  scoped keys (shown once), deactivating them and deleting them. *Webhooks → Endpoints*
+  shows whether each webhook came from an API key or an admin.
+- **Webhooks to receivers in the local network.** *Webhooks → Endpoints* has a new
+  *Local network receivers* card. There an administrator lists the private networks (CIDR,
+  e.g. `192.168.1.0/24`) or exact hostnames that webhooks may reach, for example an
+  on-premises Odoo or another ERP. The list is empty by default, so private addresses stay
+  blocked as before. Loopback, link-local and cloud-metadata addresses are always blocked,
+  even when the list covers them. The same rule is checked again on every delivery, and
+  each delivery is still pinned to the checked IP. Only Admins can change the list, every
+  change is written to the audit log (`webhook_network_allowlist_updated`), and the list is
+  not included in settings export or import.
+
+### Changed
+
+- **Settings look the same everywhere.** *Settings → Custom fields* uses the standard black
+  *New* button and icon buttons for Edit / Activate / Delete instead of the old blue button
+  and text links, and the field form has the same labels, inputs and buttons as every other
+  form. The example-company picker on *System → Data* uses the design's radio instead of the
+  browser's blue one, *Tab Access* has the usual back link, and the ERP key form's *Scopes*
+  label matches the other labels. Every on/off switch on *System Settings* can now be flipped
+  by clicking its name or description too, and its rows share one spacing; sub-headings use
+  one style, the *Material availability* options no longer touch, and the *Labor costing*
+  fields line up.
+
+- **Webhook receivers: the signature now covers the timestamp.** `X-OpenMES-Signature` keeps
+  its `sha256=<hex>` format but is computed as `HMAC-SHA256(secret, "{X-OpenMES-Timestamp}.{body}")`
+  instead of over the body alone. **Existing endpoints are not affected yet:** the upgrade
+  migration turns on *Legacy signature* for every webhook that already exists, so they keep
+  the body-only HMAC. Endpoints created after the upgrade (in the admin UI or through
+  `POST /api/v1/webhooks`) use the new scheme. Update your receiver to the verification in
+  `docs/API_DOCUMENTATION.md#verifying-the-signature`, then untick *Legacy signature*.
+- In work-order webhook payloads, `planned_qty` and `produced_qty` are now JSON numbers
+  (`100.0`) rather than decimal strings (`"100.00"`), as in the ERP API.
+- A webhook delivery row and its queued job are now created after the database transaction
+  that raised the event commits, so a rolled-back change no longer sends an event.
+- **ERP `update_or_create` no longer overwrites orders in production.** Until now a
+  work-order import overwrote the line, quantity, due date and description of an order
+  that was `IN_PROGRESS`, `PAUSED`, `BLOCKED` or in `CHANGE_HOLD`. It now leaves the order
+  untouched and raises a change request with only the fields that differ
+  (`action: change_requested`); a manager approves or rejects it. A later import for the
+  same order revises that request instead of opening another. A different product type,
+  priority, customer order number or unit price on a running order is a row error.
+  `REJECTED` orders are now skipped like `DONE` and `CANCELLED` ones. Orders that have not
+  started (`PENDING`, `ACCEPTED`) are updated directly as before. The CSV importer and
+  *Admin → Import* are unchanged.
+
+### Security
+
+- **Webhooks: replay protection and tenant isolation.** Because the timestamp is signed, a
+  captured delivery can no longer be replayed outside the receiver's tolerance window.
+  Webhook events are now matched on the tenant that owns the work order, issue, batch or
+  stock document (an issue without a work order belongs to the reporting user's tenant, so
+  existing `issue.created` integrations keep receiving those). Before, events raised without a logged-in user (machine counting, MQTT,
+  queue workers) could reach other tenants' endpoints. A webhook whose tenant differs from
+  the entity's (for example one created by a tenant-less super-admin) no longer receives
+  that tenant's events.
+
+### Fixed
+
+- **Work-order import picks the newest active process template.** With several active
+  versions of a product's process template, the CSV and ERP work-order imports took an
+  unspecified one; they now take the newest active version, like the rest of OpenMES.
+- **Custom fields: Number fields take decimals.** A custom field of type *Number* refused a
+  value like 12.5 in the browser ("nearest valid values are 12 and 13"), which blocked the
+  whole form from saving. The *Min* and *Max* of a Number field can now be decimals too.
+- **Custom fields: no more Site and Area entities.** *Settings → Custom fields* offered
+  *Site* and *Area* as entities, but OpenMES has no sites or areas, so fields defined for
+  them never appeared anywhere. They are no longer offered.
+- **Two-factor login works in the browser.** The code entered on the 2FA challenge was never
+  sent, so accounts with 2FA turned on could not sign in to the web app.
+- **Quick PIN is 6 digits everywhere.** Settings accepted a 4–6 digit PIN that the login form
+  (6 digits only) then refused.
+- **Settings → System: a rejected save always says so.** Saving no longer fails silently when
+  a field that is not on screen (another tab, or the hidden correction window) holds an
+  invalid value; the page shows "Settings were not saved." with the reasons. The stored
+  correction window is kept when another correction policy is chosen.
+- **Settings import restores the production targets** (max scrap rate, min first-pass yield)
+  on an installation where they were never saved.
+- **The system settings API validates every production setting.** The tracking mode,
+  correction policy and window, scanner mode, workstation routing, default pay type and rate
+  and standard weekly hours used to accept any value.
+- **Finished goods by pallet:** closing a pallet at the packing station, or when it fills up,
+  now creates its finished-goods receipt in Drafts/Posted mode.
+- **Sample data lots can be picked.** Material lots in the example companies are created as
+  released, so lot tracking can use them.
+- **Serial and process-serial patterns:** an invalid pattern is reported by the field's name,
+  and a malformed value no longer causes a server error.
+- **API Tokens lists only your own, unexpired tokens.** Other users' tokens were listed with a
+  Revoke button that failed with "Forbidden".
+- **ERP API key expiry is stored at the exact moment sent** when it carries a timezone
+  (e.g. "…Z"); it used to be off by the plant's UTC offset.
+- **Modules:** switching off Materials & tracing now also blocks Material Types, and switching
+  off Company structure blocks Workstation Devices. Switching off Warehouses no longer hides
+  Materials, Material Types, Material Lots and Pallets from the menu.
+- **Dates west of UTC:** the planner, schedule and operator screens no longer show a calendar
+  date one day early.
+- **Profile, password, PIN and API-token messages are translated.**
+- **Admin → Trash names deleted unit aliases** by their alias instead of their id.
+- Removed the *Setup Wizard* card from Settings; it only led back to the dashboard.
+
+## [0.29.0] - 2026-11-16
+
+### Added
+
+- **The API reports the plant time zone.** `GET /api/auth/me` now includes
+  `plant: { timezone, utc_offset }`, from Settings → System. API timestamps are UTC
+  instants; clients such as the MCP server need the zone to show them in plant time and to
+  tell which plant day a timestamp falls on.
+
 - **Paging and range filters for the OEE and downtime APIs.** `GET /api/v1/oee` and
   `GET /api/v1/downtimes` used to return only the newest 100 records / 50 downtimes, so an
   integration asking for a week across several lines got a silently truncated list. Both
@@ -22,6 +578,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   caller's tenant only, so another tenant's id is answered like one that does not exist.
   Malformed filters (a non-numeric `line_id`, an unparseable `date`) now return 422 on both
   endpoints instead of a server error.
+
 - **Shift handover details and history in the REST API.** Items in `recent` of
   `GET /api/v1/shift-handover` now carry the whole handover: `notes`, `discrepancies`,
   `breakdown`, `scrap_qty`, the WIP figures, `shift_end`, `line_id`, `shift_id`/`shift_name`
@@ -32,9 +589,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   handover. Both stay Supervisor/Admin only and limited to the caller's tenant.
   `discrepancies` and `breakdown` are always JSON objects, and `shift_name` is the name saved
   with the handover, so renaming a shift does not rewrite history.
+
 - **Shift handover keeps names of deleted records.** *Supervisor → Shift Handover* and the API
   now show the line, shift and confirming user of a past handover even after that line, shift
   or user has been deleted.
+
 - **Unit-level where-used for a material lot (API).** `GET /api/v1/material-lots/{id}/where-used`
   answers "which units contain this lot?" in one call: every serial unit the lot was scanned
   into as a component, and every unit that contains one of those up the component bindings
@@ -46,8 +605,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   The walk is cycle-safe and bounded (`max_depth`, `limit`, flagged when cut short);
   `include_removed` also follows parts that were taken out again. Same access as the lot
   genealogy endpoints.
+
 - **Find a material lot by its lot number (API).** `GET /api/v1/material-lots` takes
   `lot_number` (exact match on the plant's own lot number) next to the existing filters.
+
 - **Paging, search and lean listing on the work-orders API.** `GET /api/v1/work-orders`
   accepts new, optional query parameters: `page` (with `per_page`, 1–100, default 25) returns
   one page plus a `meta` block (`current_page`, `per_page`, `total`, `last_page`); `search`
@@ -72,6 +633,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   change anything. `GET /api/auth/me` now also returns `token.scope` (`full`, `read-only` or
   `machine-gateway`; `null` for a browser session) so a client can show only the actions its
   token allows. Existing tokens keep the access they have.
+
 - **Serial numbers printed ahead of the line go onto units started on their PSN.** A unit
   started on its process serial at the first station and an SN label from a batch printed
   ahead (*Issue a batch of numbers*) are now one unit when the label is scanned together with
@@ -79,13 +641,161 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   is dropped and its issue entry moves to the unit's history (with the PSN printed beside the
   number kept as superseded). A pre-issued number that already has a component, a carton or
   any processing is still refused as before.
+
 - **Packing can require a serial number and a work order.** *Settings → System → Unit
   serialisation* has two new switches, *Pack only units with a serial number* and *Pack only units on
   a work order* (both off by default). When on, the packing station refuses a unit that has
   only its process serial, or one not assigned to an order - for plants whose ERP receives
   finished units by serial number on an order.
+
 - **`traceability:import-jsonl --record-only`.** Loads historical tester logs as history
   without applying the failed-test policy, so old failed runs do not block or scrap units.
+
+- **Open the daily planner from the weekly view** (#396, thanks @AswinArun). Each day header
+  (weekday and date) on the production planner's weekly view is a button that opens the Daily
+  view for that date and keeps the current line filter.
+
+- **An issue can stop the whole line or one machine** (#398). The issue form has a new effect,
+  *Blocks the line and machine*: it opens a downtime on the line (or the chosen machine) with a
+  downtime reason and holds every active order on that line at every production gate until the
+  issue is resolved.
+
+- **Machine counters are their own tab in Settings → Access** (#398). A supervisor can be given
+  the machine counters without the connectivity configuration; the new `tab:machine_counters`
+  permission is granted to every role that already holds `tab:connectivity`.
+
+- **"Sort by" on the traceability work-orders table** (#397): newest entered (default), recent
+  activity, recently completed, planned start and due date.
+
+- **`MachineShopLifecycleSeeder`** (#397), run after `MachineShopDemoSeeder`, replays a live week
+  of orders through the application's own services — finished, running, blocked and planned
+  orders, sub-assembly chains, lots, pallets, serial history — so every demo screen has linked data.
+
+### Changed
+
+- **Upgrade notes for machine data collection** (#398). Recreate the Modbus poller
+  (`docker compose --profile connectivity up -d modbus-poller`; one `modbus:poll` now serves every
+  active connection and `MODBUS_CONNECTION_ID` is no longer used), rebuild the OPC UA gateway
+  image (`OPCUA_PASSWORD` is only a fallback now), and re-save any invalid MQTT mapping
+  condition — an unreadable condition now never matches.
+
+### Security
+
+- **Patched dependencies.** Laravel 12.72.0 and Symfony 7.4.23 (`http-client`, `http-foundation`,
+  `http-kernel`, `routing`, `yaml`) close the advisories `composer audit` reported, among them
+  trusted-proxy address spoofing, HEAD requests bypassing method rules and credential leaks in
+  scoped HTTP clients. Front end: axios 1.21.1 and follow-redirects 1.16.3; `npm audit --omit=dev`
+  is clean.
+
+- **Live-sync collections now check who is asking.** The snapshot behind every live list
+  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
+  Operator could read customer, company, worker and user records meant for the admin panel.
+  Each collection now declares who may read it: Admin and Supervisor read every collection;
+  anyone else reads only the collections behind the admin tabs they were granted in the
+  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
+  update channel uses the same rule, so an Operator granted a tab now also gets that page's
+  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
+
+- **Machine-gateway API tokens** (#395). *Settings → API Tokens* can issue a *Machine gateway
+  (OPC UA)* token that may only read its connection's settings and send machine data; it gets
+  `403` on every other route, including routes registered by modules.
+
+- The collection snapshot role check from #403 (thanks @p-w) is superseded by the per-collection
+  readers check described above.
+
+### Fixed
+
+- **Work-order search in the REST API works on PostgreSQL.** `GET /api/v1/work-orders?search=…`
+  answered every search with a 500 on PostgreSQL: the `LIKE … ESCAPE` clause used a
+  backslash, which the database driver misread as an escaped quote. The escape
+  character is now `!`; `%`, `_`, `!` and `\` in a search term still match literally.
+
+- **A non-numeric record id is "not found", not a server error.** `/admin/lines/abc`,
+  `/admin/material-lots/null` and similar links answered 500 on PostgreSQL; they now answer 404
+  without querying the database.
+
+- **Signing in returns you to the page you opened.** A link opened while signed out now leads
+  back to that page after the password or two-factor login, instead of the dashboard.
+
+- **Tables say when a search hides every row.** "Nothing matches the current search or
+  filters." replaces the "nothing here yet" text when rows exist but none match.
+
+- **Calendar dates no longer read as the previous day.** DB `date` columns (`expiry_date`,
+  `manufacturing_date`, `record_date`, `business_date`, `production_date`, `next_service_at`,
+  `value_date`, issue-action `due_date`, document `effective_from`/`effective_to`) were
+  serialized as a UTC instant, so a plant east of UTC got `2026-01-15` back as
+  `2026-01-14T23:00:00.000000Z`. Every client reading the date part, including the mobile
+  app, showed the day before. The admin tool form saved `next_service_at` one day earlier on
+  every edit, and the live update of a material lot showed a different expiry than the first
+  load. These fields now serialize as `YYYY-MM-DD` in the API, Inertia props and live-sync
+  deltas, matching the live-sync snapshot. The web `formatDate()` helper shows such a date as
+  the day it names in every plant time zone, including plants west of UTC. Timestamp columns,
+  including work-order `due_date`, are unchanged. **API clients** that parsed these fields as
+  full timestamps now receive a plain date.
+
+- **Analytics counted on the wrong dates.** `GET /api/v1/analytics/*` (also used by the
+  mobile app):
+  - `done_today_work_orders` counted every DONE order edited today, not completed today.
+  - `throughput` put each order's whole output on the last day anything about it changed.
+    It now sums the output ledger by the day the units were made, and `days=7` means the
+    last seven plant days including today (it returned eight).
+  - `production-by-line` left out orders created on `end_date`, so a one-day window was always
+    empty. Both dates are now inclusive.
+  - A non-numeric `days`, `line_id` or a malformed date answered *500*; they are now *422*. A
+    `line_id` of another tenant is treated as unknown.
+
+- **Downtime report no longer fails on non-conformances raised outside an order.** An
+  inbound-inspection issue (raised against a material, with no work order) in the chosen
+  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
+  now listed with an empty work order number.
+
+- **Machine-shop demo records match their own story.** Reported issues were filed against the
+  first order of a line, moved between orders in groups, and then pinned to whichever step was
+  running or to the middle step of the routing — so a broken turning insert sat on a grinding
+  step, an oversize ground bearing seat on a turning step, and a pinion's hardness failure on a
+  housing. Each seeded issue now names its part and routing step, lands on an order of that
+  part and on a batch step of that operation, and a blocked order stops on the step its
+  blocking issue describes. The lifecycle plan keeps an order of each part with a live
+  problem running whenever it is replayed, so the demo always has its two blocked orders
+  and its acknowledged issue — even on a Monday morning or while a part is between orders.
+  Scrap notes follow the operation instead of the station type (no
+  more "undersize after finishing pass" on centre drilling), downtime notes fit the station (no
+  spindle fault on the furnace), undated backlog orders stay in the backlog, and order
+  descriptions no longer claim a state or customer the order does not have.
+
+- **The machine-shop lifecycle seeder runs on Postgres for a full week.** It ran inside one
+  transaction, and on a weekend (a full week to replay) Postgres ran out of lock-table space
+  (`out of shared memory`) about a third of the way in, rolling the whole demo back. The
+  replay now commits order by order. It also no longer records anything after the present:
+  a finished order whose steps ran long is left in progress, and the rejected goods-in lot
+  is last Friday's delivery when the replay runs before Monday's goods-in.
+
+- **The OPC UA gateway says why it is not connected** (#395, #387). The start command on the
+  connection page includes the token, a `localhost`/`127.0.0.1` endpoint is flagged with the
+  address that works from Docker, the connectivity pages carry a setup guide, and a gateway that
+  runs but cannot reach its machine reports the error on the connection page.
+
+- **Machine data collection is reliable** (#398). OPC UA counts are accepted, queued while
+  OpenMES is down and never counted twice; Modbus and MQTT survive a lost PLC or broker without
+  stalling the other connections, reconnect with back-off and refresh their settings every 60 s;
+  MQTT processes each message once and `plant/+/#` matches; machine timestamps are stored in the
+  plant time zone; status dots show *connected* only while the collector runs; `total` counters
+  are no longer added to good output. A nightly `machine-counters:prune-readings` drops unchanged
+  readings older than 7 days.
+
+- **Table search and filters match what the cells show** (#394). Searching for a status, a
+  Yes/No or a looked-up name now finds the rows that display it, and select filters list labels
+  instead of raw codes, across 23 columns (work orders, materials, lots, issues, customers and more).
+
+- **Traceability step durations are exact to the second** (#397); sub-minute steps showed `0s`.
+
+- **The dashboard OEE overview shows the meaningful record per line** (#397): the whole-day
+  record, else the shift with an OEE value and the most output — not a shift that has not started.
+
+## [0.28.0] - 2026-11-01
+
+### Added
+
 - **View switcher for administrators.** A slim bar on top of every screen, shown to Admins
   only, switches the interface between the *Administrator*, *Supervisor* and *Operator*
   views: the menu and the screen shell redraw as that role sees them, with no second login.
@@ -96,6 +806,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   and accepts the switch for Admins only. In the operator view the operator screen lists the
   admin tabs the *Operator* role grants, and line selection shows the lines the administrator
   is assigned to.
+- **Indian Rupee (INR) as the installation currency** (#389, thanks @Jovinmathew). *Settings →
+  System → General → Currency* now offers INR alongside the other supported currencies.
 - **Plant overview header on the admin dashboard.** *Admin → Dashboard* now opens with a
   *Plant overview* header: a *Live* indicator, the plant shift running now with its hours
   and the time left (from *Settings → Shifts*, in the plant timezone), and a *+ New work
@@ -223,12 +935,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   fill in and complete an inspection; *Quality disposition* also lets them decide on the inspected
   lot. Grant them to one person on Admin → Users → Edit, or to a whole role on Settings → Access.
   Operators who hold either permission get an **Inspections** tab on the operator tablet.
-- **Quantity entry per process step** (process template → step → *Quantity entry*, used by
-  the transfer flow). *Record quantities* (the default) has the operator type good and scrap
-  counts, with a small *+1* for a single piece and *All n good*. *+1 per piece* replaces the
-  fields with one large *+1* per good piece and one per scrapped piece, for a station that
-  hands pieces on one at a time. The choice is frozen into the order like the rest of the
-  routing.
 
 ### Changed
 
@@ -243,90 +949,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - An upgrade migration uppercases the stored currency and resets a code outside the
   supported list to **PLN**; an admin can re-select it in Settings (or the code can be added
   to `CurrencyRegistry`).
-- **Redesigned operator screens.** Queue and Workstation now share one shell:
-  - a top bar with the line, the shift, the view switch, connection, a Light / Dark switch
-    and the operator;
-  - a shift strip: in progress, made this shift, blocked, due today, workstations, and how far
-    through the shift the clock is.
-
-  The **Queue** lists orders grouped as Running / Blocked / Paused / Up next / Done, with
-  search and status filters. A **workstation picker** replaces the row of station buttons and
-  now appears on the Workstation view too. Stations can be searched by code or name, are grouped
-  by station type (or code family) in natural order, and each shows how many orders are waiting
-  at it. With a station picked, the list shows only that station's orders. The **Workstation** table is grouped the same way. Each row has a
-  *Log output* control: pick the shift, type the pieces, Add.
-
-  Selecting an order opens an **execution panel** beside the list, or a drawer on tablets.
-  It shows the order's figures, its process steps, and the current step's instructions,
-  media, read-confirmation and checklist, with the button that starts or completes the step.
-  Anything the panel has no form for (documents, typed outputs, quantity logs, new batches)
-  links to the order page on that step. The earlier table and card views are still available
-  from the view switch. The Report issue dialog now shows whether the chosen issue type stops
-  the order.
-
-- **Redesigned SN Label Station.** The scans sit in a panel on the left and the line's recent
-  units fill the right.
-  - **Scans:** each scan is a numbered step with a large field. The step the scanner is filling
-    is outlined and marked *Scan*; a filled step turns its number into a tick. The outcome of the
-    last scan stays in a fixed slot under the steps, and a counter shows how many scans went
-    through and how many were refused this sitting.
-  - **Recent units:** search by SN, PSN or order, status chips with counts, and the row actions
-    (label, components, block, release, scrap) as icon buttons.
-  - **Dialogs:** blocking a unit lists the error codes as choices instead of a dropdown;
-    release, scrap, re-bind and removing a component ask for the reason in a text box; a batch
-    is sized with large − / + buttons. A refusal stays in the dialog, and a done block,
-    release, scrap or removal shows as a toast.
-
-- **Redesigned Packing Station.** The packer's bench sits in a panel on the left and the
-  station's work fills the right; the header shows what was packed this shift, the plan, the
-  backlog and the completion.
-  - **Bench:** one large scan field takes a PSN or a serial number, and *Pack into* says where
-    the unit goes. A step that weighs units adds a weight field. The outcome of the last scan
-    stays in a fixed slot under the button, next to a count of packed and refused scans.
-  - **My carton and My pallet:** what is being filled, with a slot per piece from the step's
-    capacities. A pallet counts its closed cartons. Close, print, put down and resume stay on
-    the card; a pallet for an order is opened from chips, or a searchable list above six orders.
-  - **Tabs:** *Packing steps* expand to the step's packaging, per unit, carton and pallet, with
-    *Pick packaging* choosing the lots. *Open pallets* shows who is filling each one, with
-    *Take over* and *Resume*. EAN scanning has its own tab where the line uses it.
-
-- **Redesigned operator work order page.**
-  - **Header:** one row with the order, product, priority, due date (with days overdue),
-    produced / planned with what is left, and the Print label, Scrap, Report issue and
-    Create batch buttons. The page now fills the screen: the tabs and the sidebar scroll on
-    their own.
-  - **Material banner:** a shortage now reads as one line ("n of m components short · can build
-    x of y") with a link to the materials.
-  - **Tabs:** the body is split into Batches, Materials, Instructions and Serial units.
-    - Each batch shows its route as a row of steps grouped into segments, with what each
-      started step passed out of what it received. Below it is one card for the step on show:
-      the current one, or any step picked on the route. *Your station* and *All steps* lay out
-      the station's steps, or every step, as cards grouped by station.
-    - On the current step's card, the left side holds the instructions, the label and media
-      buttons, and a *Before completing* list (read confirmation, checklist, documents to
-      validate, outputs). The right side holds the step's incoming / waiting / passed / scrap
-      figures, the quantity log and *Complete step* with
-      the reason it is not ready yet.
-    - The routing graph is one click away, and the station the operator works at can be
-      cleared from the card.
-    - The Materials tab lists every BOM line against stock: need, have, missing, on hand and
-      reserved by other batches. You can filter it to the short lines and search by code. The
-      recipe table is kept below it.
-  - **Sidebar:** Issues, Scrap and Order details. On lines that record scrap per step, the
-    Scrap buttons say so instead of being hidden. Below 1280 px it moves under the order's
-    work instead of squeezing the step card.
 
 ### Security
 
-- **Live-sync collections now check who is asking.** The snapshot behind every live list
-  (`GET /api/collections/{name}`) served any collection to any signed-in user, so an
-  Operator could read customer, company, worker and user records meant for the admin panel.
-  Each collection now declares who may read it: Admin and Supervisor read every collection;
-  anyone else reads only the collections behind the admin tabs they were granted in the
-  access matrix, plus the pallet list the shop-floor logistics terminal needs. The live
-  update channel uses the same rule, so an Operator granted a tab now also gets that page's
-  live updates. Reported by Peter Wilfahrt ([@p-w](https://github.com/p-w)), #403.
-
+- **Patched PHP dependencies** (#385, thanks @AsteaFrostweb). Composer-locked packages moved to
+  releases that resolve published security advisories: Laravel framework 12.70.2, Symfony
+  HttpFoundation, Mime and Yaml 7.4.22, League CommonMark 2.10.4, Flysystem 3.36.0,
+  PhpSpreadsheet 1.30.7 and Laravel Excel 3.1.70. `composer audit` reports no advisories.
 - **Creating and editing work orders now requires the matching permission.** On the
   admin (`/admin/work-orders`) and supervisor (`/supervisor/work-orders`) pages, the
   create form and save need `create work orders`, and the edit form and save need
@@ -355,11 +984,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
-- **Downtime report no longer fails on non-conformances raised outside an order.** An
-  inbound-inspection issue (raised against a material, with no work order) in the chosen
-  period made `GET /api/v1/reports/downtime` and its CSV export answer *500*. Such issues are
-  now listed with an empty work order number.
-
+- **The sidebar search no longer repeats the Settings row** (#390, thanks @AswinArun). Every
+  change to the search query added another *Settings* result, because the Settings group and
+  the footer link were indexed under the same key.
 - **Dashboard OEE gauges show today in the plant timezone.** The *OEE Overview* widget picked
   "today" by the UTC date, so for the first hours of the day east of UTC it showed yesterday's
   (or no) OEE.
@@ -391,55 +1018,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   *Logistics operator* now sit on their own rows instead of side by side at different heights.
   Checkbox labels everywhere stay level with the box and left-aligned when they wrap on narrow
   screens. This covers the worker and user-account forms, including the worker-profile skills.
-- **Batches are checked on the server as well as in the Create batch dialog** (operator
-  screen and API). A batch may not plan more than the order still needs unless
-  *Settings → Production → Allow overproduction* is on. A finished short batch frees what it
-  did not make, an open batch holds its whole target and a cancelled one holds nothing. The
-  saved setting is now read; before, only the `ALLOW_OVERPRODUCTION` environment value counted.
-  Done, rejected and cancelled orders take no new batch. The dialog prefills and caps with the
-  same figure, and *Create batch* is hidden once the batches cover the order.
-- **Whole pieces for products counted in pieces.** Good, scrap, a correction or a batch
-  target of 1.5 is refused for a product measured in pcs (or `szt`, `ea`, … or no unit).
-  Products measured in kg, m, l and similar still take fractions.
-- **The *Create batch* dialog says why it refuses.** A quantity over what the order still needs,
-  or a fraction of a product counted in pieces, is explained under the field and *Create Batch*
-  stays disabled. Before, the first showed only the browser's own tooltip and the second closed
-  the dialog with an error at the top of the page.
-- **A process serial in the wrong format is refused in words.** *Start unit on PSN* now says
-  "The process serial number does not match the configured format." instead of "The psn field
-  format is invalid."
-- **Serial unit actions stay on the operator's line.** Blocking, releasing, scrapping,
-  starting, labelling and binding components are refused for a unit of another line's order,
-  even by a hand-made request. The station's unit list shows the line's own units only.
-  Admins act on any line.
-- **Edits that would strand a running order are refused** (admin, supervisor and API edit).
-  Planned below what was already produced is refused. So is moving the order to another line
-  while a batch is still open there, and changing the product (supervisor form) after
-  production has started.
-- **Packing counts every unit on the packing step, or refuses it.** A unit used to be packed
-  and marked done even when the routing's packing step could not count it, with nothing said.
-  This happened when the step was not reached yet, had nothing waiting, the order was blocked,
-  or the order had no batch. The scan is now refused with the reason. Orders without a packing
-  step pack as before.
-- **Operator screens on tablets.**
-  - The queue list fits at 768 px, with the step under the order number until there is room
-    for its own column. Before, the Open / Start buttons were cut off.
-  - The SN station's unit list keeps the serial number and the actions pinned while the
-    other columns scroll. Below 1280 px the action buttons show only their icons. Block and
-    Scrap are red as intended.
-  - The Workstation table keeps its actions pinned and shows one row of controls. The
-    four-line hint under a disabled *+1* is gone; *Record output* beside it opens the order.
-- **Routing graph on the order page** follows the step on show and its neighbours instead
-  of shrinking a long routing to unreadable size. Its zoom controls are no longer blank white
-  boxes in dark mode.
-- **Execution panel:** in the transfer flow, steps already running after the current one
-  show as running instead of greyed out like steps not reached yet.
-- `@openmes/ui` DataTable: a column can be pinned to the left or right edge with
-  `meta.sticky`.
-- **A unit scrapped after packing leaves its box's count.** The carton and pallet piece counts
-  drop by one and the carton label no longer lists it. The pallet's quality is re-read. The unit
-  keeps its carton and pallet link, so the packing list and the trace still show where it was
-  scrapped from.
 
 ## [0.27.1] - 2026-10-30
 

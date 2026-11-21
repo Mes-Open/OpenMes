@@ -286,22 +286,11 @@ class LineManagementController extends Controller
 
         $user = \App\Models\User::findOrFail($validated['user_id']);
 
-        // Check if user is an operator
-        if (! $user->hasRole('Operator')) {
-            return redirect()->route('admin.lines.show', $line)
-                ->with('error', 'Only operators can be assigned to production lines.');
+        try {
+            app(\App\Services\Line\LineOperatorAssignment::class)->assign($line, $user);
+        } catch (\DomainException $e) {
+            return redirect()->route('admin.lines.show', $line)->with('error', $e->getMessage());
         }
-
-        // Check if already assigned
-        if ($line->users()->where('user_id', $user->id)->exists()) {
-            return redirect()->route('admin.lines.show', $line)
-                ->with('error', 'Operator is already assigned to this line.');
-        }
-
-        $line->users()->attach($user->id);
-
-        // Module hook: a user was assigned to a production line.
-        \App\Events\User\UserAssignedToLine::dispatch($user, $line);
 
         return redirect()->route('admin.lines.show', $line)
             ->with('success', __('Operator :name assigned successfully.', ['name' => $user->name]));
@@ -329,7 +318,7 @@ class LineManagementController extends Controller
     {
         $user = \App\Models\User::findOrFail($userId);
 
-        $line->users()->detach($user->id);
+        app(\App\Services\Line\LineOperatorAssignment::class)->unassign($line, $user);
 
         return redirect()->route('admin.lines.show', $line)
             ->with('success', __('Operator :name unassigned successfully.', ['name' => $user->name]));

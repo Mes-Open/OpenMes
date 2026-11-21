@@ -28,7 +28,7 @@ function NavBtn({ children, onClick, title }) {
     );
 }
 
-export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, onPrev, onNext, onToday, rangeLabel, onMaintenance }) {
+export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, onPrev, onNext, onToday, rangeLabel, onMaintenance, insights = null }) {
     const { data } = ctx;
     // Employee scheduling lives under the (core) Schedule area but is gated by
     // the HR module — hide the shortcut when HR is off, mirroring the nav.
@@ -59,6 +59,16 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
             <Link href="/admin/schedule/auto" className="inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold hover:bg-om-chip">
                 <Icon name="calendar-cog" size={14} />{__('Automatic scheduling')}
             </Link>
+            {insights && (
+                <button type="button" onClick={insights.onToggle} aria-expanded={insights.open} aria-controls="planning-insights" data-testid="insights-button" title={__('Planning insights — press I to open or close')}
+                    className="inline-flex items-center gap-2 rounded-om-sm border px-3 py-2 text-xs font-semibold hover:bg-om-chip"
+                    style={{ borderColor: insights.open ? 'var(--om-accent)' : 'var(--om-line)', background: insights.open ? 'var(--om-accent-bg)' : 'transparent' }}>
+                    <Icon name="bell" size={14} />{__('Insights')}
+                    {insights.count > 0 && (
+                        <span data-testid="insights-count" style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: '#fff', background: insights.bad > 0 ? 'var(--om-blocked)' : 'var(--om-downtime)', borderRadius: 999, padding: '0 6px' }}>{insights.count}</span>
+                    )}
+                </button>
+            )}
             {hrEnabled && (
                 <Link href={`/admin/schedule/employees?date=${data.range.startDate}`} className="inline-flex items-center gap-2 rounded-om-sm border border-om-line px-3 py-2 text-xs font-semibold hover:bg-om-chip">
                     <Icon name="users" size={14} />{__('Employees')}
@@ -70,6 +80,15 @@ export function Toolbar({ ctx, view, setView, lineFilter, setLineFilter, live, o
                         <span style={{ width: 9, height: 9, borderRadius: 3, background: clr }} />{__(label)}
                     </span>
                 ))}
+                {ctx.staffing && (
+                    <span className="flex flex-wrap items-center gap-2" data-testid="staff-legend" style={{ fontFamily: MONO, fontSize: 9.5, color: 'var(--om-muted)' }}>
+                        <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>{__('People')}:</span>
+                        {[['var(--om-running)', __('to spare')], ['var(--om-downtime)', __('exactly enough')], ['var(--om-blocked)', __('short')], ['var(--om-faint)', __('not tracked')]].map(([c, l]) => (
+                            <span key={l} className="inline-flex items-center gap-1"><span style={{ width: 8, height: 8, borderRadius: 999, background: c }} />{l}</span>
+                        ))}
+                        <span title={__('Badge = people available / people the planned work needs')}>{__('badge = available / needed')}</span>
+                    </span>
+                )}
                 <span className="flex items-center gap-1.5 px-2.5 py-1.5" style={{ background: 'var(--om-card)', border: '1px solid var(--om-line)', borderRadius: 9 }}>
                     <span style={{ width: 8, height: 8, borderRadius: 999, background: live ? 'var(--om-running)' : 'var(--om-faint)', animation: live ? 'om-pulse 1.8s infinite' : 'none' }} />
                     <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.06em', color: 'var(--om-muted)' }}>{live ? __('LIVE') : __('OFF')}</span>
@@ -145,7 +164,7 @@ function ChangesPanel({ ctx }) {
                             )}
                             <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 600, color: 'var(--om-ink)' }}>{c.order_no}</span>
                             <span className="ml-auto" style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-faint)' }}>
-                                {formatDate(new Date(c.created_at), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                {formatDate(c.created_at, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-om-muted mt-2">{changeSummary(c, ctx.data.allLines)}</div>

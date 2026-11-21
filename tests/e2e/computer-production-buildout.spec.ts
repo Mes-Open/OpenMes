@@ -1,5 +1,6 @@
 import { test, expect, Page, Browser } from '@playwright/test';
 import { execSync } from 'child_process';
+import { choose as pickFormSelect, chooseIn as pickDropdown, expectPage, login as signIn } from './support/app';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HUGE manual buildout: stand up a brand-new "Desktop PC" production
@@ -41,23 +42,12 @@ function tinker(php: string): string {
 }
 
 async function login(page: Page, user: string, pass: string) {
-  await page.goto('/login');
-  await page.fill('input[name="username"]', user);
-  await page.fill('input[name="password"]', pass);
-  await Promise.all([page.waitForURL((u) => !u.pathname.startsWith('/login')), page.click('button[type="submit"]')]);
+  await signIn(page, user, pass);
   await page.setViewportSize({ width: 1500, height: 1100 });
 }
 
 const createBtn = (page: Page) => page.getByRole('button', { name: 'Create', exact: true });
 
-async function pickFormSelect(page: Page, index: number, optionName: string | RegExp) {
-  await page.locator('form button[aria-haspopup="listbox"]').nth(index).click();
-  await page.getByRole('option', { name: optionName, exact: typeof optionName === 'string' }).click();
-}
-async function pickDropdown(button, optionName: string | RegExp) {
-  await button.click();
-  await button.page().getByRole('option', { name: optionName, exact: typeof optionName === 'string' }).click();
-}
 
 /** The packing station offers a handful of orders as chips and a long list as a dropdown. */
 async function pickPalletOrder(page: Page, order: RegExp, name = 'Create pallet for order') {
@@ -97,14 +87,18 @@ test('build a Desktop PC production configuration from zero and run it', async (
 
   // ── 3. Process template + assembly step ─────────────────────────────────
   await test.step('create active process template with a step', async () => {
-    await page.goto(`/admin/product-types/${productTypeId}/process-templates/create`);
-    await page.fill('input#name', `PC Assembly Process ${TS}`);
-    await page.getByRole('button', { name: 'Create Template', exact: true }).click();
+    await page.goto(`/admin/product-types/${productTypeId}/process-templates`);
+    await page.getByRole('button', { name: 'Create Template' }).first().click();
+    const create = page.getByRole('dialog', { name: 'Create Process Template' });
+    await create.getByLabel('Template Name').fill(`PC Assembly Process ${TS}`); // Active is on by default
+    await create.getByRole('button', { name: 'Create Template' }).click();
     await page.waitForURL(new RegExp(`/admin/product-types/${productTypeId}/process-templates/\\d+`));
-    await page.getByRole('button', { name: 'Add Step', exact: true }).first().click();
-    await page.locator('input[placeholder*="Attach component"]').fill('Assemble & test PC');
-    await page.locator('form').getByRole('button', { name: 'Add Step', exact: true }).click();
-    await expect(page.getByText('Assemble & test PC')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Add First Step' }).click();
+    const step = page.getByRole('dialog', { name: 'Add New Step' });
+    await step.getByLabel('Step Name').fill('Assemble & test PC');
+    await step.getByRole('button', { name: 'Add Step', exact: true }).click();
+    await expect(step).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Assemble & test PC' })).toBeVisible({ timeout: 15_000 });
   });
   const templateId = tinker(`echo App\\\\Models\\\\ProcessTemplate::where('product_type_id',${productTypeId})->where('is_active',true)->orderByDesc('version')->value('id');`);
 
@@ -126,8 +120,8 @@ test('build a Desktop PC production configuration from zero and run it', async (
   await test.step('create planned work order', async () => {
     await page.goto('/admin/work-orders/create');
     await page.fill('input[name="order_no"]', WO);
-    await pickFormSelect(page, 0, LINE);
-    await pickFormSelect(page, 1, PRODUCT);
+    await pickFormSelect(page, 'Line', LINE);
+    await pickFormSelect(page, 'Product Type', PRODUCT);
     await page.fill('input[name="planned_qty"]', '100');
     await createBtn(page).click();
     await page.waitForURL(/\/admin\/work-orders$/);
@@ -138,9 +132,9 @@ test('build a Desktop PC production configuration from zero and run it', async (
   // ── 5. EAN + QC trigger ─────────────────────────────────────────────────
   await test.step('register EAN', async () => {
     await page.goto('/packaging/eans');
-    await pickDropdown(page.locator('form button[aria-haspopup="listbox"]').first(), new RegExp(WO));
-    await page.locator('input[placeholder*="5901234123457"]').fill(EAN);
-    await page.getByRole('button', { name: /Dodaj EAN/ }).click();
+    await pickFormSelect(page, 'Production work order', new RegExp(WO));
+    await page.getByRole('textbox', { name: 'EAN code' }).fill(EAN);
+    await page.getByRole('button', { name: 'Add EAN' }).click();
     await expect(page.getByText(EAN)).toBeVisible({ timeout: 15_000 });
   });
   await test.step('create in-production QC trigger', async () => {
@@ -153,7 +147,7 @@ test('build a Desktop PC production configuration from zero and run it', async (
   // ── 6. MRP: the net-requirements report shows the PC component shortages ─
   await test.step('MRP net requirements shows component shortages', async () => {
     await page.goto('/admin/net-requirements');
-    await expect(page.getByRole('heading', { name: 'Net requirements', exact: true })).toBeVisible({ timeout: 15_000 });
+    await expectPage(page, 'Net requirements');
     // RAM: 2/unit × 100 = 200 required, stock 4 → short. MB: 1×100=100, stock 3 → short.
     const ramRow = page.locator('tr', { hasText: `RAM-${TS}` }).first();
     await expect(ramRow).toBeVisible({ timeout: 15_000 });
@@ -162,15 +156,17 @@ test('build a Desktop PC production configuration from zero and run it', async (
 
   // ── 7. Operator account + line assignment ───────────────────────────────
   await test.step('create operator + assign to line', async () => {
-    await page.goto('/admin/users/create');
-    await page.locator('input[type="text"]').nth(0).fill(`PC Operator ${TS}`);
-    await page.locator('input[type="text"]').nth(1).fill(OP_USER);
-    await page.locator('input[type="email"]').fill(`${OP_USER}@example.test`);
-    await page.locator('input[type="password"]').nth(0).fill(OP_PASS);
-    await page.locator('input[type="password"]').nth(1).fill(OP_PASS);
-    await pickFormSelect(page, 0, 'Operator');
-    await page.locator('form').getByRole('button', { name: /Create|Save/ }).first().click();
-    await page.waitForURL(/\/admin\/users(\?.*)?$/);
+    await page.goto('/admin/users');
+    await page.getByRole('button', { name: 'New Account' }).click();
+    const account = page.getByRole('dialog', { name: 'New Account' });
+    await account.getByLabel('Name', { exact: true }).fill(`PC Operator ${TS}`);
+    await account.getByLabel('Username', { exact: true }).fill(OP_USER);
+    await account.getByLabel('Email', { exact: true }).fill(`${OP_USER}@example.test`);
+    await account.getByLabel('Password', { exact: true }).fill(OP_PASS);
+    await account.getByLabel('Confirm Password', { exact: true }).fill(OP_PASS);
+    await pickFormSelect(account, 'Role', 'Operator');
+    await account.getByRole('button', { name: /^(Create|Save)/ }).click();
+    await expect(account).toBeHidden();
 
     await page.goto(`/admin/lines/${lineId}`);
     const opForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Assign', exact: true }) });
@@ -188,22 +184,34 @@ test('build a Desktop PC production configuration from zero and run it', async (
   await test.step('operator sets machine state to maintenance then running (#87)', async () => {
     await op.goto(`/operator/workstation?line=${lineId}`);
     // The machine-state panel lists the line's workstation with a <select>.
-    const select = op.locator(`select[aria-label="Set state for PC Bench ${TS}"]`);
-    await expect(select).toBeVisible({ timeout: 15_000 });
-    await select.selectOption('MAINTENANCE');
-    await op.waitForTimeout(800);
-    await select.selectOption('RUNNING');
-    await op.waitForTimeout(800);
+    // The state panel offers one Select per workstation; a stop asks for an
+    // optional note before it is recorded.
+    const state = op.getByRole('combobox', { name: new RegExp(`state: PC Bench ${TS}$`) });
+    await expect(state).toBeVisible({ timeout: 15_000 });
+    await pickDropdown(state, 'Maintenance');
+    const note = op.getByRole('dialog', { name: new RegExp(`PC Bench ${TS}`) });
+    await note.getByRole('textbox').fill('Planned cleaning before the run');
+    await note.getByRole('button', { name: 'Confirm' }).click();
+    await expect(note).toBeHidden();
+    await expect(state).toContainText('Maintenance', { timeout: 15_000 });
+    await pickDropdown(state, 'Running');
+    await expect(state).toContainText('Running', { timeout: 15_000 });
   });
 
   await test.step('operator starts a batch step', async () => {
+    // A single assigned line skips the picker and opens its queue directly.
     await op.goto('/operator/select-line');
-    await op.locator('form', { hasText: LINE }).getByRole('button', { name: /Select/ }).first().click();
+    if (!/\/operator\/queue/.test(op.url())) {
+      await op.locator('form', { hasText: LINE }).getByRole('button', { name: /Select/ }).first().click();
+    }
     await op.waitForURL(/\/operator\/queue/);
     await op.getByText(WO, { exact: false }).first().click();
     await op.waitForURL(/\/operator\/work-order\/\d+/);
-    await op.getByRole('button', { name: '+ Create Batch', exact: true }).click();
+    // Opens the "Create New Batch" modal; its own Create Batch button is the second one.
     await op.getByRole('button', { name: 'Create Batch', exact: true }).click();
+    await expect(op.getByText('Create New Batch')).toBeVisible();
+    await op.getByRole('button', { name: 'Create Batch', exact: true }).last().click();
+    await expect(op.getByText('No batches created yet.')).toBeHidden({ timeout: 15_000 });
     await op.getByRole('button', { name: 'Start', exact: true }).first().click();
     await expect(op.getByRole('button', { name: 'Complete', exact: true }).first()).toBeVisible({ timeout: 15_000 });
   });
@@ -247,12 +255,11 @@ test('build a Desktop PC production configuration from zero and run it', async (
     await expect(palletRow).toBeVisible({ timeout: 15_000 });
     await expect(palletRow).toContainText('Passed');
     await palletRow.locator('[data-action="Edit"]').click();
-    await page.waitForURL(/\/admin\/pallets\/\d+\/edit/);
+    const edit = page.getByRole('dialog', { name: 'Edit Pallet' });
     // Status is the last dropdown on the pallet form (work order → [batch] → status).
-    await page.locator('form button[aria-haspopup="listbox"]').last().click();
-    await page.getByRole('option', { name: 'Shipped', exact: true }).click();
-    await page.locator('form').getByRole('button', { name: /Save|Create/ }).first().click();
-    await page.waitForURL(/\/admin\/pallets$/);
+    await pickFormSelect(edit, 'Status', 'Shipped');
+    await edit.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(edit).toBeHidden();
     await expect(page.getByText(/Cannot ship pallet/i)).toHaveCount(0);
     await expect(page.locator('tr', { hasText: palletNo })).toContainText('Shipped');
   });

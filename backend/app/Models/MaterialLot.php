@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\CalendarDate;
 use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Builder;
@@ -76,8 +77,8 @@ class MaterialLot extends Model
     {
         return [
             'received_at' => 'datetime',
-            'manufacturing_date' => 'date',
-            'expiry_date' => 'date',
+            'manufacturing_date' => CalendarDate::class,
+            'expiry_date' => CalendarDate::class,
             'quantity_received' => 'decimal:4',
             'quantity_available' => 'decimal:4',
             'extra_data' => 'array',

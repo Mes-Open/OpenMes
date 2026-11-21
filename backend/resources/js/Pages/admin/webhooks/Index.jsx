@@ -3,10 +3,11 @@ import AppLayout from '../../../layouts/AppLayout';
 import ResourceTable, { ActiveBadge } from '../../../components/ResourceTable';
 import ResourceFormDrawer, { useResourceDrawer } from '../../../components/ResourceFormDrawer';
 import { webhookFields, webhookInitial } from './fields';
+import NetworkAllowlistCard from './NetworkAllowlistCard';
 import { __ } from '../../../lib/i18n';
 
 export default function WebhooksIndex() {
-    const { events = [], generatedSecret } = usePage().props;
+    const { events = [], generatedSecret, allowlist = [], canEditAllowlist = false } = usePage().props;
 
     const drawer = useResourceDrawer();
 
@@ -20,6 +21,13 @@ export default function WebhooksIndex() {
             value: (r) => (Array.isArray(r.events) ? r.events.length : 0),
            
             render: (r) => (Array.isArray(r.events) ? r.events.length : 0),
+        },
+        {
+            // Registered by an ERP integration over the API vs. by an admin here.
+            key: 'api_key_id',
+            label: __('Source'),
+            value: (r) => (r.api_key_id ? __('API key') : __('Admin')),
+            render: (r) => (r.api_key_id ? __('API key') : __('Admin')),
         },
         { key: 'is_active', label: __('Status'), value: (r) => __(r.is_active ? 'Active' : 'Inactive'), render: (r) => <ActiveBadge active={r.is_active} /> },
         {
@@ -84,6 +92,8 @@ export default function WebhooksIndex() {
                 ready={generatedSecret !== undefined}
                 title={{ create: __('New Webhook'), edit: __('Edit Webhook') }}
             />
+
+            <NetworkAllowlistCard entries={allowlist} canEdit={canEditAllowlist} />
 
         </>
     );

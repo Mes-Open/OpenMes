@@ -1,16 +1,22 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { DndProvider, useDragDropManager } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { Icon, ConfirmDialog } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import LiveRefresh from '../../../components/LiveRefresh';
+import ShapeChangeWatcher from '../../../components/ShapeChangeWatcher';
 import { apiCall, apiGet } from '../../../lib/http';
-import { __, formatDate } from '../../../lib/i18n';
+import { __, formatDate, formatTime } from '../../../lib/i18n';
 import { todayKey, dayList } from './planner/helpers';
 import { WeeklyView } from './planner/views';
 import { HourlyView, MonthlyView } from './planner/views2';
 import { Toolbar, BacklogRail } from './planner/panels';
+import { InsightsDrawer, InsightsHandle } from './planner/insights';
+import {
+    badgeOpens, createInsightsGate, handleTone, highlightOf, indexStaffing, insightForCell, insightForOrder, qualityHoldFor, isCloseShortcut, isToggleShortcut, rangeCaption,
+    markSessionSeen, openCount, openOn, readAutoOpen, sessionSeen, shouldAutoOpen, toggle, writeAutoOpen,
+} from './planner/insightsState';
 import {
     OrderEditSheet, AssignPopup, ConflictDialog, LiveTrackingBar, Toasts, SavingOverlay,
     AddMaintenanceModal,
@@ -20,7 +26,13 @@ import {
 const STYLE = `
 .om-wo:hover { filter: brightness(0.97); }
 .om-wo:hover .om-x { opacity: 1; }
+@keyframes om-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.om-drawer-in { animation: om-drawer-in .24s ease-out; }
+@media (prefers-reduced-motion: reduce) { .om-drawer-in { animation: none; } .om-insights-handle { transition: none !important; } }
 `;
+
+// Browser storage can be missing or refuse access (privacy settings, sandboxed frames).
+const storage = (name) => { try { return window[name] ?? null; } catch { return null; } };
 
 let TOAST_SEQ = 1;
 const pad = (n) => String(n).padStart(2, '0');
@@ -43,7 +55,10 @@ export default function Planner() {
         startDate, rangeStart, rangeEnd, navPrev, navNext,
         backlogOrders = [], maintenanceEvents = [], maintenanceSchedules = [], realtimeMode = 'polling',
         overdueImportant = { count: 0, orders: [] },
+        canSeeInsights = false,
+        auth = {},
     } = usePage().props;
+    const userId = auth?.user?.id ?? null;
 
     const lineId = new URLSearchParams(window.location.search).get('line_id') ?? '';
     const live = realtimeMode !== 'off';
@@ -80,6 +95,99 @@ export default function Planner() {
         setToasts((ts) => [...ts, { id, msg, kind }]);
         setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 3200);
     }, []);
+
+    // ── Staffing badges + insights drawer (Admin / Supervisor only) ────────────
+    const insightsOn = canSeeInsights && (viewMode === 'weekly' || viewMode === 'daily');
+    // Badges and drawer both come from the insights endpoint — one count of
+    // the board per refresh (the page props do not carry them).
+    const [staffing, setStaffing] = useState(null);
+    const staffingCtx = useMemo(() => (insightsOn && staffing ? { ...staffing, byKey: indexStaffing(staffing) } : null), [insightsOn, staffing]);
+    const [drawer, setDrawer] = useState(null);
+    const [drawerOpen, setDrawerOpen] = useState(() => insightsOn && new URLSearchParams(window.location.search).get('insights') === '1');
+    const [insightFilter, setInsightFilter] = useState('all');
+    const [openKey, setOpenKey] = useState(null);
+    const [highlight, setHighlight] = useState(() => new Set());
+    const [shownKey, setShownKey] = useState(null);
+    const [insightBusy, setInsightBusy] = useState(false);
+    const [insightsLoading, setInsightsLoading] = useState(false);
+    const [focusKey, setFocusKey] = useState(null);
+    const [autoOpen, setAutoOpen] = useState(() => readAutoOpen(storage('localStorage'), userId));
+    const boardParams = useMemo(() => ({ view_mode: viewMode, start_date: startDate, ...(lineId ? { line_id: lineId } : {}) }), [viewMode, startDate, lineId]);
+
+    // Only the freshest answer reaches the drawer: a read in flight is
+    // aborted by the next read or a write, and the gate drops whatever an
+    // aborted or overtaken request still returns.
+    const gateRef = useRef(null);
+    if (gateRef.current === null) gateRef.current = createInsightsGate();
+    const readRef = useRef(null);
+    const applyInsights = useCallback((json, ticket) => {
+        if (!gateRef.current.accept(ticket)) return;
+        if (json?.drawer) setDrawer(json.drawer);
+        if (json?.staffing) setStaffing(json.staffing);
+    }, []);
+    const fetchInsights = useCallback(async () => {
+        if (!insightsOn) return;
+        readRef.current?.abort();
+        const controller = new AbortController();
+        readRef.current = controller;
+        const ticket = gateRef.current.startFetch();
+        setInsightsLoading(true);
+        try {
+            const r = await apiGet(`/admin/schedule/insights?${new URLSearchParams(boardParams)}`, { signal: controller.signal });
+            if (r.ok) applyInsights(await r.json(), ticket);
+        } catch { /* aborted or offline — the next change or poll tries again */ } finally {
+            if (readRef.current === controller) {
+                readRef.current = null;
+                setInsightsLoading(false);
+            }
+        }
+    }, [insightsOn, boardParams, applyInsights]);
+    useEffect(() => { fetchInsights(); }, [fetchInsights]);
+    useEffect(() => () => readRef.current?.abort(), []);
+    // Absences recorded outside OpenMES do not broadcast; while the drawer is
+    // open, look again once a minute.
+    useEffect(() => {
+        if (!drawerOpen || !insightsOn) return undefined;
+        const t = setInterval(fetchInsights, 60000);
+        return () => clearInterval(t);
+    }, [drawerOpen, insightsOn, fetchInsights]);
+
+    // ── Finding the drawer: open/close, on an insight, by itself, by keyboard ──
+    const closeDrawer = useCallback(() => {
+        setDrawerOpen(false); setHighlight(new Set()); setShownKey(null); setFocusKey(null);
+    }, []);
+    const openDrawer = useCallback(() => setDrawerOpen(true), []);
+    const toggleDrawer = useCallback(() => { if (drawerOpen) closeDrawer(); else openDrawer(); }, [drawerOpen, closeDrawer, openDrawer]);
+
+    // A red/amber badge or a card's warning marker opens the drawer on its insight.
+    const openOnInsight = useCallback((insight) => {
+        const next = openOn({ open: drawerOpen, filter: insightFilter, openKey, highlight, focusKey: null }, insight);
+        setDrawerOpen(next.open);
+        setInsightFilter(next.filter);
+        setOpenKey(next.openKey);
+        setHighlight(next.highlight);
+        setShownKey(null);
+        setFocusKey(next.focusKey);
+    }, [drawerOpen, insightFilter, openKey, highlight]);
+    const onStaffBadge = useCallback((badgeLine, date, shift) => openOnInsight(insightForCell(drawer, badgeLine, date, shift)), [drawer, openOnInsight]);
+    const onOrderMarker = useCallback((wo) => openOnInsight(insightForOrder(drawer, wo.id)), [drawer, openOnInsight]);
+    const onQualityMarker = useCallback((wo) => openOnInsight(qualityHoldFor(drawer, wo.id)), [drawer, openOnInsight]);
+    const onFocused = useCallback(() => setFocusKey(null), []);
+
+    // First planner visit of the session with something needing action → open once.
+    const autoCheckedRef = useRef(false);
+    useEffect(() => {
+        if (!insightsOn || !drawer || autoCheckedRef.current) return;
+        autoCheckedRef.current = true;
+        const session = storage('sessionStorage');
+        const seen = sessionSeen(session, userId);
+        markSessionSeen(session, userId);
+        if (shouldAutoOpen({ drawer, enabled: autoOpen, seen, open: drawerOpen })) setDrawerOpen(true);
+    }, [insightsOn, drawer, userId, autoOpen, drawerOpen]);
+    const onAutoOpenChange = useCallback((enabled) => {
+        setAutoOpen(enabled);
+        writeAutoOpen(storage('localStorage'), userId, enabled);
+    }, [userId]);
 
     // ── Context handed to the views ────────────────────────────────────────────
     const days = dayList(startDate, showWeekends ? 7 : 5, showWeekends);
@@ -292,7 +400,35 @@ export default function Planner() {
         onDiagonalExtend,
         onRefreshContent: refreshContent,
         onCellClick: (target) => setAssignTarget(target),
+        staffing: staffingCtx,
+        highlight,
+        onStaffBadge: insightsOn ? onStaffBadge : null,
+        // Only a badge some insight is about opens the drawer.
+        badgeOpens: (badgeLine, date, shift) => badgeOpens(drawer, badgeLine, date, shift),
+        onOrderMarker: insightsOn ? onOrderMarker : null,
+        qualityHold: insightsOn ? (wo) => qualityHoldFor(drawer, wo.id) !== null : null,
+        onQualityMarker: insightsOn ? onQualityMarker : null,
     };
+
+    // `I` toggles the drawer — not while typing, not over a dialog. Esc closes
+    // it, unless a dialog is open: then Esc belongs to the dialog.
+    const modalOpen = Boolean(selected || assignTarget || conflict || confirmBox || maintOpen);
+    useEffect(() => {
+        if (!insightsOn) return undefined;
+        const onKey = (e) => {
+            const dialog = modalOpen || document.querySelector('[aria-modal="true"]') !== null;
+            if (isCloseShortcut(e, { open: drawerOpen, modalOpen: dialog })) {
+                e.preventDefault();
+                closeDrawer();
+                return;
+            }
+            if (!isToggleShortcut(e, { modalOpen: dialog })) return;
+            e.preventDefault();
+            toggleDrawer();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [insightsOn, modalOpen, toggleDrawer, drawerOpen, closeDrawer]);
 
     // ── Live tracking — always on, auto-follows the first in-progress order ────
     const firstInProgress = workOrders.find((o) => o.status === 'IN_PROGRESS');
@@ -322,25 +458,98 @@ export default function Planner() {
     const pendingRefresh = useRef(false);
     const onWorkOrdersChanged = useCallback(() => {
         if (saving || draggingRef.current) { pendingRefresh.current = true; return; }
-        refreshContent();
-    }, [saving, refreshContent]);
+        refreshContent().then(fetchInsights);
+    }, [saving, refreshContent, fetchInsights]);
     useEffect(() => {
-        if (!saving && pendingRefresh.current) { pendingRefresh.current = false; refreshContent(); }
-    }, [saving, refreshContent]);
+        if (!saving && pendingRefresh.current) { pendingRefresh.current = false; refreshContent().then(fetchInsights); }
+    }, [saving, refreshContent, fetchInsights]);
+
+    // ── Insight actions ────────────────────────────────────────────────────────
+    const postInsight = useCallback(async (url, body = {}, { reloadBoard = false } = {}) => {
+        setInsightBusy(true);
+        readRef.current?.abort();
+        const ticket = gateRef.current.startAction();
+        try {
+            const r = await apiCall(url, 'POST', { ...boardParams, ...body });
+            const json = await r.json().catch(() => ({}));
+            if (r.status === 409 && json.conflict) return json;
+            if (!r.ok) {
+                toast(json.message ?? __('Error saving'), 'error');
+                gateRef.current.endAction(ticket);
+                fetchInsights();
+                return null;
+            }
+            applyInsights(json, ticket);
+            if (json.message) toast(json.message);
+            if (reloadBoard) await refreshContent();
+            return json;
+        } catch {
+            toast(__('Connection error'), 'error');
+            return null;
+        } finally {
+            gateRef.current.endAction(ticket);
+            setInsightBusy(false);
+        }
+    }, [boardParams, toast, fetchInsights, applyInsights, refreshContent]);
+
+    const moveForInsight = useCallback(async (insight, action, force = false) => {
+        const json = await postInsight('/admin/schedule/insights/move', { insight_key: insight.key, work_order_id: action.work_order_id, ...(force ? { force_conflict: true } : {}) }, { reloadBoard: true });
+        if (json?.conflict) setConflict({ apply: () => moveForInsight(insight, action, true) });
+    }, [postInsight]);
+
+    const onInsightAction = useCallback((insight, action) => {
+        if (action.kind === 'link') { router.visit(action.href); return; }
+        if (action.kind === 'acknowledge') { postInsight('/admin/schedule/insights/acknowledge', { insight_key: insight.key }); return; }
+        if (action.kind === 'move') {
+            setConfirmBox({ title: action.label, body: action.effect, confirmLabel: __('Move'), apply: () => moveForInsight(insight, action) });
+            return;
+        }
+        if (action.kind === 'substitute') {
+            setConfirmBox({
+                title: action.label, body: action.confirm ?? action.effect, confirmLabel: __('Assign'),
+                apply: () => postInsight('/admin/schedule/insights/substitute', { insight_key: insight.key, user_id: action.user_id }),
+            });
+        }
+    }, [postInsight, moveForInsight]);
+
+    const onUndoInsight = useCallback((item) => {
+        setConfirmBox({
+            title: __('Undo: :title?', { title: item.title }), body: item.summary, confirmLabel: __('Undo'),
+            apply: () => postInsight(`/admin/schedule/insights/acknowledgements/${item.id}/undo`, {}, { reloadBoard: item.action !== 'acknowledge' }),
+        });
+    }, [postInsight]);
+
+    const onToggleInsight = useCallback((insight) => {
+        const next = toggle(openKey, insight.key);
+        setOpenKey(next);
+        setHighlight(next ? highlightOf(insight) : new Set());
+        setShownKey(null);
+    }, [openKey]);
+
+    const onShowInsight = useCallback((insight) => {
+        setHighlight(highlightOf(insight));
+        setShownKey(insight.key);
+        setTimeout(() => document.querySelector('[data-testid="plan-highlight"]')?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' }), 60);
+    }, []);
 
     const rangeLabel = (rangeStart && rangeEnd)
         ? rangeStart === rangeEnd
-            ? formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit', year: 'numeric' })
-            : `${formatDate(new Date(rangeStart), { day: '2-digit', month: '2-digit' })} – ${formatDate(new Date(rangeEnd), { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+            ? formatDate(rangeStart, { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : `${formatDate(rangeStart, { day: '2-digit', month: '2-digit' })} – ${formatDate(rangeEnd, { day: '2-digit', month: '2-digit', year: 'numeric' })}`
         : '';
+
+    const caption = rangeCaption(drawer, viewMode);
 
     return (
         <>
             <Head title={__('Production Planner')} />
             <style>{STYLE}</style>
             <LiveRefresh pollUrl="/admin/schedule/check-updates" shape="work_orders_all" instant enabled={live} onRefresh={onWorkOrdersChanged} />
+            {/* Operators assigned to or taken off a line touch the line; acknowledgements sync too. */}
+            {insightsOn && live && <ShapeChangeWatcher shape="lines_staffing" fields={['id', 'updated_at']} onChange={() => { refreshContent().then(fetchInsights); }} />}
+            {insightsOn && live && <ShapeChangeWatcher shape="planning_insight_acknowledgements" fields={['id', 'insight_key', 'updated_at']} onChange={fetchInsights} />}
 
-            <div className="w-full min-w-0">
+            <div className="w-full min-w-0" style={insightsOn && drawerOpen ? { paddingRight: 'min(420px, 100vw)' } : undefined}>
             <DndProvider backend={HTML5Backend}>
             <DragWatcher draggingRef={draggingRef} />
             <div className="p-4 sm:p-6">
@@ -383,7 +592,8 @@ export default function Planner() {
             )}
 
             <Toolbar ctx={ctx} view={viewMode} setView={setView} lineFilter={lineId} setLineFilter={setLineFilter}
-                live={live} onMaintenance={() => setMaintOpen(true)} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
+                live={live} onMaintenance={() => setMaintOpen(true)}
+                insights={insightsOn ? { count: openCount(drawer), bad: drawer?.summary?.needs_action ?? 0, open: drawerOpen, onToggle: toggleDrawer } : null} onPrev={() => goTo(navPrev)} onNext={() => goTo(navNext)} onToday={() => nav({ view_mode: viewMode, line_id: lineId })} rangeLabel={rangeLabel} />
 
             </div>
             <BacklogRail ctx={ctx} />
@@ -439,6 +649,24 @@ export default function Planner() {
                     onCreated={() => { setMaintOpen(false); toast(__('Maintenance added to the planner.')); }}
                     onError={(msg) => toast(msg || __('Could not add maintenance.'), 'error')}
                 />
+            )}
+            {insightsOn && <InsightsHandle tone={handleTone(drawer)} count={openCount(drawer)} open={drawerOpen} onToggle={toggleDrawer} />}
+            {insightsOn && (
+                <div id="planning-insights">
+                    {drawerOpen && <InsightsDrawer
+                        drawer={drawer} loading={insightsLoading} busy={insightBusy}
+                        filter={insightFilter} setFilter={setInsightFilter}
+                        openKey={openKey} onToggle={onToggleInsight}
+                        onShow={onShowInsight} shownKey={shownKey}
+                        onAction={onInsightAction} onUndo={onUndoInsight}
+                        onClose={closeDrawer}
+                        focusKey={focusKey} onFocused={onFocused}
+                        autoOpen={autoOpen} onAutoOpenChange={onAutoOpenChange}
+                        rangeLabel={caption ? __(caption.key, caption.params) : (viewMode === 'daily' ? __('This day') : __('This week'))}
+                        viewMode={viewMode}
+                        updatedAt={drawer?.generated_at ? formatTime(drawer.generated_at, { hour: '2-digit', minute: '2-digit', hour12: false }) : null}
+                    />}
+                </div>
             )}
             {saving && <SavingOverlay />}
             <Toasts toasts={toasts} />

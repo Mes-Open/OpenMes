@@ -116,26 +116,27 @@ class TwoFactorChallengeController extends Controller
                 ->with('error', __('You must change your password before continuing.'));
         }
 
-        // Redirect based on role (same logic as AuthController)
+        // Redirect based on role (same logic as AuthController), back to the
+        // page that asked for the login when there was one.
         if ($user->hasRole('Admin')) {
             if (OnboardingController::shouldShowWizard()) {
                 return redirect()->route('onboarding.index');
             }
 
-            return redirect()->route('admin.dashboard');
+            return redirect()->intended(route('admin.dashboard'));
         }
 
         if ($user->hasRole('Supervisor')) {
-            return redirect()->route('supervisor.dashboard');
+            return redirect()->intended(route('supervisor.dashboard'));
         }
 
         if ($user->account_type === 'workstation' && $user->workstation_id) {
             $lineId = $user->workstation?->line_id;
             if ($lineId) {
-                return redirect()->route('operator.queue', ['line' => $lineId]);
+                return redirect()->intended(route('operator.queue', ['line' => $lineId]));
             }
         }
 
-        return redirect()->route('operator.select-line');
+        return redirect()->intended(route('operator.select-line'));
     }
 }

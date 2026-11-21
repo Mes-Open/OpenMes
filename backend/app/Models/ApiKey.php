@@ -6,9 +6,11 @@ use App\Enums\ApiScope;
 use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Scopes\TenantScope;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -56,9 +58,62 @@ class ApiKey extends Model
         ];
     }
 
+    /**
+     * The expiry is an instant. Stored as plant-local wall time (like every
+     * timestamp here), so a value carrying its own zone — "…Z", "+02:00", as an
+     * ERP sends it — is converted first; the datetime cast alone would keep its
+     * digits and move the expiry by the zone difference.
+     */
+    protected function expiresAt(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => $value === null || $value === ''
+                ? null
+                : $this->fromDateTime(Carbon::parse($value)->setTimezone(config('app.timezone'))),
+        );
+    }
+
+    /**
+     * A key that stops being usable takes its webhooks down with it: an
+     * integration that can no longer authenticate must not keep receiving
+     * production data. Reactivating the key deliberately does NOT re-enable
+     * them — that is a separate, conscious step.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (self $key): void {
+            if ($key->wasChanged('is_active') && ! $key->is_active) {
+                $key->deactivateWebhooks();
+            }
+        });
+
+        static::deleted(function (self $key): void {
+            $key->deactivateWebhooks();
+        });
+    }
+
     public function integrationConfig(): BelongsTo
     {
         return $this->belongsTo(IntegrationConfig::class);
+    }
+
+    /** Webhooks this key registered through /api/v1/erp/webhooks. */
+    public function webhooks(): HasMany
+    {
+        return $this->hasMany(Webhook::class);
+    }
+
+    /**
+     * Switch off every active webhook owned by this key. Row by row on purpose:
+     * a bulk UPDATE would bypass the audit trail and the live-sync broadcast.
+     */
+    public function deactivateWebhooks(): void
+    {
+        // The FK alone identifies the rows; skip the tenant scope so this also
+        // works from a console/queue context with no tenant set.
+        $this->webhooks()->withoutGlobalScope(TenantScope::class)
+            ->where('is_active', true)->get()
+            ->each(fn (Webhook $webhook) => $webhook->update(['is_active' => false]));
     }
 
     /**
