@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellKey, createInsightsGate, filterCounts, groupInsights, highlightOf, indexStaffing, openCount, toggle } from './insightsState';
+import { FILTERS, cellKey, createInsightsGate, filterCounts, groupInsights, highlightOf, indexStaffing, openCount, qualityHoldFor, toggle } from './insightsState';
 
 const drawer = {
     insights: [
@@ -27,7 +27,7 @@ describe('groupInsights', () => {
 
 describe('counts and highlights', () => {
     it('counts open insights per filter', () => {
-        expect(filterCounts(drawer)).toEqual({ all: 4, people: 2, skills: 1, plan: 1 });
+        expect(filterCounts(drawer)).toEqual({ all: 4, people: 2, skills: 1, quality: 0, plan: 1 });
         expect(openCount(drawer)).toBe(4);
         expect(openCount(undefined)).toBe(0);
     });
@@ -78,5 +78,22 @@ describe('createInsightsGate', () => {
         gate.endAction(failed);              // 422 — nothing applied
         const next = gate.startFetch();
         expect(gate.accept(next)).toBe(true);
+    });
+});
+
+describe('quality holds', () => {
+    const held = { key: 'quality:7', type: 'quality_hold', category: 'quality', severity: 'bad', affected: [{ work_order_id: 7 }] };
+    const short = { key: 'short:1:2026-11-23:1', type: 'short_shift', category: 'people', severity: 'bad', affected: [{ work_order_id: 7 }] };
+    const qd = { insights: [short, held], resolved: [] };
+
+    it('finds the quality insight of an order, not another one about it', () => {
+        expect(qualityHoldFor(qd, 7)).toBe(held);
+        expect(qualityHoldFor(qd, 8)).toBeNull();
+        expect(qualityHoldFor(null, 7)).toBeNull();
+    });
+    it('counts and filters the quality chip', () => {
+        expect(filterCounts(qd).quality).toBe(1);
+        expect(groupInsights(qd, 'quality')[0].items).toEqual([held]);
+        expect(FILTERS).toContain('quality');
     });
 });

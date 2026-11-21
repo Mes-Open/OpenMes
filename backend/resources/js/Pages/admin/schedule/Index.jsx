@@ -63,8 +63,8 @@ export default function ScheduleIndex() {
 
     const navigate = (params) => router.get('/admin/schedule/list', params, { preserveState: false });
 
-    const weekStartFmt = weekStart ? formatDate(new Date(weekStart), { day: 'numeric', month: 'short' }) : '';
-    const weekEndFmt = weekEnd ? formatDate(new Date(weekEnd), { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    const weekStartFmt = weekStart ? formatDate(weekStart, { day: 'numeric', month: 'short' }) : '';
+    const weekEndFmt = weekEnd ? formatDate(weekEnd, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
     // Group workOrders by line for the by-line view
     const ordersByLine = {};
@@ -226,7 +226,7 @@ function OrderTable({ orders }) {
                 if (!wo.due_date) return <span className="text-om-faint text-sm">—</span>;
                 return (
                     <span className="inline-flex flex-col leading-tight text-sm text-om-muted">
-                        <span>{formatDate(new Date(wo.due_date), { day: 'numeric', month: 'short' })}</span>
+                        <span>{formatDate(wo.due_date, { day: 'numeric', month: 'short' })}</span>
                         <DueCountdown
                             due={wo.due_date}
                             settled={SETTLED_STATUSES.includes(wo.status)}

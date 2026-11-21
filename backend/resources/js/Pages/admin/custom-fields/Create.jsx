@@ -6,9 +6,9 @@ import { __ } from '../../../lib/i18n';
 export default function CustomFieldCreate() {
     const { entities = [], types = [] } = usePage().props;
     return (
-        <div className="max-w-7xl mx-auto">
+        <div>
             <Head title={__('New Custom Field')} />
-            <h1 className="text-3xl font-bold text-om-ink mb-6">{__('New Custom Field')}</h1>
+            <h1 className="text-[26px] font-semibold tracking-[-0.02em] text-om-ink mb-6">{__('New Custom Field')}</h1>
             <DefinitionForm
                 action="/admin/custom-fields"
                 method="post"

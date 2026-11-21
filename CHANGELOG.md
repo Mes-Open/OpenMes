@@ -9,6 +9,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Workstation devices: operator panels.** *Admin → Workstation devices* now also lists
+  every browser running the operator panel. While an operator is logged in, the panel
+  reports itself every 20 seconds; the roster shows its status (**Active** / **Inactive**),
+  **who** is logged in, the IP address and the selected line. A panel that
+  is hidden, closed or logged out is shown inactive at once, and one that sends nothing for
+  over a minute is inactive too (the window for Workstation clients is now 60 s as well).
+  A **Type** column (Operator panel / Workstation client) with a filter and an
+  *Active: n / total* counter sit on top. Admins can **rename** a station (e.g. "Tablet –
+  Line 2, assembly"); the panel never overwrites that name. Panel rows not seen for
+  30 days move to the trash daily (`workstation-devices:prune-panels`,
+  `WORKSTATION_PANEL_PRUNE_DAYS`, 0 disables); Workstation client rows are never pruned.
+- **Modules can refuse a step start.** Filter `production.step_start_blockers` runs in
+  `BatchService::startStep()` after core's own checks, with the step and the user; a reason a
+  listener returns stops the start and is shown to the operator (422 in the API). Lets a
+  module enforce e.g. a valid welder qualification for the step. No listener – no change.
+- **Quality holds in the scheduler.** An order held back by quality — an open quality
+  control whose trigger is blocking, or an open or acknowledged issue that blocks the work
+  order — is no longer placed by *Automatic scheduling*. Its operations get the new status
+  *Infeasible — quality hold* with the control or issue named in the reason, and the next order
+  takes the freed slot; a step already running stays pinned and only later steps are held. A
+  material shortage still wins over a quality hold. A new **Quality holds** checkbox (on by
+  default, saved with each simulation as `respect_quality`) lets a planner plan as if the holds
+  were lifted. The *Production Planner* flags a held order already on the visible plan with an
+  amber **QC** marker in its shift and a new *Quality* insight (filter *Quality*) that names the
+  hold and links to *Quality tasks* or *Issues*; performing the control or resolving the issue
+  clears it, and an acknowledged insight reopens when a new hold appears.
+
 - **Shelf life on the product, batch expiry known from the start.** A product type takes a
   shelf life (days or months). A new batch gets its expiry date when it is created — the
   creation day plus the shelf life, months without overflow (31 Jan + 1 month = 28/29 Feb) —
@@ -29,14 +56,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Modules can validate QC templates written over the API.** Filter
   `validation.api.qc_templates` on `POST /api/v1/process-templates/{id}/qc-templates` and
   `PATCH /api/v1/qc-templates/{id}`. See HOOKS.md.
-
-### Fixed
-
-- **FEFO no longer proposes expired lots.** The automatic lot pick and the operator's pick list
-  skip lots past their expiry date — FEFO used to put them first, having the earliest date of
-  all. A lot is usable through its expiry day. A manual pick and the consume API refuse an
-  expired lot with its date, and the consume API refuses a lot of a material that is not on the
-  order's recipe.
 
 - **Modules can extend the traceability console.** Two filters: `traceability.resolve`
   answers for a code only a module knows (its carton, its container), `traceability.sections`
@@ -136,6 +155,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **FEFO no longer proposes expired lots.** The automatic lot pick and the operator's pick list
+  skip lots past their expiry date — FEFO used to put them first, having the earliest date of
+  all. A lot is usable through its expiry day. A manual pick and the consume API refuse an
+  expired lot with its date, and the consume API refuses a lot of a material that is not on the
+  order's recipe.
+
 - **Permissions a module grants survive a restart.** The roles seeder runs on every
   container start and reset each role to its canonical permission set, keeping only
   `tab:*` and inspection grants - so a permission an installed module created and granted
@@ -157,6 +182,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   They are now *wyniki kroku* in the template editor, on the operator's order screen and in
   the related messages.
 
+- **"x minutes ago" and live status are no longer an hour off.** Rows that load from live
+  sync carry UTC timestamps without a time zone, and relative times read them as the
+  browser's local time. East of UTC a panel that had just reported in showed as
+  *Inactive*, "1 hour ago", until its next heartbeat. Relative times now read these
+  values as UTC and use each language's plural forms ("5 godzin temu", not "5 hours temu").
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be
@@ -368,6 +398,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Settings look the same everywhere.** *Settings → Custom fields* uses the standard black
+  *New* button and icon buttons for Edit / Activate / Delete instead of the old blue button
+  and text links, and the field form has the same labels, inputs and buttons as every other
+  form. The example-company picker on *System → Data* uses the design's radio instead of the
+  browser's blue one, *Tab Access* has the usual back link, and the ERP key form's *Scopes*
+  label matches the other labels. Every on/off switch on *System Settings* can now be flipped
+  by clicking its name or description too, and its rows share one spacing; sub-headings use
+  one style, the *Material availability* options no longer touch, and the *Labor costing*
+  fields line up.
+
 - **Webhook receivers: the signature now covers the timestamp.** `X-OpenMES-Signature` keeps
   its `sha256=<hex>` format but is computed as `HMAC-SHA256(secret, "{X-OpenMES-Timestamp}.{body}")`
   instead of over the body alone. **Existing endpoints are not affected yet:** the upgrade
@@ -406,6 +446,43 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Work-order import picks the newest active process template.** With several active
   versions of a product's process template, the CSV and ERP work-order imports took an
   unspecified one; they now take the newest active version, like the rest of OpenMES.
+- **Custom fields: Number fields take decimals.** A custom field of type *Number* refused a
+  value like 12.5 in the browser ("nearest valid values are 12 and 13"), which blocked the
+  whole form from saving. The *Min* and *Max* of a Number field can now be decimals too.
+- **Custom fields: no more Site and Area entities.** *Settings → Custom fields* offered
+  *Site* and *Area* as entities, but OpenMES has no sites or areas, so fields defined for
+  them never appeared anywhere. They are no longer offered.
+- **Two-factor login works in the browser.** The code entered on the 2FA challenge was never
+  sent, so accounts with 2FA turned on could not sign in to the web app.
+- **Quick PIN is 6 digits everywhere.** Settings accepted a 4–6 digit PIN that the login form
+  (6 digits only) then refused.
+- **Settings → System: a rejected save always says so.** Saving no longer fails silently when
+  a field that is not on screen (another tab, or the hidden correction window) holds an
+  invalid value; the page shows "Settings were not saved." with the reasons. The stored
+  correction window is kept when another correction policy is chosen.
+- **Settings import restores the production targets** (max scrap rate, min first-pass yield)
+  on an installation where they were never saved.
+- **The system settings API validates every production setting.** The tracking mode,
+  correction policy and window, scanner mode, workstation routing, default pay type and rate
+  and standard weekly hours used to accept any value.
+- **Finished goods by pallet:** closing a pallet at the packing station, or when it fills up,
+  now creates its finished-goods receipt in Drafts/Posted mode.
+- **Sample data lots can be picked.** Material lots in the example companies are created as
+  released, so lot tracking can use them.
+- **Serial and process-serial patterns:** an invalid pattern is reported by the field's name,
+  and a malformed value no longer causes a server error.
+- **API Tokens lists only your own, unexpired tokens.** Other users' tokens were listed with a
+  Revoke button that failed with "Forbidden".
+- **ERP API key expiry is stored at the exact moment sent** when it carries a timezone
+  (e.g. "…Z"); it used to be off by the plant's UTC offset.
+- **Modules:** switching off Materials & tracing now also blocks Material Types, and switching
+  off Company structure blocks Workstation Devices. Switching off Warehouses no longer hides
+  Materials, Material Types, Material Lots and Pallets from the menu.
+- **Dates west of UTC:** the planner, schedule and operator screens no longer show a calendar
+  date one day early.
+- **Profile, password, PIN and API-token messages are translated.**
+- **Admin → Trash names deleted unit aliases** by their alias instead of their id.
+- Removed the *Setup Wizard* card from Settings; it only led back to the dashboard.
 
 ## [0.29.0] - 2026-11-16
 

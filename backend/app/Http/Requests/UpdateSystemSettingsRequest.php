@@ -30,6 +30,21 @@ class UpdateSystemSettingsRequest extends FormRequest
         if (is_string($this->input('default_currency'))) {
             $this->merge(['default_currency' => CurrencyRegistry::normalise($this->input('default_currency'))]);
         }
+
+        // Spaces and a trailing slash are typos; an origin never has a path.
+        if (is_string($this->input('cors_allowed_origins'))) {
+            $this->merge(['cors_allowed_origins' => \App\Rules\CorsOrigins::normalise($this->input('cors_allowed_origins'))]);
+        }
+        if (is_string($this->input('cors_allowed_methods'))) {
+            $this->merge(['cors_allowed_methods' => \App\Rules\CorsMethods::normalise($this->input('cors_allowed_methods'))]);
+        }
+
+        // The correction window only applies to the timed policy, and the page
+        // hides its field under any other: a value left in it must not fail
+        // (or overwrite the stored window on) a save the admin cannot see.
+        if ($this->input('production_qty_edit_policy') !== 'timed') {
+            $this->getInputSource()->remove('production_qty_edit_window_minutes');
+        }
     }
 
     public function after(): array
@@ -73,13 +88,12 @@ class UpdateSystemSettingsRequest extends FormRequest
             'app_timezone' => ['nullable', 'string', Rule::in(TimezoneRegistry::identifiers())],
             'schedule_view_mode' => 'required|in:weekly,daily,monthly',
             'schedule_shifts_per_day' => 'required|integer|in:1,2,3,4',
-            'schedule_horizon_weeks' => 'required|integer|min:1|max:52',
             'schedule_show_weekends' => 'nullable|boolean',
             'realtime_mode' => 'required|in:polling,off',
             'production_tracking_mode' => 'required|in:per_operation,cumulative,hybrid',
             'production_flow_mode' => 'nullable|in:whole_batch,transfer',
-            'cors_allowed_origins' => 'nullable|string|max:1000',
-            'cors_allowed_methods' => 'nullable|string|max:200',
+            'cors_allowed_origins' => ['nullable', 'string', 'max:1000', new \App\Rules\CorsOrigins],
+            'cors_allowed_methods' => ['nullable', 'string', 'max:200', new \App\Rules\CorsMethods],
             'cors_max_age' => 'nullable|integer|min:0|max:86400',
             'production_qty_edit_policy' => 'required|in:none,timed,full',
             'production_qty_edit_window_minutes' => 'required_if:production_qty_edit_policy,timed|integer|min:1|max:60',
@@ -120,9 +134,24 @@ class UpdateSystemSettingsRequest extends FormRequest
     private function validRegex(): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail): void {
-            if (! \App\Support\UnitSerialisation::validPattern((string) $value)) {
-                $fail(__('The :attribute is not a valid regular expression.', ['attribute' => $attribute]));
+            // Anything but text is already refused by the `string` rule.
+            if (is_string($value) && ! \App\Support\UnitSerialisation::validPattern($value)) {
+                // :attribute left for the validator, which reads attributes() below.
+                $fail(__('The :attribute is not a valid regular expression.'));
             }
         };
+    }
+
+    /**
+     * Field names in the page's own words, for the validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'unit_serial_pattern' => mb_strtolower(__('Serial number pattern')),
+            'unit_psn_pattern' => mb_strtolower(__('Process serial pattern')),
+        ];
     }
 }

@@ -205,7 +205,9 @@ export const ADMIN_GROUPS = [
     {
         key: 'warehouses',
         order: 40,
-        tab: 'warehouse',
+        // No group tab: each child carries its own (materials, packaging), so
+        // the group shows while any of them is on. Gating it by the Warehouses
+        // module hid the material catalogue whenever that module was off.
         label: 'Warehouses',
         icon: 'cube',
         lucide: 'warehouse',

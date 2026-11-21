@@ -14,6 +14,7 @@ use App\Models\WorkOrderStaffingSnapshot;
 use App\Services\Line\LineOperatorAssignment;
 use App\Services\Schedule\Finite\ResourceCalendar;
 use App\Services\Schedule\Finite\ShiftOccurrences;
+use App\Services\Schedule\QualityHolds;
 use App\Services\Schedule\SchedulePlannerService;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -32,7 +33,10 @@ use Illuminate\Support\Facades\DB;
  *  d) untracked_line  — work planned on a line nobody is assigned to;
  *  e) staffing_changed — an order lost people since it was planned (an
  *                       operator unassigned, a new absence), from the
- *                       snapshot taken at planning time ({@see StaffingSnapshots}).
+ *                       snapshot taken at planning time ({@see StaffingSnapshots});
+ *  f) quality_hold    — an order planned in a shift still ahead whose next
+ *                       step cannot start: an open blocking quality control
+ *                       or a blocking issue ({@see QualityHolds}).
  *
  * Everything people-related comes through the capacity provider contracts, so
  * with nothing but core installed absences simply never appear and skill
@@ -44,7 +48,7 @@ use Illuminate\Support\Facades\DB;
  */
 class PlanningInsights
 {
-    public const TYPES = ['short_shift', 'shared_operator', 'single_skill', 'untracked_line', 'staffing_changed'];
+    public const TYPES = ['short_shift', 'shared_operator', 'single_skill', 'untracked_line', 'staffing_changed', 'quality_hold'];
 
     private const SEVERITY_RANK = ['bad' => 0, 'warn' => 1, 'info' => 2];
 
@@ -101,6 +105,7 @@ class PlanningInsights
         private readonly StaffingSnapshots $snapshots,
         private readonly SchedulePlannerService $planner,
         private readonly LineOperatorAssignment $assignment,
+        private readonly QualityHolds $quality = new QualityHolds,
     ) {}
 
     /**
@@ -364,6 +369,9 @@ class PlanningInsights
             }
         }
         foreach ($this->changedInsights(array_keys($visibleOrders)) as $insight) {
+            $out[] = $insight;
+        }
+        foreach ($this->qualityInsights($now) as $insight) {
             $out[] = $insight;
         }
 
@@ -812,6 +820,90 @@ class PlanningInsights
                 'when' => null,
                 'signature' => $losses['fingerprint'],
                 'sort' => PHP_INT_MAX - 1,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * f) orders planned in a visible shift still ahead that a quality hold
+     * keeps from going on: the plan counts on work that cannot start.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function qualityInsights(int $now): array
+    {
+        // Visible shifts still ahead, as windows: a booking is matched to the
+        // cells it overlaps, so exact minute plans count like day + shift ones.
+        $windows = [];
+        foreach ($this->days as $date) {
+            foreach (array_keys($this->staffing->columns()) as $i) {
+                $window = $this->staffing->window($date, $i + 1);
+                if ($window !== null && $window[1] > $now) {
+                    $windows[] = [$date, $i + 1, $window];
+                }
+            }
+        }
+
+        $cellsOf = [];
+        foreach ($this->staffing->orders() as $id => $order) {
+            foreach ($this->staffing->bookingsOf((int) $id) as $b) {
+                if (! in_array($b['line_id'], $this->lineIds, true)) {
+                    continue;
+                }
+                foreach ($windows as [$date, $col, $window]) {
+                    if ($b['start'] < $window[1] && $b['end'] > $window[0] && $this->staffing->isShift($b['line_id'], $date, $col)) {
+                        $cellsOf[(int) $id][$b['line_id'].'|'.$date.'|'.$col] = ['line_id' => $b['line_id'], 'date' => $date, 'shift' => $col, 'start' => max($b['start'], $window[0])];
+                    }
+                }
+            }
+        }
+
+        $out = [];
+        foreach ($this->quality->forOrders(array_keys($cellsOf)) as $id => $holds) {
+            $order = $this->staffing->orders()->get($id);
+            $cells = array_values($cellsOf[$id]);
+            usort($cells, fn ($a, $b) => $a['start'] <=> $b['start']);
+            $first = $cells[0];
+            $slot = $this->slotParam($first);
+            $controls = array_values(array_filter($holds, fn ($h) => $h['kind'] === QualityHolds::KIND_CONTROL));
+            $issues = array_values(array_filter($holds, fn ($h) => $h['kind'] === QualityHolds::KIND_ISSUE));
+
+            $actions = [];
+            if ($controls !== []) {
+                $actions[] = ['kind' => 'link', 'href' => $controls[0]['href'], 'label' => __('Open quality tasks'),
+                    'effect' => __('Perform the control so :order can go on.', ['order' => $order->order_no]), 'score' => 3];
+            }
+            if ($issues !== []) {
+                $actions[] = ['kind' => 'link', 'href' => $issues[0]['href'], 'label' => __('Go to issues'),
+                    'effect' => __('Resolve the blocking issue so :order can go on.', ['order' => $order->order_no]), 'score' => 2];
+            }
+            $actions[] = ['kind' => 'link', 'href' => '/admin/schedule/auto', 'label' => __('Open in Automatic scheduling'),
+                'effect' => __('Plan it again: held orders are left out until the hold is lifted.'), 'score' => 1];
+            $actions[] = ['kind' => 'acknowledge', 'label' => __('Acknowledge'),
+                'effect' => __('The hold will be lifted before the shift starts. Reopens if another hold appears.'), 'score' => 0];
+
+            $out[] = [
+                'key' => 'quality:'.$id,
+                'type' => 'quality_hold',
+                'category' => 'quality',
+                'severity' => 'bad',
+                'title' => __(':order is planned but on quality hold', ['order' => $order->order_no]),
+                'title_translation' => self::phrase(':order is planned but on quality hold', ['order' => $order->order_no]),
+                'meta' => QualityHolds::describe(array_slice($holds, 0, 2)).(count($holds) > 2 ? ' · …' : ''),
+                'impact' => __('planned :slot', ['slot' => self::renderParam($slot)]),
+                'why' => __('The plan counts on :order starting :slot, but its next step cannot start until the hold is lifted: :holds.', [
+                    'order' => $order->order_no, 'slot' => self::renderParam($slot), 'holds' => QualityHolds::describe($holds),
+                ]),
+                'numbers' => null,
+                'affected' => [$this->affectedEntry($order, null, __('on quality hold'))],
+                'actions' => $this->rank($actions),
+                'cells' => array_map(fn ($c) => ['line_id' => $c['line_id'], 'date' => $c['date'], 'shift' => $c['shift']], $cells),
+                'line_id' => $first['line_id'],
+                'when' => null,
+                'signature' => md5(json_encode(array_map(fn ($h) => [$h['kind'], $h['id']], $holds))),
+                'sort' => $first['start'],
             ];
         }
 
@@ -1428,6 +1520,7 @@ class PlanningInsights
         return match ($type) {
             'single_skill' => 'skills',
             'untracked_line' => 'plan',
+            'quality_hold' => 'quality',
             default => 'people',
         };
     }

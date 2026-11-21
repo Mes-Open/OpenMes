@@ -168,13 +168,13 @@ export default function Login({ pinEnabled = false, regEnabled = false, hooks = 
                             maxLength={6}
                             className={`w-full text-center text-2xl font-mono tracking-[0.5em] text-om-ink placeholder:text-om-faint bg-om-bg rounded-om-sm border px-3 py-2.5 outline-none transition-colors focus:border-om-accent focus:bg-om-card focus:shadow-[0_0_0_3px_rgba(234,90,43,0.12)] ${pinForm.errors.pin ? 'border-om-blocked' : 'border-om-line'}`}
                             autoComplete="off"
-                            placeholder="----"
+                            placeholder="------"
                             required
                         />
                         {pinForm.errors.pin && (
                             <p className="mt-[5px] text-[11.5px] text-om-blocked">{pinForm.errors.pin}</p>
                         )}
-                        <p className="mt-[5px] text-[11.5px] text-om-faint">{__('Enter your 4–6 digit PIN')}</p>
+                        <p className="mt-[5px] text-[11.5px] text-om-faint">{__('Enter your 6-digit PIN')}</p>
                     </div>
 
                     <Button
@@ -182,7 +182,7 @@ export default function Login({ pinEnabled = false, regEnabled = false, hooks = 
                         variant="accent"
                         className="w-full"
                         loading={pinForm.processing}
-                        disabled={!pinForm.data.username || pinForm.data.pin.length < 4}
+                        disabled={!pinForm.data.username || pinForm.data.pin.length !== 6}
                     >
                         {pinForm.processing ? __('Logging in...') : __('Quick PIN Login')}
                     </Button>

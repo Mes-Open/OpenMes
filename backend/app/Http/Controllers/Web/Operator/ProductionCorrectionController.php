@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\WorkOrder;
 use App\Models\WorkOrderShiftEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,16 +49,32 @@ class ProductionCorrectionController extends Controller
             'quantity' => 'required|numeric|min:0|max:99999999',
         ]);
 
-        $oldQty = (float) $shiftEntry->quantity;
         $newQty = (float) $validated['quantity'];
 
-        if ($oldQty === $newQty) {
-            return redirect()->route('operator.workstation')
-                ->with('info', __('No changes made.'));
-        }
-
         try {
-            DB::transaction(function () use ($shiftEntry, $oldQty, $newQty) {
+            // Under the work-order lock production reporting takes too
+            // (WorkstationController), with the entry re-read and re-checked
+            // inside it: two corrections at once must not both fit the plan.
+            $outcome = DB::transaction(function () use ($shiftEntry, $newQty) {
+                $workOrder = WorkOrder::whereKey($shiftEntry->work_order_id)->lockForUpdate()->firstOrFail();
+                $shiftEntry = WorkOrderShiftEntry::whereKey($shiftEntry->getKey())->lockForUpdate()->firstOrFail();
+                $this->authorizeCorrection($shiftEntry);
+
+                $oldQty = (float) $shiftEntry->quantity;
+                if ($oldQty === $newQty) {
+                    return 'unchanged';
+                }
+
+                // The stored total moves by the difference: it also holds
+                // quantities added directly, which the shift entries do not.
+                $produced = (float) $workOrder->produced_qty;
+                $newProduced = max(0.0, $produced - $oldQty + $newQty);
+
+                // Only a raise can go over the plan; lowering a mistaken entry always works.
+                if ($newQty > $oldQty && \App\Support\ProductionRules::exceedsPlan($workOrder, $newProduced)) {
+                    return (float) $workOrder->planned_qty - $produced;
+                }
+
                 // Log the correction in audit
                 AuditLog::create([
                     'user_id' => auth()->id(),
@@ -70,23 +87,35 @@ class ProductionCorrectionController extends Controller
                     'user_agent' => request()->userAgent(),
                 ]);
 
-                // Update the shift entry
+                // Update the shift entry without touching updated_at: the timed
+                // correction window runs from the last reported quantity, and a
+                // correction must not reopen it (the audit log records when).
+                $shiftEntry->timestamps = false;
                 $shiftEntry->update([
                     'quantity' => $newQty,
                     'user_id' => auth()->id(),
                 ]);
+                $shiftEntry->timestamps = true;
 
-                // Recalculate work order produced_qty from all shift entries
-                $workOrder = $shiftEntry->workOrder;
-                $totalProduced = WorkOrderShiftEntry::where('work_order_id', $workOrder->id)
-                    ->sum('quantity');
+                $workOrder->update(['produced_qty' => $newProduced]);
 
-                $workOrder->update(['produced_qty' => $totalProduced]);
+                return 'saved';
             });
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e; // a 403 from the re-check, not a failed save
         } catch (\Throwable $e) {
             report($e);
 
             return back()->with('error', __('Failed to save correction. Please try again.'));
+        }
+
+        if ($outcome === 'unchanged') {
+            return redirect()->route('operator.workstation')
+                ->with('info', __('No changes made.'));
+        }
+
+        if (is_float($outcome)) {
+            return back()->withErrors(['quantity' => \App\Support\ProductionRules::exceedsPlanMessage($outcome)])->withInput();
         }
 
         return redirect()->route('operator.workstation')

@@ -533,6 +533,7 @@ function GenerateForm({ defaults, canDecide }) {
         scope: defaults.scope,
         respect_material: defaults.respect_material,
         respect_workforce: defaults.respect_workforce ?? true,
+        respect_quality: defaults.respect_quality ?? true,
     });
 
     const submit = (e) => {
@@ -620,6 +621,11 @@ function GenerateForm({ defaults, canDecide }) {
                     checked={!!form.data.respect_workforce}
                     onChange={(v) => form.setData('respect_workforce', v)}
                     label={__('Operator availability')}
+                />
+                <Checkbox
+                    checked={!!form.data.respect_quality}
+                    onChange={(v) => form.setData('respect_quality', v)}
+                    label={__('Quality holds')}
                 />
             </div>
 

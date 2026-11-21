@@ -6,6 +6,7 @@ use App\Enums\ApiScope;
 use App\Models\Concerns\HasTenant;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use App\Scopes\TenantScope;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -55,6 +56,21 @@ class ApiKey extends Model
             'last_used_at' => 'datetime',
             'expires_at' => 'datetime',
         ];
+    }
+
+    /**
+     * The expiry is an instant. Stored as plant-local wall time (like every
+     * timestamp here), so a value carrying its own zone — "…Z", "+02:00", as an
+     * ERP sends it — is converted first; the datetime cast alone would keep its
+     * digits and move the expiry by the zone difference.
+     */
+    protected function expiresAt(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => $value === null || $value === ''
+                ? null
+                : $this->fromDateTime(Carbon::parse($value)->setTimezone(config('app.timezone'))),
+        );
     }
 
     /**

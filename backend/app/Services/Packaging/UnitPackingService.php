@@ -197,6 +197,10 @@ class UnitPackingService
     public function palletClosed(Pallet $pallet): void
     {
         $this->consumePackaging($pallet->work_order_id, BomItem::PER_PALLET);
+        // Both close paths use a guarded query update, which fires no model
+        // events - so the finished-goods receipt the Pallet model books on a
+        // status change has to be asked for here (it books each pallet once).
+        app(\App\Services\Warehouse\PalletStockDocumentService::class)->statusChanged($pallet, auth()->user());
     }
 
     /**

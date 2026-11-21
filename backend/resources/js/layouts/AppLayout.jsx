@@ -101,10 +101,14 @@ export function dedupeTrail(items) {
     return items.filter((item, i) => i === 0 || item.label !== items[i - 1].label);
 }
 
-function navTrailFor(path, groups, links) {
+function navTrailFor(path, groups, links, tab = null) {
     let best = null;
 
     const consider = (node, chain) => {
+        // Entries that open one tab of a shared page (Settings → System Settings
+        // → ?tab=…) all match the same path; only the open tab's entry counts,
+        // or the first of them (General) would name every tab.
+        if (node.query && node.query !== (tab || 'general')) return;
         const matches = node.match ?? (node.href ? [node.href] : []);
         // Score on the prefixes that actually matched, not the longest in the
         // array: a group lists every child's path, so scoring the whole array let
@@ -334,6 +338,7 @@ export default function AppLayout({ children }) {
     // usePage().url is reactive across SPA navigation; strip the query string
     // so prefix matching for active-state works (e.g. /admin/work-orders?status=).
     const path = (page.url || '').split('?')[0];
+    const tab = new URLSearchParams((page.url || '').split('?')[1] || '').get('tab');
 
     const [collapsed, setCollapsed] = useState(
         () => typeof window !== 'undefined' && localStorage.getItem('sb') === '1',
@@ -342,8 +347,8 @@ export default function AppLayout({ children }) {
     // the module registered, not fall off the trail entirely.
     const { links: navLinks, groups: navGroups } = useNavTree();
     const navTrail = useMemo(
-        () => navTrailFor(path, navGroups, navLinks),
-        [path, navGroups, navLinks],
+        () => navTrailFor(path, navGroups, navLinks, tab),
+        [path, tab, navGroups, navLinks],
     );
     const [hasPageTitle, pageTitleCtx] = usePageTitlePresence(navTrail);
 
@@ -464,9 +469,23 @@ function FlashMessages() {
     // explain a redirect ("you were sent here because…"), and dropping them
     // left the user on a page they had not asked for with no word why.
     const shown = FLASH_KINDS.filter(([kind]) => flash?.[kind]);
+    // A form saved at the bottom of a long page redirects back to the same,
+    // still scrolled, page: the message lands above the fold and the save
+    // looks like it did nothing. Bring a new message into view.
+    // Keyed on the flash object: every visit brings a new one, so saving twice
+    // with the same message still scrolls the second time.
+    const ref = useRef(null);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        // Above the top of the scrolling <main> (under the header) counts as hidden.
+        const top = el.closest('main')?.getBoundingClientRect().top ?? 0;
+        if (el.getBoundingClientRect().top >= top) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [flash]);
     if (shown.length === 0) return null;
     return (
-        <div className="mb-4 space-y-2">
+        <div ref={ref} className="mb-4 space-y-2 scroll-mt-4">
             {shown.map(([kind, tone, role]) => (
                 <div key={kind} role={role} className={`p-3 rounded-om-sm border border-om-line text-[13px] ${tone}`}>
                     {__(flash[kind])}

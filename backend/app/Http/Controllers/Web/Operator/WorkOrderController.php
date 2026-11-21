@@ -156,6 +156,9 @@ class WorkOrderController extends Controller
                     $updates['status'] = WorkOrder::STATUS_DONE;
                     $updates['completed_at'] = now();
                     if (isset($validated['produced_qty'])) {
+                        if (\App\Support\ProductionRules::exceedsPlan($workOrder, (float) $validated['produced_qty'])) {
+                            return back()->with('error', \App\Support\ProductionRules::exceedsPlanMessage((float) $workOrder->planned_qty - (float) $workOrder->produced_qty));
+                        }
                         $updates['produced_qty'] = $validated['produced_qty'];
                     }
                 }
@@ -417,9 +420,12 @@ class WorkOrderController extends Controller
         // was last seen - so the order shows which pieces it is made of, not only counts.
         $serialUnits = $this->serialUnitsOf($workOrder);
 
+        // What a new batch may still add up to; null while overproduction is allowed.
+        $batchableQty = \App\Support\ProductionRules::batchableQty($workOrder);
+
         $lotManualEntry = \App\Services\Lot\BatchLotRules::manualEntryAllowed();
 
-        return Inertia::render('operator/WorkOrderDetail', compact('lotManualEntry', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'lotManualEntry', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation', 'serialUnits'));
     }
 
     /**

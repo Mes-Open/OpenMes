@@ -1,5 +1,5 @@
 // Geist White restyle: light-only v1 — om-* tokens, @openmes/ui controls.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown, InlineAlert, Switch, Tabs } from '@openmes/ui';
 import AppLayout from '../../layouts/AppLayout';
@@ -16,6 +16,31 @@ const HELP_CLASS = 'text-om-muted text-[12.5px]';
 const ERROR_CLASS = 'text-[11.5px] text-om-blocked mt-1';
 const INPUT_BASE =
     'bg-om-bg border border-om-line rounded-om-sm px-3 py-2.5 text-[13px] text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-[3px] focus:ring-[rgba(234,90,43,.12)]';
+
+/**
+ * A setting switched on or off: the switch, its name and what it does. The name
+ * and the help are the switch's own <label>, so clicking the words flips it too
+ * and a screen reader announces what it switches; every row on the page gets the
+ * same alignment and spacing.
+ */
+function SwitchRow({ checked, onChange, label, help, disabled = false }) {
+    const id = useId();
+    return (
+        <div className="flex items-start gap-3">
+            <Switch
+                id={id}
+                checked={!!checked}
+                onChange={onChange}
+                disabled={disabled}
+                aria-describedby={help ? `${id}-help` : undefined}
+            />
+            <label htmlFor={id} className={`min-w-0 pt-[2px] ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                <span className="block text-[13px] font-medium text-om-ink">{label}</span>
+                {help && <span id={`${id}-help`} className={`block mt-0.5 ${HELP_CLASS}`}>{help}</span>}
+            </label>
+        </div>
+    );
+}
 
 function SelectCard({ value, current, onChange, label, desc, disabled }) {
     const isSelected = value === current;
@@ -113,15 +138,12 @@ function TelemetryCard({ enabled, onChange, lastSentAt }) {
                 {__('OpenMES sends information about the software — versions, which features are switched on, rough size bands, and where errors occur (class, file and line). It never sends anything you entered into OpenMES: no material or product codes, no lot numbers, no order data, no recipes, no personal data, and no error message text.')}
             </p>
 
-            <div className="flex items-start gap-3">
-                <Switch checked={enabled} onChange={onChange} />
-                <div>
-                    <p className="text-[13px] font-medium text-om-ink">{__('Send usage reports')}</p>
-                    <p className={HELP_CLASS}>
-                        {__('Helps us see which features are used and which releases break, so problems are found without waiting for someone to report them. Can also be switched off before startup with OPENMES_TELEMETRY=false.')}
-                    </p>
-                </div>
-            </div>
+            <SwitchRow
+                checked={enabled}
+                onChange={onChange}
+                label={__('Send usage reports')}
+                help={__('Helps us see which features are used and which releases break, so problems are found without waiting for someone to report them. Can also be switched off before startup with OPENMES_TELEMETRY=false.')}
+            />
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
                 <Button type="button" variant="secondary" onClick={reveal} loading={loading}>
@@ -266,13 +288,22 @@ export default function System() {
     const requestedTab = new URLSearchParams(usePage().url.split('?')[1] || '').get('tab');
     const [tab, setTab] = useState(TABS.includes(requestedTab) ? requestedTab : 'general');
     // …and a click writes it back, so a refresh or a shared link reopens the
-    // same panel. Replaced in place: one page, six views, no remount.
+    // same panel. Replaced in place: one page, six views, no remount. Through
+    // Inertia rather than history.replaceState, so usePage().url follows and
+    // the sidebar and the breadcrumb mark the open tab, not the one opened first.
     const selectTab = (next) => {
         setTab(next);
         if (typeof window !== 'undefined') {
             const url = new URL(window.location.href);
             if (next === 'general') url.searchParams.delete('tab'); else url.searchParams.set('tab', next);
-            window.history.replaceState(window.history.state, '', url);
+            // The flash belongs to the save that produced it: switching tab drops
+            // it, or "System settings updated." would stand over a tab never saved.
+            router.replace({
+                url: url.pathname + url.search,
+                props: (props) => ({ ...props, flash: {} }),
+                preserveState: true,
+                preserveScroll: true,
+            });
         }
     };
     // The targets card's figures are real queries (shift FPY, planned minutes),
@@ -287,7 +318,17 @@ export default function System() {
         }
         if (targetsRequested.current) return;
         targetsRequested.current = true;
-        router.reload({ only: ['productionTargets'] });
+        // To the Production tab's own address, not router.reload(): a reload
+        // goes to the page URL from before the click, and its response would
+        // put that URL back over ?tab=production (breadcrumb stuck on General).
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', 'production');
+        router.visit(url.pathname + url.search, {
+            only: ['productionTargets'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     }, [tab, productionTargets]);
     const [sampleConfirm, setSampleConfirm] = useState(false);
     // Which example company the admin picked; defaults to the first on offer.
@@ -303,15 +344,18 @@ export default function System() {
     const [statusMessage, setStatusMessage] = useState('');
 
     const { csrf_token } = usePage().props;
+    // Errors from the plain (non-Inertia) forms on the Data tab — import and
+    // sample data — arrive as page props, not through useForm's own `errors`.
+    const pageErrors = usePage().props.errors ?? {};
 
     const { confirm, dialog } = useConfirm();
 
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, transform } = useForm({
         production_period: settings.production_period ?? 'none',
         allow_overproduction: settings.allow_overproduction ?? false,
         block_negative_stock: settings.block_negative_stock ?? false,
-        // Opt-out: an installation that was never asked reports.
-        telemetry_enabled: settings.telemetry_enabled ?? true,
+        // Opt-in: the server always sends the stored choice (false when never asked).
+        telemetry_enabled: settings.telemetry_enabled ?? false,
         force_sequential_steps: settings.force_sequential_steps ?? true,
         workstation_routing_enabled: settings.workstation_routing_enabled ?? false,
         backflush_on_pallet_creation: settings.backflush_on_pallet_creation ?? false,
@@ -338,7 +382,6 @@ export default function System() {
         app_timezone: settings.app_timezone ?? 'UTC',
         schedule_view_mode: settings.schedule_view_mode ?? 'weekly',
         schedule_shifts_per_day: settings.schedule_shifts_per_day ?? 1,
-        schedule_horizon_weeks: settings.schedule_horizon_weeks ?? 6,
         schedule_show_weekends: settings.schedule_show_weekends ?? true,
         realtime_mode: settings.realtime_mode ?? 'polling',
         production_tracking_mode: settings.production_tracking_mode ?? 'per_operation',
@@ -362,22 +405,36 @@ export default function System() {
 
     function handleSubmit(e) {
         e.preventDefault();
-        // Language and timezone are both read once at bootstrap (see lib/i18n:
-        // loadLocale / setTimezone), so a change only takes effect after a full
-        // reload — an Inertia (SPA) redirect swaps neither the locale chunk nor
-        // the zone the format* helpers use. Reload when either actually changed.
-        const needsReload = data.language !== settings.language
-            || data.app_timezone !== settings.app_timezone;
+        // The language is posted only from the General tab, where its picker is:
+        // saving it there also switches this admin's own session language, so
+        // saving any other tab must not touch it.
+        const sendsLanguage = tab === 'general';
+        // The CORS allowlist likewise only from the Security tab, where its
+        // fields are: a stored value saved elsewhere could only fail there unseen.
+        const sendsCors = tab === 'security';
+        transform((form) => {
+            const { language, cors_allowed_origins, cors_allowed_methods, cors_max_age, ...rest } = form;
+            return {
+                ...rest,
+                ...(sendsLanguage ? { language } : {}),
+                ...(sendsCors ? { cors_allowed_origins, cors_allowed_methods, cors_max_age } : {}),
+            };
+        });
         post('/settings/system', {
+            // A new UI language or timezone needs a fresh page load: the server
+            // answers those saves with a full visit (Inertia::location), which
+            // keeps the "saved" flash — a reload from here would drop it.
             onSuccess: () => {
-                if (needsReload) {
-                    window.location.reload();
-                    return;
-                }
                 // Sidebar links prefetch pages and keep them for ~30s. A saved
                 // setting (e.g. the currency) changes what those pages render,
                 // so drop the cache or the next click shows the old values.
                 router.flushAll();
+            },
+            // The whole form is posted from every tab, and some fields show only
+            // under another choice, so a rejected field may not be on screen:
+            // never let a save fail without a word.
+            onError: (formErrors) => {
+                toast({ severity: 'error', title: __('Settings were not saved.'), body: Object.values(formErrors).join(' ') });
             },
         });
     }
@@ -606,7 +663,10 @@ export default function System() {
                     {/* ═══ General ═══ */}
                     {tab === 'general' && (
                         <div className={CARD_CLASS}>
-                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Language')}</h2>
+                            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('System language')}</h2>
+                            <p className={`${HELP_CLASS} mb-4`}>
+                                {__('Default language for every user and the login screen. The language switcher on the login screen changes it only in that browser.')}
+                            </p>
                             <div className="mb-2">
                                 <div className={LABEL_CLASS}>{__('Select language')}</div>
                                 <Dropdown
@@ -642,6 +702,7 @@ export default function System() {
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Currency')}</h2>
                                 <p className={`${HELP_CLASS} mb-2`}>{__('System-wide currency used across cost reports, pay rates and additional costs.')}</p>
                                 <Dropdown
+                                    aria-label={__('Currency')}
                                     options={[
                                         ...(!currencies.some((c) => c.code === data.default_currency) && data.default_currency
                                             ? [{ value: String(data.default_currency), label: data.default_currency }]
@@ -671,7 +732,7 @@ export default function System() {
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Planning')}</h2>
                                 <div className="mb-4">
                                     <span className={LABEL_CLASS}>{__('Production Period Split')}</span>
-                                    <p className={`${HELP_CLASS} mb-2`}>{__('Determines how work orders are grouped for planning.')}</p>
+                                    <p className={`${HELP_CLASS} mb-2`}>{__('Adds a week or month number to the work order import, so imported orders are assigned to a planning period.')}</p>
                                     <div className="grid grid-cols-3 gap-3">
                                         {[
                                             { value: 'none', label: __('None'), desc: __('No period grouping') },
@@ -716,138 +777,110 @@ export default function System() {
 
                             {/* Production Rules */}
                             <div className={CARD_CLASS}>
-                                <h2 className="text-[15px] font-semibold mb-2">{__('Material availability')}</h2>
+                                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Material availability')}</h2>
                                 {/* One choice over two settings: blocking a step that lacks stock, and
                                     holding a whole batch until stock covers its order (which blocks steps too). */}
                                 {(() => {
                                     const current = data.hold_on_material_shortage ? 'hold' : (data.block_negative_stock ? 'block' : 'warn');
                                     const choose = (v) => setData((d) => ({ ...d, block_negative_stock: v !== 'warn', hold_on_material_shortage: v === 'hold' }));
-                                    return [
+                                    return <div className="grid gap-3">{[
                                         { value: 'warn', label: __('Warn and allow production'), desc: __('Missing receipts may result in a negative stock balance. Operators can continue working.') },
                                         { value: 'block', label: __('Block production when stock is insufficient'), desc: __('Record a material receipt before starting a step that needs more stock.') },
                                         { value: 'hold', label: __('Hold the batch until stock covers the order'), desc: __('A batch does not start while stock does not cover its whole work order; the operator sees what is missing, the planner shows it in advance. Steps are blocked as above too.') },
-                                    ].map((opt) => <SelectCard key={opt.value} value={opt.value} current={current} onChange={choose} label={opt.label} desc={opt.desc} />);
+                                    ].map((opt) => <SelectCard key={opt.value} value={opt.value} current={current} onChange={choose} label={opt.label} desc={opt.desc} />)}</div>;
                                 })()}
                             </div>
                             <div className={CARD_CLASS}>
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-4">{__('Production Rules')}</h2>
-                                <div className="space-y-4">
-                                    <div className="flex items-start gap-3">
-                                        <Switch
-                                            checked={data.allow_overproduction}
-                                            onChange={(v) => setData('allow_overproduction', v)}
-                                        />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Allow overproduction')}</p>
-                                            <p className={HELP_CLASS}>{__('Allow operators to record more units than the planned quantity.')}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-start gap-3">
-                                        <Switch
-                                            checked={data.force_sequential_steps}
-                                            onChange={(v) => setData('force_sequential_steps', v)}
-                                        />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Force sequential steps')}</p>
-                                            <p className={HELP_CLASS}>{__('Require production steps to be completed in defined order.')}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-start gap-3">
-                                        <Switch
-                                            checked={data.workstation_routing_enabled}
-                                            onChange={(v) => setData('workstation_routing_enabled', v)}
-                                        />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Workstation routing')}</p>
-                                            <p className={HELP_CLASS}>{__('When enabled, an operator assigned to a workstation can only start or complete steps assigned to that workstation.')}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-start gap-3">
-                                        <Switch
-                                            checked={data.backflush_on_pallet_creation}
-                                            onChange={(v) => setData('backflush_on_pallet_creation', v)}
-                                        />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Backflush on pallet creation')}</p>
-                                            <p className={HELP_CLASS}>{__('When enabled, creating a pallet declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p className="text-[13px] font-medium text-om-ink mb-1">{__('Finished goods by pallet')}</p>
-                                    <p className={`${HELP_CLASS} mb-2`}>{__('A closed pallet is received into the finished-goods warehouse and a shipped one is issued from it, instead of one receipt when the work order completes.')}</p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        {[
-                                            { value: 'off', label: __('Off'), desc: __('The work order receipt when it completes, as before.') },
-                                            { value: 'draft', label: __('Drafts'), desc: __('Documents per pallet, posted by the warehouse.') },
-                                            { value: 'post', label: __('Posted'), desc: __('Documents per pallet, posted at once: stock follows the pallets.') },
-                                        ].map((opt) => (
-                                            <SelectCard
-                                                key={opt.value}
-                                                value={opt.value}
-                                                current={data.pallet_stock_documents}
-                                                onChange={(v) => setData('pallet_stock_documents', v)}
-                                                label={opt.label}
-                                                desc={opt.desc}
-                                            />
-                                        ))}
-                                    </div>
-                                    {errors.pallet_stock_documents && <p className={ERROR_CLASS}>{errors.pallet_stock_documents}</p>}
-                                </div>
-
-                                <div className="flex items-start gap-3">
-                                    <Switch
-                                        checked={data.lot_tracking_enabled}
-                                        onChange={(v) => setData('lot_tracking_enabled', v)}
+                                <div className="space-y-5">
+                                    <SwitchRow
+                                        checked={data.allow_overproduction}
+                                        onChange={(v) => setData('allow_overproduction', v)}
+                                        label={__('Allow overproduction')}
+                                        help={__('Allow operators to record more units than the planned quantity.')}
                                     />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Lot tracking of materials')}</p>
-                                        <p className={HELP_CLASS}>{__('When enabled, every reservation names the material lots it comes from: picked by the strategy below, or by the operator at the step start and at the packing station. Off, stock moves without lots.')}</p>
+
+                                    <SwitchRow
+                                        checked={data.force_sequential_steps}
+                                        onChange={(v) => setData('force_sequential_steps', v)}
+                                        label={__('Force sequential steps')}
+                                        help={__('Require production steps to be completed in defined order.')}
+                                    />
+
+                                    <SwitchRow
+                                        checked={data.workstation_routing_enabled}
+                                        onChange={(v) => setData('workstation_routing_enabled', v)}
+                                        label={__('Workstation routing')}
+                                        help={__('When enabled, an operator assigned to a workstation can only start or complete steps assigned to that workstation.')}
+                                    />
+
+                                    <SwitchRow
+                                        checked={data.backflush_on_pallet_creation}
+                                        onChange={(v) => setData('backflush_on_pallet_creation', v)}
+                                        label={__('Backflush on pallet creation')}
+                                        help={__('When enabled, creating a pallet at the packaging station declares the BOM consumption for the produced quantity and deducts it from stock at that milestone, instead of continuously.')}
+                                    />
+
+                                    <div className="border-t border-om-line2 pt-5">
+                                        <p className={LABEL_CLASS}>{__('Finished goods by pallet')}</p>
+                                        <p className={`${HELP_CLASS} mb-3`}>{__('A closed pallet is received into the finished-goods warehouse and a shipped one is issued from it, instead of one receipt when the work order completes.')}</p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            {[
+                                                { value: 'off', label: __('Off'), desc: __('The work order receipt when it completes, as before.') },
+                                                { value: 'draft', label: __('Drafts'), desc: __('Documents per pallet, posted by the warehouse.') },
+                                                { value: 'post', label: __('Posted'), desc: __('Documents per pallet, posted at once: stock follows the pallets.') },
+                                            ].map((opt) => (
+                                                <SelectCard
+                                                    key={opt.value}
+                                                    value={opt.value}
+                                                    current={data.pallet_stock_documents}
+                                                    onChange={(v) => setData('pallet_stock_documents', v)}
+                                                    label={opt.label}
+                                                    desc={opt.desc}
+                                                />
+                                            ))}
+                                        </div>
+                                        {errors.pallet_stock_documents && <p className={ERROR_CLASS}>{errors.pallet_stock_documents}</p>}
                                     </div>
-                                </div>
-                                {data.lot_tracking_enabled && (
-                                    <div className="ml-12">
-                                        <label className={LABEL_CLASS} htmlFor="lot_picking_strategy">{__('Lot picking strategy')}</label>
-                                        <Dropdown
-                                            id="lot_picking_strategy"
-                                            aria-label={__('Lot picking strategy')}
-                                            value={data.lot_picking_strategy}
-                                            onChange={(v) => setData('lot_picking_strategy', v)}
-                                            options={[
-                                                { value: 'fefo', label: __('FEFO - first expiring first') },
-                                                { value: 'fifo', label: __('FIFO - oldest received first') },
-                                                { value: 'lifo', label: __('LIFO - newest received first') },
-                                                { value: 'manual', label: __('Manual - the operator always chooses') },
-                                            ]}
-                                            className="w-full md:w-96"
+
+                                    <div className="border-t border-om-line2 pt-5 space-y-4">
+                                        <SwitchRow
+                                            checked={data.lot_tracking_enabled}
+                                            onChange={(v) => setData('lot_tracking_enabled', v)}
+                                            label={__('Lot tracking of materials')}
+                                            help={__('When enabled, every reservation names the material lots it comes from: picked by the strategy below, or by the operator at the step start and at the packing station. Off, stock moves without lots.')}
                                         />
-                                        <p className={HELP_CLASS}>{__('The proposed lot when a step or the packing station starts; the operator can still pick another.')} {__('Expired lots are never proposed and cannot be used.')}</p>
-                                    </div>
-                                )}
-
-                                <div className="flex items-start gap-3">
-                                    <Switch
-                                        checked={data.batch_lot_manual_entry}
-                                        onChange={(v) => setData('batch_lot_manual_entry', v)}
-                                    />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Batch LOT can be typed by hand')}</p>
-                                        <p className={HELP_CLASS}>{__('Off: every batch LOT comes from the LOT sequence and the operator cannot type one. On: the operator may type a LOT or take the next one from the sequence. A LOT is always unique among batches.')}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start gap-3">
-                                    <Switch
-                                        checked={data.ship_requires_release}
-                                        onChange={(v) => setData('ship_requires_release', v)}
-                                    />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Ship only goods released for sale')}</p>
-                                        <p className={HELP_CLASS}>{__('A pallet ships only when its batch is released for sale and its work order is not blocked by an open non-conformance.')}</p>
+                                        {data.lot_tracking_enabled && (
+                                            <div className="ml-[54px]">
+                                                <label className={LABEL_CLASS} htmlFor="lot_picking_strategy">{__('Lot picking strategy')}</label>
+                                                <Dropdown
+                                                    id="lot_picking_strategy"
+                                                    aria-label={__('Lot picking strategy')}
+                                                    value={data.lot_picking_strategy}
+                                                    onChange={(v) => setData('lot_picking_strategy', v)}
+                                                    options={[
+                                                        { value: 'fefo', label: __('FEFO - first expiring first') },
+                                                        { value: 'fifo', label: __('FIFO - oldest received first') },
+                                                        { value: 'lifo', label: __('LIFO - newest received first') },
+                                                        { value: 'manual', label: __('Manual - the operator always chooses') },
+                                                    ]}
+                                                    className="w-full md:w-96"
+                                                />
+                                                <p className={HELP_CLASS}>{__('The proposed lot when a step or the packing station starts; the operator can still pick another.')} {__('Expired lots are never proposed and cannot be used.')}</p>
+                                            </div>
+                                        )}
+                                        <SwitchRow
+                                            checked={data.batch_lot_manual_entry}
+                                            onChange={(v) => setData('batch_lot_manual_entry', v)}
+                                            label={__('Batch LOT can be typed by hand')}
+                                            help={__('Off: every batch LOT comes from the LOT sequence and the operator cannot type one. On: the operator may type a LOT or take the next one from the sequence. A LOT is always unique among batches.')}
+                                        />
+                                        <SwitchRow
+                                            checked={data.ship_requires_release}
+                                            onChange={(v) => setData('ship_requires_release', v)}
+                                            label={__('Ship only goods released for sale')}
+                                            help={__('A pallet ships only when its batch is released for sale and its work order is not blocked by an open non-conformance.')}
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -886,44 +919,39 @@ export default function System() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-start gap-3">
-                                        <Switch checked={data.unit_identifier_normalize} onChange={(v) => setData('unit_identifier_normalize', v)} />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Normalise scanned identifiers')}</p>
-                                            <p className={HELP_CLASS}>{__('Strip whitespace and uppercase before storing or matching, so a label printed with spaces and one read by a scanner are the same identifier.')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <Switch checked={data.unit_psn_required} onChange={(v) => setData('unit_psn_required', v)} />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Process serial required')}</p>
-                                            <p className={HELP_CLASS}>{__('A unit cannot be registered at a station without its process serial number.')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <Switch checked={data.unit_psn_unique} onChange={(v) => setData('unit_psn_unique', v)} />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Process serial identifies one unit')}</p>
-                                            <p className={HELP_CLASS}>{__('Refuse binding a process serial number that already belongs to another unit. Turn off when one process serial covers several units.')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <Switch checked={data.unit_pack_requires_serial} onChange={(v) => setData('unit_pack_requires_serial', v)} />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Pack only units with a serial number')}</p>
-                                            <p className={HELP_CLASS}>{__('Refuse packing a unit that has only its process serial, e.g. when the ERP receives finished units by serial number.')}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <Switch checked={data.unit_pack_requires_order} onChange={(v) => setData('unit_pack_requires_order', v)} />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Pack only units on a work order')}</p>
-                                            <p className={HELP_CLASS}>{__('Refuse packing a unit that is not assigned to a work order, so every packed unit counts towards an order.')}</p>
-                                        </div>
-                                    </div>
+                                    <SwitchRow
+                                        checked={data.unit_identifier_normalize}
+                                        onChange={(v) => setData('unit_identifier_normalize', v)}
+                                        label={__('Normalise scanned identifiers')}
+                                        help={__('Strip whitespace and uppercase before storing or matching, so a label printed with spaces and one read by a scanner are the same identifier.')}
+                                    />
+                                    <SwitchRow
+                                        checked={data.unit_psn_required}
+                                        onChange={(v) => setData('unit_psn_required', v)}
+                                        label={__('Process serial required')}
+                                        help={__('A unit cannot be registered at a station without its process serial number.')}
+                                    />
+                                    <SwitchRow
+                                        checked={data.unit_psn_unique}
+                                        onChange={(v) => setData('unit_psn_unique', v)}
+                                        label={__('Process serial identifies one unit')}
+                                        help={__('Refuse binding a process serial number that already belongs to another unit. Turn off when one process serial covers several units.')}
+                                    />
+                                    <SwitchRow
+                                        checked={data.unit_pack_requires_serial}
+                                        onChange={(v) => setData('unit_pack_requires_serial', v)}
+                                        label={__('Pack only units with a serial number')}
+                                        help={__('Refuse packing a unit that has only its process serial, e.g. when the ERP receives finished units by serial number.')}
+                                    />
+                                    <SwitchRow
+                                        checked={data.unit_pack_requires_order}
+                                        onChange={(v) => setData('unit_pack_requires_order', v)}
+                                        label={__('Pack only units on a work order')}
+                                        help={__('Refuse packing a unit that is not assigned to a work order, so every packed unit counts towards an order.')}
+                                    />
 
                                     <div>
-                                        <p className="text-[13px] font-medium text-om-ink mb-2">{__('After a failed test')}</p>
+                                        <p className={LABEL_CLASS}>{__('After a failed test')}</p>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             {[
                                                 { value: 'block', label: __('Block the unit'), desc: __('Hold it after the number of failed tests below. A later passed test releases it.') },
@@ -955,7 +983,7 @@ export default function System() {
                                                 />
                                                 <p className={`${HELP_CLASS} mt-1`}>{__('1 = the first failed test blocks the unit.')}</p>
                                                 {errors.unit_test_max_attempts && <p className={ERROR_CLASS}>{errors.unit_test_max_attempts}</p>}
-                                                <p className="text-[13px] font-medium text-om-ink mt-4 mb-2">{__('Which failed tests count')}</p>
+                                                <p className={`${LABEL_CLASS} mt-5`}>{__('Which failed tests count')}</p>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     {[
                                                         { value: 'test', label: __('Per test, since its last pass'), desc: __('Failed tests at the same test station after it last passed there. A retest that passes starts the count over.') },
@@ -981,7 +1009,7 @@ export default function System() {
                             {/* Barcode Scanner */}
                             <div className={CARD_CLASS}>
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Barcode Scanner')}</h2>
-                                <p className={`${HELP_CLASS} mb-4`}>{__('How the workstation receives input from a barcode scanner.')}</p>
+                                <p className={`${HELP_CLASS} mb-4`}>{__('How the packaging station receives input from a barcode scanner.')}</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {[
                                         { value: 'hid', label: __('HID / Keyboard wedge'), desc: __('Scanner acts as a keyboard. Codes are captured automatically on the workstation, no input field required.') },
@@ -1098,7 +1126,6 @@ export default function System() {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div>
                                         <label className={LABEL_CLASS} htmlFor="default_pay_type">{__('Default pay type')}</label>
-                                        <p className={`${HELP_CLASS} mb-2`}>{__('Fallback mode for workers with no pay type set.')}</p>
                                         <Dropdown
                                             options={[
                                                 { value: 'hourly', label: __('Hourly') },
@@ -1109,11 +1136,11 @@ export default function System() {
                                             onChange={(v) => setData('default_pay_type', v)}
                                             className="w-full"
                                         />
+                                        <p className={`${HELP_CLASS} mt-1.5`}>{__('Fallback mode for workers with no pay type set.')}</p>
                                         {errors.default_pay_type && <p className={ERROR_CLASS}>{errors.default_pay_type}</p>}
                                     </div>
                                     <div>
                                         <label className={LABEL_CLASS} htmlFor="standard_weekly_hours">{__('Standard weekly hours')}</label>
-                                        <p className={`${HELP_CLASS} mb-2`}>{__('Converts a weekly salary into an hourly cost (salary / hours).')}</p>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="number"
@@ -1127,11 +1154,11 @@ export default function System() {
                                             />
                                             <span className="text-[13px] text-om-muted">{__('hours/week')}</span>
                                         </div>
+                                        <p className={`${HELP_CLASS} mt-1.5`}>{__('Converts a weekly salary into an hourly cost (salary / hours).')}</p>
                                         {errors.standard_weekly_hours && <p className={ERROR_CLASS}>{errors.standard_weekly_hours}</p>}
                                     </div>
                                     <div>
                                         <label className={LABEL_CLASS} htmlFor="default_pay_rate">{__('Default pay rate')}</label>
-                                        <p className={`${HELP_CLASS} mb-2`}>{__('Fallback rate used when a worker has no rate of their own (applied per the worker\'s pay type). Leave blank for none.')}</p>
                                         <input
                                             type="number"
                                             id="default_pay_rate"
@@ -1141,6 +1168,7 @@ export default function System() {
                                             min={0}
                                             step="0.0001"
                                         />
+                                        <p className={`${HELP_CLASS} mt-1.5`}>{__('Fallback rate used when a worker has no rate of their own (applied per the worker\'s pay type). Leave blank for none.')}</p>
                                         {errors.default_pay_rate && <p className={ERROR_CLASS}>{errors.default_pay_rate}</p>}
                                     </div>
                                 </div>
@@ -1182,7 +1210,7 @@ export default function System() {
                             {/* Shifts per day */}
                             <div>
                                 <div className={LABEL_CLASS}>{__('Shifts per day')}</div>
-                                <p className={`${HELP_CLASS} mb-2`}>{__('Number of production shifts in a 24-hour period.')}</p>
+                                <p className={`${HELP_CLASS} mb-2`}>{__('Used only when no shifts are defined. Otherwise the schedule shows a column for each active shift.')}</p>
                                 <div className="grid grid-cols-4 gap-3">
                                     {[1, 2, 3, 4].map((n) => (
                                         <div
@@ -1207,37 +1235,14 @@ export default function System() {
                                 </Link>
                             </div>
 
-                            {/* Planning horizon */}
-                            <div>
-                                <label className={LABEL_CLASS} htmlFor="schedule_horizon_weeks">{__('Planning horizon')}</label>
-                                <p className={`${HELP_CLASS} mb-2`}>{__('How many weeks ahead the planner displays.')}</p>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        id="schedule_horizon_weeks"
-                                        value={data.schedule_horizon_weeks}
-                                        onChange={(e) => setData('schedule_horizon_weeks', parseInt(e.target.value, 10) || 1)}
-                                        className={`${INPUT_BASE} w-24`}
-                                        min={1}
-                                        max={52}
-                                    />
-                                    <span className="text-[13px] text-om-muted">{__('weeks')}</span>
-                                </div>
-                                {errors.schedule_horizon_weeks && <p className={ERROR_CLASS}>{errors.schedule_horizon_weeks}</p>}
-                            </div>
-
                             {/* Show weekends */}
                             <div>
-                                <div className="flex items-start gap-3">
-                                    <Switch
-                                        checked={data.schedule_show_weekends}
-                                        onChange={(v) => setData('schedule_show_weekends', v)}
-                                    />
-                                    <div>
-                                        <p className="text-[13px] font-medium text-om-ink">{__('Show weekends')}</p>
-                                        <p className={HELP_CLASS}>{__('Display Saturday and Sunday columns in the schedule view.')}</p>
-                                    </div>
-                                </div>
+                                <SwitchRow
+                                    checked={data.schedule_show_weekends}
+                                    onChange={(v) => setData('schedule_show_weekends', v)}
+                                    label={__('Show weekends')}
+                                    help={__('Display Saturday and Sunday columns in the weekly schedule view.')}
+                                />
                             </div>
 
                             {/* Realtime updates */}
@@ -1273,18 +1278,12 @@ export default function System() {
                                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{__('Authentication')}</h2>
                                 <p className={`${HELP_CLASS} mb-4`}>{__('Additional login methods for operators.')}</p>
                                 <div className="space-y-4">
-                                    <div className="flex items-start gap-3">
-                                        <Switch
-                                            checked={data.pin_login_enabled}
-                                            onChange={(v) => setData('pin_login_enabled', v)}
-                                        />
-                                        <div>
-                                            <p className="text-[13px] font-medium text-om-ink">{__('Enable PIN login')}</p>
-                                            <p className={HELP_CLASS}>
-                                                {__('Allow users to set a 4–6 digit numeric PIN for quick sign-in. Each user must first configure their PIN in Settings (requires current password). PIN login does not replace password login — it is an alternative method.')}
-                                            </p>
-                                        </div>
-                                    </div>
+                                    <SwitchRow
+                                        checked={data.pin_login_enabled}
+                                        onChange={(v) => setData('pin_login_enabled', v)}
+                                        label={__('Enable PIN login')}
+                                        help={__('Allow users to set a 6-digit numeric PIN for quick sign-in. Each user must first configure their PIN in Settings (requires current password). PIN login does not replace password login — it is an alternative method.')}
+                                    />
                                 </div>
                             </div>
 
@@ -1330,6 +1329,7 @@ export default function System() {
                                         <p className={`${HELP_CLASS} mt-1`}>
                                             {__('HTTP methods allowed for cross-origin requests. Default: GET, POST (minimal).')}
                                         </p>
+                                        {errors.cors_allowed_methods && <p className={ERROR_CLASS}>{errors.cors_allowed_methods}</p>}
                                     </div>
                                     <div>
                                         <label className={LABEL_CLASS} htmlFor="cors_max_age">{__('Preflight Cache (seconds)')}</label>
@@ -1344,8 +1344,9 @@ export default function System() {
                                             placeholder="0"
                                         />
                                         <p className={`${HELP_CLASS} mt-1`}>
-                                            {__('How long browsers cache preflight responses. 0 = no caching (strictest).')}
+                                            {__('How long browsers cache preflight responses. 0 uses the default of 600 seconds.')}
                                         </p>
+                                        {errors.cors_max_age && <p className={ERROR_CLASS}>{errors.cors_max_age}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -1416,18 +1417,28 @@ export default function System() {
                                         <label
                                             key={set.key}
                                             className={`flex gap-3 p-4 rounded-om border cursor-pointer transition-colors
+                                                        has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-om-accent
                                                         ${dataset === set.key
                                                             ? 'border-om-accent bg-om-chip'
                                                             : 'border-om-line hover:bg-om-chip'}`}
                                         >
+                                            {/* The native radio still carries `dataset` in the POST and the
+                                                keyboard behaviour; the circle drawn next to it is the
+                                                design-system RadioGroup mark instead of the browser's blue one. */}
                                             <input
                                                 type="radio"
                                                 name="dataset"
                                                 value={set.key}
                                                 checked={dataset === set.key}
                                                 onChange={() => setDataset(set.key)}
-                                                className="mt-1 shrink-0"
+                                                className="sr-only"
                                             />
+                                            <span
+                                                aria-hidden
+                                                className={`mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border-2 ${dataset === set.key ? 'border-om-accent' : 'border-om-faintest'}`}
+                                            >
+                                                {dataset === set.key && <span className="size-2 rounded-full bg-om-accent" />}
+                                            </span>
                                             <span className="min-w-0">
                                                 <span className="block text-[13px] font-medium text-om-ink">{__(set.label)}</span>
                                                 <span className="block text-[11px] uppercase tracking-wide text-om-faint mt-0.5">{__(set.industry)}</span>
@@ -1453,6 +1464,9 @@ export default function System() {
                                         {loadedDemoDataset ? __('Replace Sample Data') : __('Load Sample Data')}
                                     </Button>
                                 </div>
+                                {(pageErrors.dataset || pageErrors.replace) && (
+                                    <p className={ERROR_CLASS} role="alert">{pageErrors.dataset || pageErrors.replace}</p>
+                                )}
                             </form>
                         )}
                     </div>
@@ -1496,6 +1510,7 @@ export default function System() {
                                 {__('Import Settings')}
                             </Button>
                         </form>
+                        {pageErrors.settings_file && <p className={ERROR_CLASS} role="alert">{pageErrors.settings_file}</p>}
                     </div>
 
                     {/* Backup & Recovery */}
