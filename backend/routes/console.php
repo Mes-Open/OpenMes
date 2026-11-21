@@ -29,6 +29,9 @@ Schedule::command('priority:recalculate')->hourly()->withoutOverlapping();
 Schedule::command('imports:prune-uploads')->dailyAt('03:20');
 // Polled counters write an "unchanged" reading every poll; keep a week of them.
 Schedule::command('machine-counters:prune-readings')->dailyAt('03:40')->withoutOverlapping();
+// Operator-panel rows on Admin -> Workstation devices left inactive for weeks
+// (cleared browser data, retired tablets) go to the trash.
+Schedule::command('workstation-devices:prune-panels')->dailyAt('03:50')->withoutOverlapping();
 // Hourly, but the command sends at most once a day and only in the hour its own
 // installation id maps to — a fixed time would have every OpenMES in the world
 // arrive at getopenmes.com within the same minute.
