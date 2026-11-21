@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\BuildsWorkOrderFormOptions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\BulkWorkOrderActionRequest;
 use App\Http\Requests\Web\Admin\StoreWorkOrderRequest;
+use App\Http\Requests\WorkOrder\CompleteWorkOrderRequest;
 use App\Http\Requests\WorkOrder\ResumeWorkOrderRequest;
 use App\Models\BatchStep;
 use App\Models\Customer;
@@ -17,6 +18,7 @@ use App\Services\CustomFieldService;
 use App\Services\WorkOrder\WorkOrderService;
 use App\Services\WorkOrder\WorkOrderStopService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WorkOrderController extends Controller
@@ -256,21 +258,34 @@ class WorkOrderController extends Controller
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} resumed.");
     }
 
-    public function complete(Request $request, WorkOrder $workOrder)
+    public function complete(CompleteWorkOrderRequest $request, WorkOrder $workOrder)
     {
-        if ($workOrder->status !== WorkOrder::STATUS_IN_PROGRESS) {
-            return redirect()->back()->with('error', 'Only IN_PROGRESS work orders can be completed.');
+        $validated = $request->validated();
+
+        // Locked so a batch created or started meanwhile is seen by the guard.
+        $error = DB::transaction(function () use ($workOrder, $validated) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+
+            if ($current->status !== WorkOrder::STATUS_IN_PROGRESS) {
+                return 'Only IN_PROGRESS work orders can be completed.';
+            }
+
+            if ($blocker = $current->openBatchesCompletionBlocker()) {
+                return $blocker;
+            }
+
+            $current->update([
+                'status' => WorkOrder::STATUS_DONE,
+                'produced_qty' => $validated['produced_qty'],
+                'completed_at' => now(),
+            ]);
+
+            return null;
+        });
+
+        if ($error !== null) {
+            return redirect()->back()->with('error', $error);
         }
-
-        $validated = $request->validate([
-            'produced_qty' => 'required|numeric|min:0.01|max:99999999',
-        ]);
-
-        $workOrder->update([
-            'status' => WorkOrder::STATUS_DONE,
-            'produced_qty' => $validated['produced_qty'],
-            'completed_at' => now(),
-        ]);
 
         return redirect()->back()->with('success', "Work order {$workOrder->order_no} completed.");
     }

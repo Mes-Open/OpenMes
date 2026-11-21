@@ -7834,5 +7834,6 @@
     "PIN must be exactly 6 digits.": "PIN musi mieć dokładnie 6 cyfr.",
     "This work order is blocked by an open issue and cannot be completed.": "To zlecenie jest zablokowane przez otwarte zgłoszenie i nie może zostać zakończone.",
     "This work order cannot be completed until its production has gone through the process steps of a batch.": "To zlecenie nie może zostać zakończone, dopóki produkcja nie przejdzie przez kroki procesu w partii.",
-    "This work order cannot be completed while batch(es) :batches still have process steps or checklists to finish.": "To zlecenie nie może zostać zakończone, dopóki partie :batches mają niezakończone kroki procesu lub listy kontrolne."
+    "This work order cannot be completed while batch(es) :batches still have process steps or checklists to finish.": "To zlecenie nie może zostać zakończone, dopóki partie :batches mają niezakończone kroki procesu lub listy kontrolne.",
+    "This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order.": "To zlecenie ma jeszcze :count niezakończonych partii. Zakończ je lub anuluj przed zakończeniem zlecenia."
 }

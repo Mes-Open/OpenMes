@@ -750,6 +750,24 @@ class WorkOrder extends Model
     }
 
     /**
+     * Why this order may not be closed by hand (supervisor, admin, API,
+     * machine message), or null when it may: a batch that is still pending or
+     * running would be left behind on a DONE order. Cancelled batches don't
+     * count. Shared by every manual completion path.
+     */
+    public function openBatchesCompletionBlocker(): ?string
+    {
+        $open = $this->batches()
+            ->whereNotIn('status', [Batch::STATUS_DONE, Batch::STATUS_CANCELLED])
+            ->count();
+
+        return $open === 0 ? null : __(
+            'This work order still has :count batch(es) that are not done. Finish or cancel them before completing the order.',
+            ['count' => $open],
+        );
+    }
+
+    /**
      * Check if this work order is complete.
      */
     public function isComplete(): bool

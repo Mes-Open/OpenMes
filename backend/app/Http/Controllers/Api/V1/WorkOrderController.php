@@ -202,10 +202,15 @@ class WorkOrderController extends Controller
     public function complete(WorkOrder $workOrder): JsonResponse
     {
         return $this->transition($workOrder, WorkOrder::STATUS_DONE, [WorkOrder::STATUS_IN_PROGRESS],
-            'Only IN_PROGRESS work orders can be completed.');
+            'Only IN_PROGRESS work orders can be completed.',
+            fn (WorkOrder $current) => $current->openBatchesCompletionBlocker());
     }
 
-    private function transition(WorkOrder $workOrder, string $target, array $allowedFrom, string $errorMessage): JsonResponse
+    /**
+     * @param  (callable(WorkOrder): ?string)|null  $guard  a domain refusal checked
+     *                                                      on the locked row (422)
+     */
+    private function transition(WorkOrder $workOrder, string $target, array $allowedFrom, string $errorMessage, ?callable $guard = null): JsonResponse
     {
         $this->authorize('update', $workOrder);
 
@@ -213,9 +218,21 @@ class WorkOrderController extends Controller
             return response()->json(['message' => $errorMessage], 422);
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($workOrder, $target) {
-            WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail()->update(['status' => $target]);
+        $refusal = \Illuminate\Support\Facades\DB::transaction(function () use ($workOrder, $target, $guard) {
+            $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
+
+            if ($guard && ($message = $guard($current))) {
+                return $message;
+            }
+
+            $current->update(['status' => $target]);
+
+            return null;
         });
+
+        if ($refusal !== null) {
+            return response()->json(['message' => $refusal], 422);
+        }
 
         return response()->json([
             'message' => "Work order status set to {$target}",

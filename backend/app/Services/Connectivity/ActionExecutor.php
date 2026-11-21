@@ -291,6 +291,10 @@ class ActionExecutor
             throw new \DomainException("Work order {$workOrder->order_no} is {$workOrder->status}; its status cannot be changed from a machine message.");
         }
 
+        if ($status === WorkOrder::STATUS_DONE && ($blocker = $workOrder->openBatchesCompletionBlocker())) {
+            throw new \DomainException($blocker);
+        }
+
         $workOrder->update(['status' => $status]);
 
         return ['order_no' => $workOrder->order_no, 'new_status' => $status];

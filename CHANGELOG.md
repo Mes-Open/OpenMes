@@ -210,6 +210,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   got a batch still closes from the quantity;
   quantities below the plan are still recorded, and orders without process steps close
   from the quantity as before. The quantity validation moved to Form Requests.
+
+- **An order can no longer be completed by hand with batches still open.** The supervisor
+  and admin "Complete" actions, `POST /api/v1/work-orders/{id}/complete` and a machine
+  `set_work_order_status` message set the order `DONE` while batches were still pending
+  or running. They now refuse with a message naming how many batches are not done (422
+  for the API); cancelled batches don't count, and orders without batches close as
+  before. The produced-quantity validation moved to a Form Request.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be
