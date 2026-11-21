@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Batch;
 use App\Support\InspectionPermissions;
 use App\Support\TabRegistry;
 use Illuminate\Database\Seeder;
@@ -23,6 +24,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // Batch & Steps
             'start batch step', 'complete batch step', 'skip batch step',
+            // Releasing finished goods for sale is a quality decision; releasing
+            // for production (semi-finished) is not gated.
+            Batch::PERMISSION_RELEASE_FOR_SALE,
 
             // Issues
             'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
@@ -135,6 +139,7 @@ class RolesAndPermissionsSeeder extends Seeder
             // Settings → Access if a particular plant wants it.
             'tab:orders',
             'start batch step', 'complete batch step',
+            Batch::PERMISSION_RELEASE_FOR_SALE,
             'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
             'view lines', 'view products', 'view process templates',
             'view engineering documents', 'manage engineering documents',

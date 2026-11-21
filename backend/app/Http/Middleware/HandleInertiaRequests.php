@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
                     'can' => [
                         'createWorkOrders' => $user->can('create', \App\Models\WorkOrder::class),
                         'editWorkOrders' => $user->can('edit work orders'),
+                        'releaseBatchForSale' => $user->can(\App\Models\Batch::PERMISSION_RELEASE_FOR_SALE),
                     ],
                 ] : null,
             ],

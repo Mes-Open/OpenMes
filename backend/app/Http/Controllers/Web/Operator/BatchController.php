@@ -6,6 +6,7 @@ use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\CompleteBatchStepRequest;
 use App\Http\Requests\Operator\RecordStepQuantityRequest;
+use App\Http\Requests\Operator\ReleaseBatchRequest;
 use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
@@ -604,19 +605,14 @@ class BatchController extends Controller
         }
     }
 
-    public function release(Request $request, Batch $batch)
+    public function release(ReleaseBatchRequest $request, Batch $batch)
     {
-        $request->validate([
-            'release_type' => 'required|in:for_production,for_sale',
-            'scrap_qty' => 'nullable|numeric|min:0',
-        ]);
-
         if ($request->filled('scrap_qty')) {
-            $batch->update(['scrap_qty' => $request->input('scrap_qty')]);
+            $batch->update(['scrap_qty' => $request->validated('scrap_qty')]);
         }
 
         try {
-            $released = $this->releaseService->release($batch, $request->user(), $request->input('release_type'));
+            $released = $this->releaseService->release($batch, $request->user(), $request->validated('release_type'));
 
             $msg = "Batch released (LOT: {$released->lot_number})";
             if ($released->expiry_date) {

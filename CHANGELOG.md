@@ -187,6 +187,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   browser's local time. East of UTC a panel that had just reported in showed as
   *Inactive*, "1 hour ago", until its next heartbeat. Relative times now read these
   values as UTC and use each language's plural forms ("5 godzin temu", not "5 hours temu").
+
+- **Only a supervisor or admin can release a batch for sale.** An operator could release a
+  finished batch *For Sale* from the operator screen or through `POST /api/v1/batches/{batch}/release`.
+  Releasing for sale now needs the new `release batch for sale` permission, which the roles
+  seeder gives to Supervisor and Admin; anyone else gets 403 and the *For Sale* button is
+  hidden for them. Releasing *For Production* is unchanged.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be

@@ -549,6 +549,9 @@ function PackagingChecklistForm({ batch, onClose }) {
 
 function ReleaseForm({ batch, onClose }) {
     const form = useForm({ scrap_qty: '', release_type: '' });
+    // UX only: the backend (ReleaseBatchRequest) refuses for-sale releases
+    // without the `release batch for sale` permission.
+    const canReleaseForSale = !!usePage().props.auth?.user?.can?.releaseBatchForSale;
 
     const submitWith = (releaseType) => {
         form.setData('release_type', releaseType);
@@ -583,14 +586,16 @@ function ReleaseForm({ batch, onClose }) {
                 >
                     {__('For Production')}
                 </Button>
-                <Button
-                    variant="accent"
-                    disabled={form.processing}
-                    onClick={() => submitWith('for_sale')}
-                    className="px-5 py-3 text-[14px]"
-                >
-                    {__('For Sale')}
-                </Button>
+                {canReleaseForSale && (
+                    <Button
+                        variant="accent"
+                        disabled={form.processing}
+                        onClick={() => submitWith('for_sale')}
+                        className="px-5 py-3 text-[14px]"
+                    >
+                        {__('For Sale')}
+                    </Button>
+                )}
                 <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
                     Cancel
                 </Button>

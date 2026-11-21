@@ -38,7 +38,7 @@ class LotTrackingTest extends TestCase
         Role::create(['name' => 'Supervisor', 'guard_name' => 'web']);
         Role::create(['name' => 'Operator', 'guard_name' => 'web']);
 
-        foreach (['view work orders', 'create work orders', 'edit work orders', 'delete work orders'] as $perm) {
+        foreach (['view work orders', 'create work orders', 'edit work orders', 'delete work orders', Batch::PERMISSION_RELEASE_FOR_SALE] as $perm) {
             Permission::create(['name' => $perm, 'guard_name' => 'web']);
         }
         $adminRole->givePermissionTo(Permission::all());

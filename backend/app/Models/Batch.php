@@ -40,6 +40,12 @@ class Batch extends Model
 
     const RELEASE_FOR_SALE = 'for_sale';
 
+    /**
+     * Permission needed to release a batch for sale (Supervisor and Admin by
+     * default). Releasing for production needs none beyond operator access.
+     */
+    const PERMISSION_RELEASE_FOR_SALE = 'release batch for sale';
+
     protected $fillable = [
         'work_order_id',
         // Which work-order configuration version generated this batch (#182), so
