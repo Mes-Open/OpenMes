@@ -72,6 +72,27 @@ class PruneWorkstationPanelsTest extends TestCase
         $this->artisan('workstation-devices:prune-panels', ['--days' => '-1'])->assertFailed();
     }
 
+    public function test_malformed_config_fails_instead_of_disabling_pruning(): void
+    {
+        // WORKSTATION_PANEL_PRUNE_DAYS=abc reaches the command as the raw string.
+        config(['openmmes.workstation_panel_prune_days' => 'abc']);
+        $panel = $this->panel(['last_seen_at' => now()->subYears(2)]);
+
+        $this->artisan('workstation-devices:prune-panels')->assertFailed();
+
+        $this->assertNotSoftDeleted($panel);
+    }
+
+    public function test_numeric_string_config_from_env_works(): void
+    {
+        config(['openmmes.workstation_panel_prune_days' => '30']);
+        $stale = $this->panel(['last_seen_at' => now()->subDays(31)]);
+
+        $this->artisan('workstation-devices:prune-panels')->assertSuccessful();
+
+        $this->assertSoftDeleted($stale);
+    }
+
     public function test_command_is_scheduled_daily(): void
     {
         $this->artisan('schedule:list')

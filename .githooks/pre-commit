@@ -45,6 +45,10 @@ cd "$ROOT/backend" || exit 1
 # carries the extensions) and Node 20. The repository is mounted as-is, so the
 # local vendor/ and node_modules/ are used. Override the images with
 # OPENMES_HOOK_PHP_IMAGE / OPENMES_HOOK_NODE_IMAGE.
+#
+# The npm fallback is meant for Linux hosts: node_modules/ holds native,
+# platform-specific packages (Rollup, esbuild), so one installed on macOS or
+# Windows does not load in the Linux container. There, install Node instead.
 in_docker() {
     docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
         -v "$ROOT":/w -w /w/backend --entrypoint "" "$@"
@@ -53,6 +57,10 @@ if command -v npm >/dev/null 2>&1; then
     npm() { command npm "$@"; }
 elif command -v docker >/dev/null 2>&1; then
     echo "pre-commit: npm not found - running it in Docker (${OPENMES_HOOK_NODE_IMAGE:-node:20})."
+    if [ "$(uname -s)" != "Linux" ]; then
+        echo "pre-commit: note - node_modules installed on $(uname -s) may not load in the Linux container;"
+        echo "            if the frontend tests fail to start, install Node or skip with SKIP_TESTS=1."
+    fi
     npm() { in_docker "${OPENMES_HOOK_NODE_IMAGE:-node:20}" npm "$@"; }
 else
     echo "pre-commit: neither npm nor docker is available - install one, or skip with SKIP_TESTS=1."

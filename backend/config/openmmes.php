@@ -24,7 +24,9 @@ return [
     | OpenMES Workstation client rows are never pruned. 0 disables pruning.
     |
     */
-    'workstation_panel_prune_days' => (int) env('WORKSTATION_PANEL_PRUNE_DAYS', 30),
+    // Not cast: workstation-devices:prune-panels validates the raw value, so a
+    // typo fails loudly instead of turning into 0 (pruning off).
+    'workstation_panel_prune_days' => env('WORKSTATION_PANEL_PRUNE_DAYS', 30),
 
     /*
     |--------------------------------------------------------------------------

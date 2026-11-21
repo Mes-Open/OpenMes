@@ -28,15 +28,15 @@ class OperatorPanelHeartbeatController extends Controller
         $data = $request->validated();
         $status = WorkstationDeviceStatus::from($data['status']);
 
-        $device = WorkstationDevice::firstOrNew([
-            'device_uuid' => WorkstationDevice::PANEL_UUID_PREFIX.$data['device_uuid'],
-        ]);
-
-        if (! $device->exists) {
-            // Set once: an admin may rename the device, a heartbeat never does.
-            $device->name = WorkstationDevice::DEFAULT_PANEL_NAME;
-            $device->registered_at = now();
-        }
+        // firstOrCreate falls back to createOrFirst: when two first heartbeats
+        // from one browser race, the loser's insert hits the unique index and
+        // it picks up the winner's row instead of failing. The name and
+        // registration time are set only on creation, so an admin's rename
+        // survives every heartbeat.
+        $device = WorkstationDevice::firstOrCreate(
+            ['device_uuid' => WorkstationDevice::PANEL_UUID_PREFIX.$data['device_uuid']],
+            ['name' => WorkstationDevice::DEFAULT_PANEL_NAME, 'registered_at' => now()],
+        );
 
         $device->fill([
             'user_id' => $request->user()->id,

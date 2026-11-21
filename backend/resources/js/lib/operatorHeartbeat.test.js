@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { randomId } from './operatorHeartbeat';
+import { otherTabVisible, randomId, TAB_STALE_MS } from './operatorHeartbeat';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -19,5 +19,23 @@ describe('operator panel device id', () => {
         } finally {
             crypto.randomUUID = original;
         }
+    });
+});
+
+describe('several tabs of one browser', () => {
+    const NOW = 1_000_000;
+
+    it('a hidden tab stays quiet while another tab shows the panel', () => {
+        expect(otherTabVisible({ a: NOW - 1000, b: NOW - 15000 }, 'a', NOW)).toBe(true);
+    });
+
+    it('the last tab to go reports the panel inactive', () => {
+        expect(otherTabVisible({ a: NOW }, 'a', NOW)).toBe(false);
+        expect(otherTabVisible({}, 'a', NOW)).toBe(false);
+        expect(otherTabVisible(null, 'a', NOW)).toBe(false);
+    });
+
+    it('ignores a tab that died without cleaning up', () => {
+        expect(otherTabVisible({ b: NOW - TAB_STALE_MS }, 'a', NOW)).toBe(false);
     });
 });

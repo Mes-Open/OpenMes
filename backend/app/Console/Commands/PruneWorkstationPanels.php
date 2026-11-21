@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\WorkstationDevice;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Moves stale operator-panel rows on Admin -> Workstation devices to the trash.
@@ -39,17 +40,32 @@ class PruneWorkstationPanels extends Command
         }
 
         $cutoff = now()->subDays($days);
+        $stale = fn ($q) => $q->where('last_seen_at', '<', $cutoff)
+            ->orWhere(fn ($q) => $q->whereNull('last_seen_at')->where('created_at', '<', $cutoff));
         $pruned = 0;
 
         // One by one through the model, so each delete is audited, broadcast
         // to the live roster and lands in the trash. Stale panels are few.
-        WorkstationDevice::panels()
-            ->where(fn ($q) => $q->where('last_seen_at', '<', $cutoff)
-                ->orWhere(fn ($q) => $q->whereNull('last_seen_at')->where('created_at', '<', $cutoff)))
-            ->each(function (WorkstationDevice $device) use (&$pruned) {
-                $device->delete();
-                $pruned++;
+        // eachById, not each: deleting rows shifts offset-based pages and would
+        // skip some.
+        WorkstationDevice::panels()->where($stale)->eachById(function (WorkstationDevice $device) use ($stale, &$pruned) {
+            // A panel that came back between the scan and now must keep its row
+            // (and the name an admin gave it): re-read it locked and only trash
+            // it if it is still stale.
+            $deleted = DB::transaction(function () use ($device, $stale) {
+                $current = WorkstationDevice::panels()
+                    ->whereKey($device->getKey())
+                    ->where($stale)
+                    ->lockForUpdate()
+                    ->first();
+
+                return $current?->delete() ?? false;
             });
+
+            if ($deleted) {
+                $pruned++;
+            }
+        });
 
         $this->info("Moved {$pruned} operator panel(s) inactive for over {$days} day(s) to the trash.");
 
