@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { __ } from '../../lib/i18n';
 import { monoLabelCls } from './operatorUi';
+import CustomFields from '../CustomFields';
+import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
 
 const inputCls = 'w-full rounded-[10px] border border-om-line bg-om-bg px-3 py-2.5 text-[13px] text-om-ink placeholder:text-om-faint outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/20';
 const errorCls = 'mt-1 text-[11.5px] text-om-blocked';
@@ -11,14 +13,17 @@ const errorCls = 'mt-1 text-[11.5px] text-om-blocked';
  * issue modal). The type decides whether the order stops — the line's issue
  * types carry `is_blocking` — so the Blocking row says what the chosen type
  * will do rather than letting the operator override it. The title starts as
- * the type's name and stays editable.
+ * the type's name and stays editable. The issue's custom fields (Admin →
+ * Custom fields) are asked here as on the order page: a required one would
+ * otherwise refuse the report with nothing on screen to fill in.
  */
-export default function ReportIssueDialog({ workOrder, issueTypes = [], onClose }) {
-    const form = useForm({ work_order_id: '', issue_type_id: '', title: '', description: '' });
+export default function ReportIssueDialog({ workOrder, issueTypes = [], customFields = [], onClose }) {
+    const form = useForm({ work_order_id: '', issue_type_id: '', title: '', description: '', ...customFieldInitial() });
     const typeNames = issueTypes.map((t) => t.name);
 
     useEffect(() => {
-        if (workOrder) form.setData({ work_order_id: String(workOrder.id), issue_type_id: '', title: '', description: '' });
+        if (workOrder) form.setData({ work_order_id: String(workOrder.id), issue_type_id: '', title: '', description: '', ...customFieldInitial() });
+        if (workOrder) form.clearErrors();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [workOrder?.id]);
 
@@ -34,7 +39,7 @@ export default function ReportIssueDialog({ workOrder, issueTypes = [], onClose 
 
     const submit = (e) => {
         e.preventDefault();
-        form.post('/operator/issue', { preserveScroll: true, onSuccess: () => onClose() });
+        submitForm(form, 'post', '/operator/issue', { preserveScroll: true, onSuccess: () => onClose() });
     };
 
     return (
@@ -118,6 +123,12 @@ export default function ReportIssueDialog({ workOrder, issueTypes = [], onClose 
                         className={`${inputCls} h-[74px] resize-none mb-4`}
                     />
                     {form.errors.description && <p className={`${errorCls} -mt-3 mb-3`}>{form.errors.description}</p>}
+
+                    {customFields.length > 0 && (
+                        <div className="mb-4">
+                            <CustomFields {...customFieldProps(form, customFields)} />
+                        </div>
+                    )}
 
                     <div className="flex gap-[9px] justify-end">
                         <button type="button" onClick={onClose} className="text-[13px] font-medium text-om-ink border border-om-line rounded-[9px] px-4 py-2.5 cursor-pointer hover:bg-om-chip">

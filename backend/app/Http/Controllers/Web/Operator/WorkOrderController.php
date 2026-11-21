@@ -154,8 +154,11 @@ class WorkOrderController extends Controller
         // The toolbar's workstation picker; a cumulative line does not route work to stations.
         $stationPicker = $trackingMode === 'cumulative' ? [] : app(\App\Services\Production\OperatorStationPicker::class)->forLine((int) $lineId);
 
+        // The panel's Report issue asks for the issue custom fields too.
+        $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
+
         return Inertia::render('operator/Queue', compact(
-            'hooks', 'shiftSummary', 'stationPicker',
+            'hooks', 'shiftSummary', 'stationPicker', 'issueCustomFields',
             'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
             'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds',
             'trackingMode', 'workstationQueue', 'workstationNotStarted', 'lineWorkstations',

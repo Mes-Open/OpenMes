@@ -202,6 +202,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   - **Sidebar:** Issues, Scrap and Order details. On lines that record scrap per step, the
     Scrap buttons say so instead of being hidden. Below 1280 px it moves under the order's
     work instead of squeezing the step card.
+- **Operator Queue and Workstation remember the view and status filter per operator**, not
+  per browser, so the next shift on a shared tablet starts unfiltered. When a filter or a
+  search hides every order, the list says so with *Clear filters*. The station picker's
+  per-station counts now update live. A packing station with EAN goods and no serialised
+  packing step opens on its EAN tab.
 
 ### Fixed
 
@@ -331,6 +336,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   drop by one and the carton label no longer lists it. The pallet's quality is re-read. The unit
   keeps its carton and pallet link, so the packing list and the trace still show where it was
   scrapped from.
+- **No new output on a stopped order from the Workstation view.** *Add quantity* and the
+  per-shift output used to accept pieces for a blocked, paused, held, rejected or cancelled
+  order, which the order's steps already refused. They now refuse it with the same reason
+  ("Resolve the blocking issues…" / "Production is stopped…"), and the Workstation table
+  shows such an order's shift cells read-only. Correcting an entry already recorded still
+  works.
+- **Report issue from the Queue and Workstation panels asks for the issue's custom fields**,
+  as the work order page does. A required custom field used to refuse the report with
+  nothing on screen to fill in.
 
 ## [0.29.3] - 2026-11-18
 

@@ -123,6 +123,14 @@ export default function Station() {
 
     const [tab, setTab] = useState('steps');
     const [openStepId, setOpenStepId] = useState(null);
+    // A station that packs only EAN goods (no serialised packing step) opens on
+    // the EAN tab, once its goods have loaded; the operator may move off it.
+    const eanTabChosen = useRef(false);
+    useEffect(() => {
+        if (eanTabChosen.current || packingSteps.length > 0 || items.length === 0) return;
+        eanTabChosen.current = true;
+        setTab('ean');
+    }, [items.length, packingSteps.length]);
 
     // Packaging from the BOM: with lot tracking on, the lots are picked here
     // before the first unit goes into the box.
@@ -978,7 +986,7 @@ export default function Station() {
                                     {/* `manual` scanner mode (Settings → System): the operator types the EAN here. */}
                                     {scannerMode === 'manual' && (
                                         <form onSubmit={submitManualCode} className="flex items-end gap-2">
-                                            <TextField mono label={__('Enter EAN code')} value={manualCode} onChange={setManualCode} placeholder={__('Enter EAN code')} className="flex-1" />
+                                            <TextField mono label={__('Enter EAN code')} value={manualCode} onChange={setManualCode} placeholder={__('Enter EAN code')} className="flex-1" autoFocus={scannerMode === 'manual'} />
                                             <Button type="submit" disabled={!manualCode.trim()}>{__('Confirm')}</Button>
                                         </form>
                                     )}

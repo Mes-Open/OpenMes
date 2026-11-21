@@ -4,7 +4,11 @@ import { __ } from '../../lib/i18n';
 import { readParam, writeParams } from '../../lib/urlState';
 import { FILTERS, pillCls } from './operatorUi';
 
-/** A value remembered in localStorage under `key` (a choice that outlives the page). */
+/**
+ * A value remembered in localStorage under `key` (a choice that outlives the
+ * page). Pass a per-user key for a choice that belongs to the person rather
+ * than the device: operator tablets are shared between shifts.
+ */
 export function useStoredState(key, initial) {
     const [value, setValue] = useState(() => {
         try { return localStorage.getItem(key) ?? initial; } catch { return initial; }
@@ -13,6 +17,20 @@ export function useStoredState(key, initial) {
         try { localStorage.setItem(key, value); } catch { /* private mode: lasts this page only */ }
     }, [key, value]);
     return [value, setValue];
+}
+
+/** The empty list when a filter or search hides every order: say so, offer the way back. */
+export function FilteredEmpty({ onClear }) {
+    return (
+        <div className="bg-om-card border border-om-line rounded-xl text-center py-9 text-[13px] text-om-faint">
+            {__('No work orders match.')}
+            {onClear && (
+                <button type="button" onClick={onClear} className="ml-2 font-semibold text-om-accent cursor-pointer hover:underline">
+                    {__('Clear filters')}
+                </button>
+            )}
+        </div>
+    );
 }
 
 /**

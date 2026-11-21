@@ -16,7 +16,7 @@ import QuantityField from '../../components/QuantityField';
 import ExecutionPanel from '../../components/operator/ExecutionPanel';
 import StationPicker from '../../components/operator/StationPicker';
 import ReportIssueDialog from '../../components/operator/ReportIssueDialog';
-import ListToolbar, { useOrderSelection, useStoredState } from '../../components/operator/ListToolbar';
+import ListToolbar, { FilteredEmpty, useOrderSelection, useStoredState } from '../../components/operator/ListToolbar';
 import { applyFilter, dueInfo, groupOrders, orderSearchText, pillCls, progressOf, statusMeta } from '../../components/operator/operatorUi';
 
 // Layout ref: OpenMES Operator.dc.html (workstation view + execution panel).
@@ -33,7 +33,7 @@ function weekLabel(wk) {
 }
 
 function statusLabel(status) {
-    const labels = { PENDING: 'Not Started', IN_PROGRESS: 'In Progress', DONE: 'Done', BLOCKED: 'Blocked', PAUSED: 'Paused', CANCELLED: 'Cancelled', REJECTED: 'Rejected', ACCEPTED: 'Accepted' };
+    const labels = { PENDING: 'Not Started', IN_PROGRESS: 'In Progress', DONE: 'Done', BLOCKED: 'Blocked', PAUSED: 'Paused', CHANGE_HOLD: 'On change hold', CANCELLED: 'Cancelled', REJECTED: 'Rejected', ACCEPTED: 'Accepted' };
     return __(labels[status] ?? status ?? 'Unknown');
 }
 
@@ -127,6 +127,10 @@ function TimedCorrectLink({ entry, qtyEditPolicy, qtyEditWindowMinutes }) {
 
 const SHIFT_CELL_HOOK = 'display.operator.workstation.shift_cell';
 
+// Orders that take no new output; the server refuses it the same way
+// (WorkstationController::outputStopped()). Correcting an earlier entry stays open.
+const OUTPUT_STOPPED = ['BLOCKED', 'PAUSED', 'CHANGE_HOLD', 'REJECTED', 'CANCELLED'];
+
 function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes }) {
     // Read page-wide rather than threaded through every row: the controller
     // resolved this page's hook points into the `hooks` prop.
@@ -170,6 +174,15 @@ function ShiftCell({ wo, shift, shiftEntries, qtyEditPolicy, qtyEditWindowMinute
         (qtyEditPolicy === 'full' ||
             (qtyEditPolicy === 'timed' &&
                 new Date(firstEntry.updated_at).getTime() + qtyEditWindowMinutes * 60 * 1000 > Date.now()));
+
+    if (OUTPUT_STOPPED.includes(wo.status)) {
+        return (
+            <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <span className="font-mono text-[13px] text-om-faint">{entryQty > 0 ? Math.round(entryQty) : '—'}</span>
+                {canCorrect && <TimedCorrectLink entry={firstEntry} qtyEditPolicy={qtyEditPolicy} qtyEditWindowMinutes={qtyEditWindowMinutes} />}
+            </div>
+        );
+    }
 
     // A module that contributes to this point replaces the whole editable cell —
     // input and correction link — so core draws neither. Read-only cells above
@@ -688,6 +701,7 @@ function LogOutput({ wo, lineShifts, defaultShiftId, moduleCell, onAddQuantity }
 
     if (wo.status === 'DONE') return <span className="text-[12px] text-om-faint">{__('Completed')}</span>;
     if (wo.status === 'BLOCKED') return <span className="text-[12px] text-om-blocked">{__('Blocked — resolve issue')}</span>;
+    if (OUTPUT_STOPPED.includes(wo.status)) return <span className="text-[12px] text-om-faint">{statusLabel(wo.status)}</span>;
     if (wo.uses_step_ledger) {
         return (
             <div className="flex items-center gap-2">
@@ -748,7 +762,7 @@ function LogOutput({ wo, lineShifts, defaultShiftId, moduleCell, onAddQuantity }
     );
 }
 
-function GroupedTable({ orders, selectedId, onSelect, lineShifts, defaultShiftId, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, detailColumns, onAddQuantity }) {
+function GroupedTable({ orders, selectedId, onSelect, lineShifts, defaultShiftId, shiftEntries, qtyEditPolicy, qtyEditWindowMinutes, detailColumns, onAddQuantity, onClearFilters }) {
     const { hooks } = usePage().props;
     const moduleCell = hasRenderableHook(hooks, SHIFT_CELL_HOOK);
     const groups = groupOrders(orders);
@@ -831,7 +845,7 @@ function GroupedTable({ orders, selectedId, onSelect, lineShifts, defaultShiftId
                         })}
                     </div>
                 ))}
-                {groups.length === 0 && <div className="text-center p-[34px] text-om-faint text-[13px]">{__('No work orders match.')}</div>}
+                {groups.length === 0 && <FilteredEmpty onClear={onClearFilters} />}
             </div>
         </div>
     );
@@ -847,6 +861,7 @@ export default function Workstation() {
         weekFilter,
         search: searchProp,
         issueTypes = [],
+        issueCustomFields = [],
         allColumns = [],
         shifts = [],
         shiftEntries = {},
@@ -878,8 +893,10 @@ export default function Workstation() {
     };
 
     // The design's grouped table by default; the configurable table beside it.
-    const [view, setView] = useStoredState('operatorWorkstationView', 'grouped');
-    const [filter, setFilter] = useStoredState('operatorWorkstationFilter', 'all');
+    // Per operator: the next shift on a shared tablet does not inherit a filter.
+    const userId = usePage().props.auth?.user?.id ?? 'guest';
+    const [view, setView] = useStoredState(`operatorWorkstationView:${userId}`, 'grouped');
+    const [filter, setFilter] = useStoredState(`operatorWorkstationFilter:${userId}`, 'all');
     const [query, setQuery] = useState(searchProp ?? '');
 
     // Modals
@@ -966,7 +983,7 @@ export default function Workstation() {
         <>
             <Head title={`Workstation — ${line?.name ?? ''}`} />
 
-            <LineSync lineId={line?.id} reloadOnly={['workOrders', 'shiftEntries', 'shiftSummary']} />
+            <LineSync lineId={line?.id} reloadOnly={['workOrders', 'shiftEntries', 'shiftSummary', 'stationPicker']} />
 
             <div className="h-full flex">
             <div className="flex-1 min-w-0 overflow-auto px-4 md:px-[22px] pt-[18px] pb-10">
@@ -1033,6 +1050,7 @@ export default function Workstation() {
                         qtyEditWindowMinutes={qtyEditWindowMinutes}
                         detailColumns={detailColumns}
                         onAddQuantity={completeFor}
+                        onClearFilters={filter !== 'all' ? () => setFilter('all') : null}
                     />
                 )}
 
@@ -1084,7 +1102,7 @@ export default function Workstation() {
             <CompleteModal modal={completeModal} onClose={() => setCompleteModal({ open: false })} />
             <InfoModal info={infoModal} onClose={() => setInfoModal(null)} />
             {issueTypes.length > 0 && (
-                <ReportIssueDialog workOrder={reportFor} issueTypes={issueTypes} onClose={() => setReportFor(null)} />
+                <ReportIssueDialog workOrder={reportFor} issueTypes={issueTypes} customFields={issueCustomFields} onClose={() => setReportFor(null)} />
             )}
         </>
     );

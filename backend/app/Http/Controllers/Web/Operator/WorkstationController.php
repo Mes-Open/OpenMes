@@ -179,8 +179,11 @@ class WorkstationController extends Controller
         // The toolbar's workstation picker; a cumulative line does not route work to stations.
         $stationPicker = $trackingMode === 'cumulative' ? [] : app(\App\Services\Production\OperatorStationPicker::class)->forLine((int) $lineId);
 
+        // The panel's Report issue asks for the issue custom fields too.
+        $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
+
         return Inertia::render('operator/Workstation', compact(
-            'hooks', 'shiftSummary', 'stationPicker',
+            'hooks', 'shiftSummary', 'stationPicker', 'issueCustomFields',
             'workOrders', 'line', 'availableWeeks', 'weekFilter', 'search',
             'issueTypes', 'allColumns', 'shifts', 'shiftEntries', 'today', 'trackingMode',
             'qtyEditPolicy', 'qtyEditWindowMinutes', 'labelTemplates',
@@ -367,6 +370,10 @@ class WorkstationController extends Controller
             return back()->with('error', 'Work order is already completed.');
         }
 
+        if ($reason = $this->outputStopped($workOrder)) {
+            return back()->with('error', $reason);
+        }
+
         if (! $workOrder->allowsOperatorEntry()) {
             return back()->with('error', 'This work order is machine-counted; quantities are recorded automatically from the machine.');
         }
@@ -404,6 +411,24 @@ class WorkstationController extends Controller
     }
 
     /**
+     * Why new output may not be recorded on this order, if anything: the same
+     * stops as a step of the step ledger (BatchStep::productionBlocker()). A
+     * paused, held, rejected or cancelled order, or one with an open blocking
+     * issue, takes no new pieces. Correcting an earlier shift entry stays open.
+     */
+    private function outputStopped(WorkOrder $workOrder): ?string
+    {
+        if (in_array($workOrder->status, [...WorkOrder::TERMINAL_STATUSES, WorkOrder::STATUS_PAUSED, WorkOrder::STATUS_CHANGE_HOLD], true)) {
+            return __('Production is stopped for this work order.');
+        }
+        if ($workOrder->status === WorkOrder::STATUS_BLOCKED || $workOrder->isBlocked()) {
+            return __('Resolve the blocking issues before recording production.');
+        }
+
+        return null;
+    }
+
+    /**
      * Record production quantity for a specific shift.
      */
     public function shiftEntry(Request $request, WorkOrder $workOrder)
@@ -431,6 +456,10 @@ class WorkstationController extends Controller
 
         if ($workOrder->status === WorkOrder::STATUS_DONE) {
             return back()->with('error', 'Work order is already completed.');
+        }
+
+        if ($reason = $this->outputStopped($workOrder)) {
+            return back()->with('error', $reason);
         }
 
         if (! $workOrder->allowsOperatorEntry()) {

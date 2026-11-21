@@ -12,7 +12,7 @@ import { formatDate, formatNumber, formatTime } from '../../lib/i18n';
 import ExecutionPanel from '../../components/operator/ExecutionPanel';
 import StationPicker from '../../components/operator/StationPicker';
 import ReportIssueDialog from '../../components/operator/ReportIssueDialog';
-import ListToolbar, { useOrderSelection, useStoredState } from '../../components/operator/ListToolbar';
+import ListToolbar, { FilteredEmpty, useOrderSelection, useStoredState } from '../../components/operator/ListToolbar';
 import {
     applyFilter, batchLabel, currentBatch, dueInfo, groupOrders, orderSearchText, pillCls, priorityTag, progressOf,
 } from '../../components/operator/operatorUi';
@@ -606,10 +606,10 @@ function QueueRow({ wo, pos, selected, onSelect, lineStatuses, cycleStatus }) {
     );
 }
 
-function QueueList({ orders, selectedId, onSelect, lineStatuses, cycleStatus }) {
+function QueueList({ orders, selectedId, onSelect, lineStatuses, cycleStatus, onClearFilters }) {
     const groups = groupOrders(orders);
     if (!groups.length) {
-        return <div className="bg-om-card border border-om-line rounded-xl text-center py-9 text-[13px] text-om-faint">{__('No work orders match.')}</div>;
+        return <FilteredEmpty onClear={onClearFilters} />;
     }
     return groups.map((g) => (
         <section key={g.key} className="mb-5" aria-label={g.label}>
@@ -638,6 +638,7 @@ export default function Queue() {
         selectedWorkstation = null,
         lineStatuses = [],
         issueTypes = [],
+        issueCustomFields = [],
         workflowMode = 'status',
         doneStatusIds = [],
         trackingMode = 'per_operation',
@@ -649,11 +650,14 @@ export default function Queue() {
         stationPicker = [],
     } = usePage().props;
 
-    // View, filter: remembered in the browser (the list is the design's view;
-    // table and cards are the earlier ones, kept beside it).
-    const [view, setView] = useStoredState('operatorQueueView', 'list');
-    const [filter, setFilter] = useStoredState('operatorQueueFilter', 'all');
+    // View, filter: remembered per operator in the browser (the list is the
+    // design's view; table and cards are the earlier ones, kept beside it).
+    // Per user, so the next shift on a shared tablet does not inherit a filter.
+    const userId = usePage().props.auth?.user?.id ?? 'guest';
+    const [view, setView] = useStoredState(`operatorQueueView:${userId}`, 'list');
+    const [filter, setFilter] = useStoredState(`operatorQueueFilter:${userId}`, 'all');
     const [query, setQuery] = useState('');
+    const clearFilters = filter !== 'all' || query ? () => { setFilter('all'); setQuery(''); } : null;
 
     // Report issue modal state
     const [reportFor, setReportFor] = useState(null);
@@ -730,7 +734,7 @@ export default function Queue() {
             <Head title={__("Work Order Queue")} />
 
             {/* Live sync */}
-            <LineSync lineId={line.id} reloadOnly={['activeWorkOrders', 'completedWorkOrders', 'workstationQueue', 'workstationNotStarted', 'shiftSummary']} />
+            <LineSync lineId={line.id} reloadOnly={['activeWorkOrders', 'completedWorkOrders', 'workstationQueue', 'workstationNotStarted', 'shiftSummary', 'stationPicker']} />
 
             <div className="h-full flex">
             <div className="flex-1 min-w-0 overflow-auto px-4 md:px-[22px] pt-[18px] pb-10">
@@ -906,7 +910,7 @@ export default function Queue() {
                 {/* ── List view (grouped by status) ── */}
                 {view === 'list' && (
                     <QueueList orders={visible} selectedId={selectedId} onSelect={select}
-                               lineStatuses={lineStatuses} cycleStatus={cycleStatus} />
+                               lineStatuses={lineStatuses} cycleStatus={cycleStatus} onClearFilters={clearFilters} />
                 )}
 
                 {view !== 'list' && (
@@ -1024,7 +1028,7 @@ export default function Queue() {
 
             {/* ── Modals ── */}
             {issueTypes.length > 0 && (
-                <ReportIssueDialog workOrder={reportFor} issueTypes={issueTypes} onClose={() => setReportFor(null)} />
+                <ReportIssueDialog workOrder={reportFor} issueTypes={issueTypes} customFields={issueCustomFields} onClose={() => setReportFor(null)} />
             )}
 
             {downtimeReasons.length > 0 && (

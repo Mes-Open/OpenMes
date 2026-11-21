@@ -15,7 +15,7 @@ import EngineeringViewerModal from '../../components/EngineeringViewerModal';
 import { packageMeta, isInteractive, formatBytes } from '../../components/engineeringDocuments';
 import { apiGet, apiCall } from '../../lib/http';
 import { customFieldInitial, customFieldProps, submitForm } from '../../lib/customFieldForm';
-import { __, formatDate, formatDateTime, formatNumber } from '../../lib/i18n';
+import { __, formatDate, formatDateTime, formatNumber, todayInPlant } from '../../lib/i18n';
 import { readParam, writeParams } from '../../lib/urlState';
 import { serialStatusBadge, serialStatusLabel } from '../../lib/serialStatus';
 import { ConfirmTimesModal, LotPickModal, ModalShell } from '../../components/operator/StepModals';
@@ -1568,63 +1568,6 @@ function BatchStepList({ steps, current = null, labelTemplates = [], stepPhotos 
     );
 }
 
-// Document control panel shown under a step: lists attached documents and lets
-// the operator validate mandatory ones. A blocked banner explains why the step
-// can't be completed until they are validated.
-function StepDocuments({ docs = [], blocked, canValidate, inflightDocId, onValidate }) {
-    return (
-        <div className="border-t border-om-line2 px-3 py-2 space-y-2">
-            {blocked && (
-                <p className="text-[12px] text-om-blocked bg-om-blocked-bg rounded px-2 py-1.5">
-                    {__('This step is blocked: a mandatory document must be validated before you can complete it.')}
-                </p>
-            )}
-            <ul className="space-y-1">
-                {docs.map((doc) => {
-                    const validated = !!doc.validated_at;
-                    const mandatory = doc.is_mandatory && doc.requires_validation;
-                    return (
-                        <li key={doc.id} className="flex items-center gap-2 text-sm">
-                            <span className="text-om-faint" aria-hidden="true">📄</span>
-                            <span className="text-om-ink">{doc.name}</span>
-                            {doc.reference && <span className="font-mono text-[11px] text-om-faint">{doc.reference}</span>}
-                            {mandatory && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-om-chip text-om-muted uppercase tracking-wide">
-                                    {__('Mandatory')}
-                                </span>
-                            )}
-                            {doc.file_path && (
-                                <a href={`/operator/batch-step-document/${doc.id}/file`} target="_blank" rel="noopener noreferrer" className="text-[12px] text-om-accent hover:underline">
-                                    {__('View')}
-                                </a>
-                            )}
-                            <span className="flex-1" />
-                            {validated ? (
-                                <span className="font-mono text-[11px] text-om-done break-words max-w-full">
-                                    {__('Validated')}{doc.validated_by ? ` · ${doc.validated_by.name}` : ''}
-                                </span>
-                            ) : doc.requires_validation ? (
-                                canValidate ? (
-                                    <Button
-                                        variant="accent"
-                                        disabled={inflightDocId === doc.id}
-                                        onClick={() => onValidate(doc)}
-                                        className="px-3 py-1.5 text-[13px] whitespace-nowrap"
-                                    >
-                                        {inflightDocId === doc.id ? '…' : __('Validate')}
-                                    </Button>
-                                ) : (
-                                    <span className="font-mono text-[11px] text-om-downtime whitespace-nowrap">{__('Not validated')}</span>
-                                )
-                            ) : null}
-                        </li>
-                    );
-                })}
-            </ul>
-        </div>
-    );
-}
-
 // Rich work instructions shown under a step: images (tap to zoom), inline PDFs
 // and videos. Tablet-friendly - large media, no tiny controls.
 function StepInstructions({ media = [], onZoom }) {
@@ -2155,7 +2098,9 @@ function dueLine(due, status) {
     if (!due) return null;
     const d = new Date(due);
     if (Number.isNaN(d.getTime())) return null;
-    const day = (x) => Math.floor(new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime() / 86400000);
+    // Calendar days in the plant's timezone, as formatDate shows them - not the
+    // browser's, which may sit on the other side of midnight.
+    const day = (x) => Date.parse(`${todayInPlant(x)}T00:00:00Z`) / 86400000;
     const diff = day(d) - day(new Date());
     const open = !['DONE', 'CANCELLED', 'REJECTED'].includes(status);
     let note = null;
@@ -2164,7 +2109,7 @@ function dueLine(due, status) {
     else if (open && diff === 1) note = __('Tomorrow');
     else if (open && diff > 1) note = __('in :count days', { count: diff });
     // The year only when it isn't this one.
-    const sameYear = d.getFullYear() === new Date().getFullYear();
+    const sameYear = todayInPlant(d).slice(0, 4) === todayInPlant().slice(0, 4);
     return { date: formatDate(d, { day: '2-digit', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) }), overdue: open && diff < 0, note };
 }
 
@@ -2250,7 +2195,7 @@ function MaterialsTable({ lines = [], filter, onFilter }) {
                                     {m.material_code && m.material_name && <span className="min-w-0 truncate font-sans text-[11.5px] text-om-faint">{m.material_name}</span>}
                                     {!m.material_exists && <span className="shrink-0 font-sans text-[11px] text-om-blocked">{__('not in stock list')}</span>}
                                 </span>
-                                <span className="text-om-ink">{qtyS(m.need)}</span>
+                                <span className="text-om-ink">{qtyS(m.need)}{m.unit_of_measure && <span className="ml-1 font-sans text-[11px] text-om-faint">{m.unit_of_measure}</span>}</span>
                                 <span className={m.short ? 'text-om-blocked' : 'text-om-ink'}>{qtyS(m.have)}</span>
                                 <span className={`font-semibold ${m.short ? 'text-om-blocked' : 'text-om-faintest'}`}>{m.missing > 0 ? qtyS(m.missing) : '—'}</span>
                                 <span className={m.on_hand < 0 ? 'text-om-blocked' : 'text-om-muted'}>{qtyS(m.on_hand)}</span>
