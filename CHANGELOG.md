@@ -205,7 +205,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   plan, or moving the order to a done board column, set the order `DONE` even with a
   batch still running or pending, unfinished steps and checklists, or an open blocking
   issue. For an order routed through process steps this is now refused with a message
-  naming the unfinished batches (422 as JSON);
+  naming the unfinished batches (422 as JSON); a machine count reaching the plan is
+  recorded but leaves the order open. In cumulative tracking a routed order that never
+  got a batch still closes from the quantity;
   quantities below the plan are still recorded, and orders without process steps close
   from the quantity as before. The quantity validation moved to Form Requests.
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a

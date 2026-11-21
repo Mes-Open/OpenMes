@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Operator\UpdateLineStatusRequest;
 use App\Models\IssueType;
 use App\Models\LineStatus;
 use App\Models\ScrapReason;
@@ -117,7 +118,7 @@ class WorkOrderController extends Controller
     /**
      * Update the line status (kanban status) of a work order.
      */
-    public function updateLineStatus(Request $request, WorkOrder $workOrder)
+    public function updateLineStatus(UpdateLineStatusRequest $request, WorkOrder $workOrder)
     {
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
             $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
@@ -126,7 +127,7 @@ class WorkOrderController extends Controller
         });
     }
 
-    private function updateLineStatusLocked(Request $request, WorkOrder $workOrder)
+    private function updateLineStatusLocked(UpdateLineStatusRequest $request, WorkOrder $workOrder)
     {
         $workOrder->assertProductionAvailable();
         $lineId = $request->session()->get('selected_line_id');
@@ -135,10 +136,7 @@ class WorkOrderController extends Controller
             return back()->with('error', 'This work order does not belong to the selected line.');
         }
 
-        $validated = $request->validate([
-            'line_status_id' => 'nullable|exists:line_statuses,id',
-            'produced_qty' => 'nullable|numeric|min:0',
-        ]);
+        $validated = $request->validated();
 
         $updates = ['line_status_id' => $validated['line_status_id']];
 

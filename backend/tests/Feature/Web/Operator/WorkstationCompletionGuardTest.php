@@ -14,6 +14,7 @@ use App\Models\TemplateStep;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderShiftEntry;
+use App\Services\WorkOrder\MachineProductionService;
 use App\Services\WorkOrder\WorkOrderService;
 use App\Support\ProductionFlow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -183,6 +184,61 @@ class WorkstationCompletionGuardTest extends TestCase
         $this->finish($batch);
         $move()->assertSessionMissing('error');
         $this->assertSame(WorkOrder::STATUS_DONE, $order->fresh()->status);
+    }
+
+    public function test_machine_count_reaching_the_plan_records_but_does_not_close_an_order_with_open_steps(): void
+    {
+        $order = $this->routedOrder();
+        $order->update(['counting_source' => WorkOrder::COUNTING_MACHINE]);
+        $batch = $this->batch($order, 10);
+        $batch->update(['status' => Batch::STATUS_IN_PROGRESS]);
+        $machine = app(MachineProductionService::class);
+
+        $this->assertTrue($machine->recordGoodCount($order, 10));
+        $this->assertStillOpen($order, 10);
+
+        $this->assertTrue($machine->recordAbsoluteCount($order, 10));
+        $this->assertStillOpen($order, 10);
+
+        $this->finish($batch);
+        $this->assertTrue($machine->recordAbsoluteCount($order, 10));
+        $this->assertSame(WorkOrder::STATUS_DONE, $order->fresh()->status);
+    }
+
+    public function test_cumulative_tracking_closes_a_routed_order_without_batches_from_the_quantity(): void
+    {
+        // Cumulative mode has no per-step work at the station: operators only
+        // enter quantities, so a routed order may never get a batch.
+        DB::table('system_settings')->updateOrInsert(['key' => 'production_tracking_mode'], ['value' => json_encode('cumulative')]);
+        $order = $this->routedOrder();
+
+        $this->actingAsOperator()->post("/operator/workstation/{$order->id}/complete", ['produced_qty' => 10])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(WorkOrder::STATUS_DONE, $order->fresh()->status);
+    }
+
+    public function test_cumulative_tracking_still_guards_open_batches(): void
+    {
+        DB::table('system_settings')->updateOrInsert(['key' => 'production_tracking_mode'], ['value' => json_encode('cumulative')]);
+        $order = $this->routedOrder();
+        $this->batch($order, 10)->update(['status' => Batch::STATUS_IN_PROGRESS]);
+
+        $this->actingAsOperator()->post("/operator/workstation/{$order->id}/complete", ['produced_qty' => 10])
+            ->assertSessionHasErrors('produced_qty');
+
+        $this->assertStillOpen($order);
+    }
+
+    public function test_board_column_move_is_validated(): void
+    {
+        $order = $this->routedOrder();
+
+        $this->actingAsOperator()->postJson("/operator/work-order/{$order->id}/line-status", ['line_status_id' => 999999, 'produced_qty' => -1])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['line_status_id', 'produced_qty']);
+
+        $this->assertStillOpen($order);
     }
 
     public function test_json_request_gets_a_422(): void

@@ -94,7 +94,10 @@ class MachineProductionService
             $updates['status'] = WorkOrder::STATUS_IN_PROGRESS;
         }
 
-        if ($planned > 0 && $newProduced >= $planned) {
+        // A machine count reaching the plan must not skip unfinished process
+        // steps, checklists or an open block: the quantity is kept, the order
+        // closes through its batches.
+        if ($planned > 0 && $newProduced >= $planned && ! $workOrder->processCompletionBlocker()) {
             $updates['status'] = WorkOrder::STATUS_DONE;
             $updates['completed_at'] = now();
         }

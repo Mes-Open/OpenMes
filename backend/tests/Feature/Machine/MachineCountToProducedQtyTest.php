@@ -110,6 +110,11 @@ class MachineCountToProducedQtyTest extends TestCase
     public function test_machine_count_auto_completes_the_order_when_reaching_planned(): void
     {
         [$workOrder] = $this->scenario(WorkOrder::COUNTING_MACHINE, planned: 10);
+        // Its batch has finished its steps; a count must not close an order
+        // whose steps are still running (WorkstationCompletionGuardTest).
+        $batch = $workOrder->batches()->first();
+        $batch->steps()->update(['status' => BatchStep::STATUS_DONE, 'completed_at' => now()]);
+        $batch->update(['status' => \App\Models\Batch::STATUS_DONE, 'completed_at' => now()]);
 
         app(MachineProductionService::class)->recordGoodCount($workOrder, 10);
 

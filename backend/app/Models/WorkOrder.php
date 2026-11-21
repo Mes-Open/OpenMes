@@ -518,13 +518,23 @@ class WorkOrder extends Model
             || $this->batches()->where('status', '!=', Batch::STATUS_CANCELLED)->whereHas('steps')->exists();
     }
 
+    /** System setting `production_tracking_mode`: per_operation (default), hybrid or cumulative. */
+    private static function productionTrackingMode(): string
+    {
+        $raw = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'production_tracking_mode')->value('value');
+
+        return ($raw === null ? null : json_decode($raw, true)) ?: 'per_operation';
+    }
+
     /**
      * Why an operator shortcut (a typed-in quantity reaching the plan, a move
      * to a done board column) may not close this order, or null when it may.
      * An order routed through process steps closes through its batches: the
      * shortcut must not skip a running or pending batch, its steps and
      * checklists, or an open block. Orders without process steps have nothing
-     * to skip and always return null.
+     * to skip and always return null; in cumulative tracking neither has a
+     * routed order that never got a batch. Also keeps a machine count from
+     * closing the order.
      */
     public function processCompletionBlocker(): ?string
     {
@@ -539,7 +549,14 @@ class WorkOrder extends Model
             return __('This work order is blocked by an open issue and cannot be completed.');
         }
 
+        // No batch yet: only where the floor works step by step. In cumulative
+        // tracking operators enter quantities only and may never open a batch,
+        // so there is nothing to skip.
         if (! $liveBatches()->exists()) {
+            if (self::productionTrackingMode() === 'cumulative') {
+                return null;
+            }
+
             return __('This work order cannot be completed until its production has gone through the process steps of a batch.');
         }
 
