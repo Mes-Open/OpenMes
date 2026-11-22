@@ -2,6 +2,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AppLayout from '../../layouts/AppLayout';
 import { __ } from '../../lib/i18n';
+import { linkCards } from '../../lib/moduleCards';
 
 function NavCard({ href, iconPath, title, description }) {
     return (
@@ -25,8 +26,36 @@ function NavCard({ href, iconPath, title, description }) {
     );
 }
 
+// A module's own settings pages, from display hook `display.settings.index.cards`.
+// Plain card fields only (title, body, href), so a module installed from a ZIP can
+// add one. A full page load (<a>, not <Link>): the page may not be an Inertia one.
+const PUZZLE_ICON = 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z';
+
+function ModuleCard({ href, title, body, external }) {
+    return (
+        <a
+            href={href}
+            {...(external ? { rel: 'noreferrer' } : {})}
+            className="bg-om-card border border-om-line rounded-om p-6 hover:border-om-faint transition-colors cursor-pointer flex items-start gap-4"
+        >
+            <div className="bg-om-chip rounded-full p-3 flex-shrink-0">
+                <svg className="w-6 h-6 text-om-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={PUZZLE_ICON} />
+                </svg>
+            </div>
+            <div className="flex-1">
+                <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-1">{title}</h3>
+                {body && <p className="text-om-muted text-[12.5px]">{body}</p>}
+            </div>
+            <svg className="w-5 h-5 text-om-faint flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </a>
+    );
+}
+
 export default function Index() {
-    const { auth, pinLoginEnabled, hasPin, twoFactorEnabled } = usePage().props;
+    const { auth, pinLoginEnabled, hasPin, twoFactorEnabled, hooks } = usePage().props;
     const isAdmin = auth?.user?.roles?.includes('Admin');
 
     return (
@@ -149,6 +178,10 @@ export default function Index() {
                         </svg>
                     </div>
                 </Link>
+
+                {linkCards(hooks, 'display.settings.index.cards').map((card, i) => (
+                    <ModuleCard key={i} {...card} />
+                ))}
             </div>
         </div>
     );

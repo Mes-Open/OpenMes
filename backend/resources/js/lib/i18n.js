@@ -125,6 +125,16 @@ export function localeTag() {
 // deliberately excluded — the spec already parses those as UTC.
 const NAIVE_TIMESTAMP = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/;
 
+/**
+ * Read a backend timestamp as the instant it is. Live-sync rows carry the raw
+ * DB value with no zone marker; the backend always stores UTC, so it is read
+ * as UTC rather than as browser-local time. Use this instead of `new Date()`
+ * on any `*_at` value from a synced row.
+ */
+export function parseTimestamp(value) {
+    return toDate(value);
+}
+
 function toDate(value) {
     if (value instanceof Date) return value;
 
@@ -208,23 +218,20 @@ export function formatNumber(value, opts = {}) {
 
 export function timeAgo(d) {
     if (!d) return '';
-    const dt = new Date(d);
+    const dt = toDate(d);
     if (Number.isNaN(dt.getTime())) return '';
     const sec = Math.round((Date.now() - dt.getTime()) / 1000);
     const abs = Math.abs(sec);
-    const past = sec >= 0;
     const units = [['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]];
     for (const [name, s] of units) {
         if (abs >= s) {
             const n = Math.floor(abs / s);
-            if (past) {
-                return __(':count :unit ago', { count: n, unit: __(name + (n > 1 ? 's' : '')) });
-            } else {
-                return __('in :count :unit', { count: n, unit: __(name + (n > 1 ? 's' : '')) });
-            }
+            // Intl knows each language's plural forms ("1 godzinę", "5 godzin");
+            // a translated unit word glued to a number can't.
+            return new Intl.RelativeTimeFormat(localeTag(), { numeric: 'always' }).format(sec >= 0 ? -n : n, name);
         }
     }
-    return past ? __('just now') : __('soon');
+    return sec >= 0 ? __('just now') : __('soon');
 }
 
 /** "5h 33m" / "5h" / "45m" — language-neutral suffixes, as elapsed()/countdown() below. */
@@ -248,7 +255,7 @@ export function durationLabel(minutes) {
  */
 export function elapsed(from, now = Date.now()) {
     if (!from) return '';
-    const start = from instanceof Date ? from.getTime() : new Date(from).getTime();
+    const start = toDate(from).getTime();
     if (Number.isNaN(start)) return '';
 
     const sec = Math.max(0, Math.floor((now - start) / 1000));
@@ -294,7 +301,7 @@ export function countdown(due, now = Date.now()) {
     const dayOnly = iso.length <= 10 || iso.slice(11, 16) === '00:00';
     const at = dayOnly
         ? new Date(`${iso.slice(0, 10)}T23:59:59.999Z`)
-        : new Date(due);
+        : toDate(due);
     if (Number.isNaN(at.getTime())) return null;
 
     const ms = at.getTime() - now;

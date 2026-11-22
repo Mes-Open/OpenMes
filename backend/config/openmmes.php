@@ -14,6 +14,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Operator Panel Retention (Workstation devices)
+    |--------------------------------------------------------------------------
+    |
+    | Every browser that opens the operator panel gets its own row on
+    | Admin -> Workstation devices; clearing the browser data or a private
+    | window creates a new one. Panel rows inactive for longer than this many
+    | days are moved to the trash daily (workstation-devices:prune-panels).
+    | OpenMES Workstation client rows are never pruned. 0 disables pruning.
+    |
+    */
+    // Not cast: workstation-devices:prune-panels validates the raw value, so a
+    // typo fails loudly instead of turning into 0 (pruning off).
+    'workstation_panel_prune_days' => env('WORKSTATION_PANEL_PRUNE_DAYS', 30),
+
+    /*
+    |--------------------------------------------------------------------------
     | Force Sequential Steps
     |--------------------------------------------------------------------------
     |

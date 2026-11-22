@@ -13,9 +13,12 @@ use Illuminate\Support\Facades\Log;
  * dashboard zones to arbitrary named points, and the same safety rule applies —
  * every value is escaped by React, there is no raw HTML anywhere in the path.
  *
- * Registered as a SCOPED binding, not a singleton: under Octane the container
- * outlives the request, and a registry that accumulated across requests would
- * render a module's contribution twice on the second hit.
+ * Registered as a singleton (AppServiceProvider): modules listen once, in their
+ * provider's boot(), and a scoped binding would forget those listeners after the
+ * first request under Octane. So never call listen() while handling a request -
+ * the worker keeps the registry, and the listener (with whatever it captured,
+ * a user included) would run for every later request too. Per-request decisions
+ * belong inside the listener, which gets the request's context as its argument.
  *
  * ⚠️ `component` works only for a module that was present when the core frontend
  * was built. The page glob below is expanded by Vite at build time, and the
@@ -119,7 +122,17 @@ class HookRegistry
 
         foreach ($handlers as $handler) {
             $payload = $handler['payload'];
-            $result = is_callable($payload) ? $payload($context) : $payload;
+
+            // A contribution is an addition to a core page: a module whose
+            // listener fails (a missing table after a failed migration, say)
+            // loses its card, the page itself still renders.
+            try {
+                $result = is_callable($payload) ? $payload($context) : $payload;
+            } catch (\Throwable $e) {
+                report($e);
+
+                continue;
+            }
 
             if (! is_array($result) || $result === []) {
                 continue;
@@ -131,10 +144,35 @@ class HookRegistry
                 continue;
             }
 
+            if (array_key_exists('href', $contribution) && ! self::isSafeHref($contribution['href'])) {
+                Log::warning('A module contributed a link that is neither a path on this site nor an http(s) URL; it is not shown.', [
+                    'hook' => $hook,
+                ]);
+                unset($contribution['href']);
+            }
+
             $out[] = $contribution;
         }
 
         return $out;
+    }
+
+    /**
+     * Whether a contributed link may be put in an href: a path on this site
+     * ('/settings/x') or an http(s) URL with a host. Not `javascript:` or any
+     * other scheme, and not something a browser would read as another host -
+     * '//host', or '/\\host' and '/<tab>/host', since browsers treat a
+     * backslash as a slash and drop tabs and newlines. Mirrored in the browser
+     * by isSafeHref() in resources/js/lib/moduleCards.js.
+     */
+    public static function isSafeHref(mixed $href): bool
+    {
+        if (! is_string($href) || $href === '' || preg_match('/[\x00-\x20\x7F\\\\]/', $href)) {
+            return false;
+        }
+
+        return (str_starts_with($href, '/') && ! str_starts_with($href, '//'))
+            || preg_match('~^https?://[^/?#]+~i', $href) === 1;
     }
 
     /**
