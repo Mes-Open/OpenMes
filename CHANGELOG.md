@@ -199,6 +199,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Printing several labels without choosing a template.** *Print multiple* without a
+  template crashed (500); it now uses the type's default template.
+
+- **Default label template change is recorded.** Making a label template the default clears
+  the flag on the previous one per template, so audit and change history see it.
+
 - **A refused step output shows why.** When a typed output value is refused (a validation
   rule or a module check, e.g. a scanned code that does not match), the operator screen now
   shows the message under that field; before, the save failed silently and the old value

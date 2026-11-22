@@ -196,8 +196,12 @@ class LabelPrintController extends Controller
     {
         $validated = $request->validated();
 
-        $template = $validated['template_id']
-            ? LabelTemplate::findOrFail($validated['template_id'])
+        // Same rule as resolveTemplate(): the chosen template only when it is of
+        // this type, else the type's default. A request without template_id
+        // (the field is optional) used to crash with "Undefined array key".
+        $chosen = empty($validated['template_id']) ? null : LabelTemplate::find($validated['template_id']);
+        $template = $chosen && $chosen->type === $validated['type']
+            ? $chosen
             : LabelTemplate::defaultFor($validated['type']);
 
         abort_unless($template, 404, __('No label template configured for this type.'));

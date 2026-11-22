@@ -125,9 +125,13 @@ class LabelTemplateController extends Controller
 
     private function ensureSingleDefault(LabelTemplate $template): void
     {
+        // Per model, not a bulk update, so model events (audit, change history)
+        // see the other template losing its default flag.
         LabelTemplate::query()
             ->where('type', $template->type)
             ->where('id', '!=', $template->id)
-            ->update(['is_default' => false]);
+            ->where('is_default', true)
+            ->get()
+            ->each(fn (LabelTemplate $other) => $other->update(['is_default' => false]));
     }
 }

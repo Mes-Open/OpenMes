@@ -131,6 +131,22 @@ class PalletLabelPrintTest extends TestCase
         $this->assertStringContainsString($pallet->pallet_no, $response->getContent());
     }
 
+    public function test_print_multiple_without_a_template_uses_the_default(): void
+    {
+        $this->palletTemplate();
+        $pallet = $this->pallet();
+
+        $response = $this->actingAs($this->operator)
+            ->postJson(route('packaging.labels.print-multiple'), [
+                'type' => LabelTemplate::TYPE_PALLET,
+                'format' => 'zpl',
+                'ids' => [$pallet->id],
+            ]);
+
+        $response->assertOk();
+        $this->assertStringContainsString($pallet->pallet_no, $response->getContent());
+    }
+
     public function test_user_without_packaging_role_is_forbidden(): void
     {
         $this->palletTemplate();

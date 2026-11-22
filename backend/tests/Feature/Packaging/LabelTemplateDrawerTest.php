@@ -100,6 +100,25 @@ class LabelTemplateDrawerTest extends TestCase
         $this->assertSame(['serial_no' => 'SN-1001-0001', 'ok' => true], ['serial_no' => 'SN-1001-0001', 'ok' => app(\App\Services\Packaging\LabelGenerator::class)->barcodePng('SN-1001-0001', 'ean13') !== null]);
     }
 
+    public function test_a_new_default_clears_the_old_one_through_model_events(): void
+    {
+        $old = $this->template(['name' => 'Old default']);
+        $cleared = [];
+        LabelTemplate::updated(function (LabelTemplate $t) use (&$cleared) {
+            if ($t->wasChanged('is_default') && ! $t->is_default) {
+                $cleared[] = $t->id;
+            }
+        });
+
+        $this->actingAs($this->admin)->post('/packaging/label-templates', [
+            'name' => 'New default', 'type' => 'carton', 'size' => '100x100', 'barcode_format' => 'code128',
+            'fields' => ['carton_no' => true], 'is_default' => true, 'is_active' => true, 'stay' => 1,
+        ])->assertRedirect();
+
+        $this->assertFalse($old->fresh()->is_default);
+        $this->assertSame([$old->id], $cleared, 'audit and change history listen to model events');
+    }
+
     public function test_saving_from_the_drawer_stays_on_the_list(): void
     {
         $payload = ['name' => 'Big carton', 'type' => 'carton', 'size' => '150x100', 'barcode_format' => 'code128', 'fields' => ['carton_no' => true, 'qr' => false], 'is_default' => true, 'is_active' => true];
