@@ -57,6 +57,15 @@ export const SUPERVISOR_LINKS = [
         lucide: 'layout-grid',
         match: ['/supervisor/shift-board'],
     },
+    {
+        // Supervisors may work the operator screens (route group
+        // `role:Operator|Supervisor|Admin`); without a link they had to type the URL.
+        key: 'supervisor-operator-panel',
+        label: 'Operator panel',
+        href: '/operator/select-line',
+        lucide: 'monitor-smartphone',
+        match: ['/operator'],
+    },
 ];
 
 export const SUPERVISOR_GROUPS = [

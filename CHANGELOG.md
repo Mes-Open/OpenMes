@@ -205,7 +205,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 - **Supervisor menu links to granted material pages.** A supervisor given the *Materials &
   tracing* tab in Settings → Access now sees *Traceability*, *Material Lots* and *Materials*
-  in the sidebar; before, the pages worked only by URL.
+  in the sidebar; before, the pages worked only by URL. Supervisors also get an
+  *Operator panel* link (they may use the operator screens, but had to type the URL).
 
 - **Operator messages in the selected language.** Messages on the operator path that were
   always shown in English are now translated: step start / complete / skip refusals (e.g.
