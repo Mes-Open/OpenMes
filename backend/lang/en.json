@@ -7878,7 +7878,16 @@
     "Pallet move": "Pallet move",
     "Recorded on the pallet": "Recorded on the pallet",
     ":in_progress order(s) in progress keep the previous version; :not_started not-started order(s) will take this change.": ":in_progress order(s) in progress keep the previous version; :not_started not-started order(s) will take this change.",
-    "Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.": "Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.",
+    "Edits to steps, checklists, outputs, media and the BOM reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.": "Edits to steps, checklists, outputs, media and the BOM reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.",
     "The process of this order was updated. Reload the page.": "The process of this order was updated. Reload the page.",
-    ":count order(s) use this template only as an additional BOM and are not updated.": ":count order(s) use this template only as an additional BOM and are not updated."
+    ":count order(s) use this template only as an additional BOM and are not updated.": ":count order(s) use this template only as an additional BOM and are not updated.",
+    "Materials are consumed at this step: :materials. Choose whether to remove them from the BOM or move them to another step.": "Materials are consumed at this step: :materials. Choose whether to remove them from the BOM or move them to another step.",
+    "Choose the step the materials move to.": "Choose the step the materials move to.",
+    "Choose another step of this template.": "Choose another step of this template.",
+    "Choose whether to remove the materials of this step from the BOM or move them to another step.": "Choose whether to remove the materials of this step from the BOM or move them to another step.",
+    "Materials are consumed at this step: :materials": "Materials are consumed at this step: :materials",
+    "Materials of this step": "Materials of this step",
+    "Remove them from the BOM (no longer used in this product)": "Remove them from the BOM (no longer used in this product)",
+    "Move them to another step": "Move them to another step",
+    "These materials are counted per carton or pallet of this step and would change quantity on the chosen step: :materials. Remove them, or choose a step with the same packing sizes.": "These materials are counted per carton or pallet of this step and would change quantity on the chosen step: :materials. Remove them, or choose a step with the same packing sizes."
 }

@@ -7878,7 +7878,16 @@
     "Pallet move": "Przesunięcie palety",
     "Recorded on the pallet": "Zapisane na palecie",
     ":in_progress order(s) in progress keep the previous version; :not_started not-started order(s) will take this change.": ":in_progress zleceń w toku zachowuje poprzednią wersję; :not_started nierozpoczętych zleceń przejmie tę zmianę.",
-    "Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.": "Zmiany kroków, list kontrolnych, wyników i materiałów trafiają do zleceń, które jeszcze się nie rozpoczęły: każde dostaje nową wersję konfiguracji, a kroki jego partii są tworzone od nowa. Zlecenia w toku zachowują to, z czym zostały wydane. Kontrolowaną zmianę zlecenia w toku wprowadź przez jego wniosek o zmianę.",
+    "Edits to steps, checklists, outputs, media and the BOM reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.": "Zmiany kroków, list kontrolnych, wyników, multimediów i BOM trafiają do zleceń, które jeszcze się nie rozpoczęły: każde dostaje nową wersję konfiguracji, a kroki jego partii są tworzone od nowa. Zlecenia w toku zachowują to, z czym zostały wydane. Kontrolowaną zmianę zlecenia w toku wprowadź przez jego wniosek o zmianę.",
     "The process of this order was updated. Reload the page.": "Proces tego zlecenia został zaktualizowany. Odśwież stronę.",
-    ":count order(s) use this template only as an additional BOM and are not updated.": ":count zleceń używa tego szablonu tylko jako dodatkowego BOM i nie jest aktualizowanych."
+    ":count order(s) use this template only as an additional BOM and are not updated.": ":count zleceń używa tego szablonu tylko jako dodatkowego BOM i nie jest aktualizowanych.",
+    "Materials are consumed at this step: :materials. Choose whether to remove them from the BOM or move them to another step.": "Na tym kroku zużywane są materiały: :materials. Wybierz, czy usunąć je z BOM, czy przenieść na inny krok.",
+    "Choose the step the materials move to.": "Wybierz krok, na który mają zostać przeniesione materiały.",
+    "Choose another step of this template.": "Wybierz inny krok tego szablonu.",
+    "Choose whether to remove the materials of this step from the BOM or move them to another step.": "Wybierz, czy usunąć materiały tego kroku z BOM, czy przenieść je na inny krok.",
+    "Materials are consumed at this step: :materials": "Na tym kroku zużywane są materiały: :materials",
+    "Materials of this step": "Materiały tego kroku",
+    "Remove them from the BOM (no longer used in this product)": "Usuń je z BOM (nie są już używane w tym produkcie)",
+    "Move them to another step": "Przenieś je na inny krok",
+    "These materials are counted per carton or pallet of this step and would change quantity on the chosen step: :materials. Remove them, or choose a step with the same packing sizes.": "Te materiały są liczone na karton lub paletę tego kroku i na wybranym kroku zmieniłyby ilość: :materials. Usuń je albo wybierz krok z tymi samymi rozmiarami opakowań."
 }

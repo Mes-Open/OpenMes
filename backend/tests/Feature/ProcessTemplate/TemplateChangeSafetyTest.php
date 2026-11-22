@@ -50,16 +50,15 @@ class TemplateChangeSafetyTest extends TestCase
 
     // ---- what triggers a refresh ---------------------------------------------
 
-    public function test_bom_edits_are_not_carried_by_a_later_instruction_edit(): void
+    public function test_bom_edit_reaches_not_started_order_only(): void
     {
-        $bomBefore = $this->notStarted->fresh()->process_snapshot['bom'];
-        BomItem::factory()->create(['process_template_id' => $this->template->id]);
-
-        $this->addChecklistItem($this->mix->id);
+        $runningBom = $this->running->fresh()->process_snapshot['bom'];
+        $line = BomItem::factory()->create(['process_template_id' => $this->template->id]);
 
         $order = $this->notStarted->fresh();
         $this->assertSame(2, (int) $order->snapshot_version);
-        $this->assertEquals($bomBefore, $order->process_snapshot['bom']);
+        $this->assertContains($line->material_id, array_column($order->process_snapshot['bom'], 'material_id'));
+        $this->assertEquals($runningBom, $this->running->fresh()->process_snapshot['bom']);
     }
 
     public function test_a_rolled_back_edit_reaches_no_order(): void

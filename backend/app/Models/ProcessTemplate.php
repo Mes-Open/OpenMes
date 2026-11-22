@@ -148,7 +148,7 @@ class ProcessTemplate extends Model
                         'quantity_per_unit' => (float) $item->quantity_per_unit,
                         'scrap_percentage' => (float) $item->scrap_percentage,
                         'consumed_at' => $item->consumed_at,
-                        'step_number' => $item->templateStep?->step_number,
+                        ...$item->snapshotStep(),
                         'external_code' => null,
                         'external_system' => null,
                     ];
@@ -170,7 +170,7 @@ class ProcessTemplate extends Model
                     'quantity_per_basis' => (float) $item->quantity_per_unit,
                     'scrap_percentage' => (float) $item->scrap_percentage,
                     'consumed_at' => $item->consumed_at,
-                    'step_number' => $item->templateStep?->step_number,
+                    ...$item->snapshotStep(),
                     'external_code' => $item->material->external_code,
                     'external_system' => $item->material->external_system,
                 ];

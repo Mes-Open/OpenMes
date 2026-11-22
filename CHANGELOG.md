@@ -166,7 +166,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   get a new configuration version (reason *process template edited*, kept in the order's
   version history) and the steps of their batches are rebuilt — keeping a step's manual
   workstation assignment, scheduled operations and documents when the step is still in
-  the process. Their BOM is not changed by this. The refresh runs as a queued job after the
+  the process. Their BOM is rebuilt from the template too, as when an order is created
+  (BOM edits of the template now reach them as well): a material removed from the template
+  leaves the order, a new one is added, and a material consumed during a step follows that
+  step when steps are reordered — order BOM lines now record the step they belong to, and
+  the order screen shows the step's name next to the material. An order with any material
+  already allocated counts as started and is not touched. Deleting a step that materials
+  are consumed at asks what happens to them — remove them from the BOM, or move them to
+  another step of the template (web and API; without a choice the delete is refused with
+  the materials named). The refresh runs as a queued job after the
   edit is saved (a rolled-back edit changes nothing). The template page says how many
   orders keep the previous version, how many will take the change and how many use the
   template only as an additional BOM (not updated). An operator acting on a step that was

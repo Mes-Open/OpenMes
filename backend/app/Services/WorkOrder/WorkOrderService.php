@@ -530,12 +530,32 @@ class WorkOrderService
                 [$aAt === 'during' ? $aStep : null, $bAt === 'during' ? $bStep : null],
                 fn ($s) => $s !== null,
             );
-            $a['step_number'] = $duringSteps ? min($duringSteps) : ($aStep ?? $bStep);
+            $step = $duringSteps ? min($duringSteps) : ($aStep ?? $bStep);
+            if ($step !== $aStep) {
+                $a = $this->withStepOf($a, $b);
+            }
         } elseif ($aStep === null && $bStep !== null) {
-            $a['step_number'] = $bStep;
+            $a = $this->withStepOf($a, $b);
         }
 
         return $a;
+    }
+
+    /**
+     * $row consumed at $from's step: the number together with the step's identity
+     * and name, so the three never point at different steps.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<string, mixed>  $from
+     * @return array<string, mixed>
+     */
+    private function withStepOf(array $row, array $from): array
+    {
+        $row['step_number'] = $from['step_number'] ?? null;
+        $row['template_step_id'] = $from['template_step_id'] ?? null;
+        $row['step_name'] = $from['step_name'] ?? null;
+
+        return $row;
     }
 
     /**

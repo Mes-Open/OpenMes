@@ -7,9 +7,11 @@ use App\Http\Requests\Api\V1\StoreProcessTemplateRequest;
 use App\Http\Requests\Api\V1\StoreTemplateStepRequest;
 use App\Http\Requests\Api\V1\UpdateProcessTemplateRequest;
 use App\Http\Requests\Api\V1\UpdateTemplateStepRequest;
+use App\Http\Requests\DeleteTemplateStepRequest;
 use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\TemplateStep;
+use App\Services\ProcessTemplate\StepBomItems;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -127,10 +129,14 @@ class ProcessTemplateController extends Controller
         ]);
     }
 
-    public function destroyStep(TemplateStep $templateStep): JsonResponse
+    public function destroyStep(DeleteTemplateStepRequest $request, TemplateStep $templateStep, StepBomItems $bomItems): JsonResponse
     {
         $this->authorize('update', $templateStep->processTemplate);
-        $templateStep->delete();
+        DB::transaction(function () use ($request, $templateStep, $bomItems) {
+            // The step's BOM lines go first, as the caller chose (removed or moved).
+            $bomItems->settle($templateStep, $request->validated('bom_items'), $request->integer('move_to_step_id') ?: null);
+            $templateStep->delete();
+        });
 
         return response()->json(['message' => 'Step deleted']);
     }

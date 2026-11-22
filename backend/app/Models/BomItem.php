@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\PropagatesTemplateChanges;
 use App\Models\Concerns\SoftDeletesWithAudit;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BomItem extends Model
 {
     use HasFactory;
+
+    // A BOM edit reaches the orders not started yet, like a step edit.
+    use PropagatesTemplateChanges;
     use SoftDeletesWithAudit;
 
     /** What `quantity_per_unit` is counted per: a finished unit, or a carton / pallet of a packing step. */
@@ -105,6 +109,24 @@ class BomItem extends Model
     public function perUnitQuantity(): float
     {
         return round((float) $this->quantity_per_unit / $this->basisDivisor(), 6);
+    }
+
+    /**
+     * The step this line is consumed at, as frozen into a work order snapshot:
+     * the template step's id (its identity, so a reorder can re-point the line)
+     * next to its current number and name. All null when the line has no step.
+     *
+     * @return array{template_step_id: ?int, step_number: ?int, step_name: ?string}
+     */
+    public function snapshotStep(): array
+    {
+        $step = $this->templateStep;
+
+        return [
+            'template_step_id' => $step?->id,
+            'step_number' => $step?->step_number,
+            'step_name' => $step?->name,
+        ];
     }
 
     /**

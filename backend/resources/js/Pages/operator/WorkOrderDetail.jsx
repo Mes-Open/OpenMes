@@ -272,7 +272,9 @@ function BomSection({ workOrder }) {
             meta: { align: 'left' },
             cell: ({ row }) => (
                 <span className="font-mono text-[12px] text-om-muted">
-                    {row.original.step_number ? `#${row.original.step_number}` : __('General')}
+                    {row.original.step_number
+                        ? `#${row.original.step_number}${row.original.step_name ? ` ${row.original.step_name}` : ''}`
+                        : __('General')}
                 </span>
             ),
         },

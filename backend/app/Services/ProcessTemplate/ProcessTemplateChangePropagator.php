@@ -7,12 +7,14 @@ use App\Jobs\RefreshNotStartedOrders;
 use App\Models\Batch;
 use App\Models\BatchStep;
 use App\Models\BatchStepDocument;
+use App\Models\MaterialAllocation;
 use App\Models\ProcessTemplate;
 use App\Models\ScheduledOperation;
 use App\Models\User;
 use App\Models\WorkOrder;
 use App\Models\WorkOrderSnapshot;
 use App\Models\Workstation;
+use App\Scopes\TenantScope;
 use App\Services\WorkOrder\WorkOrderService;
 use App\Services\WorkOrder\WorkOrderSnapshotService;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,23 +22,27 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Carries an edit of a process template's work instructions (steps, checklist
- * items, outputs, media) to the work orders that have not started yet.
+ * Carries an edit of a process template (steps, checklist items, outputs, media
+ * and BOM lines) to the work orders that have not started yet.
  *
  * - An order IN PROGRESS keeps its process snapshot untouched: what the shop floor
  *   was told to build does not change under it.
- * - An order NOT STARTED yet is moved onto the edited template: the steps in its
- *   snapshot are replaced by the template's current ones and appended as the next
- *   #182 version (reason `process_template_edited`), and the steps of its batches
- *   are regenerated from it. Everything else in the snapshot — the BOM, the BOM
- *   selection, the revision and engineering documents — stays as released: BOM
- *   edits do not travel this way.
+ * - An order NOT STARTED yet is moved onto the edited template: its steps and its
+ *   BOM are rebuilt from its BOM selection the way an order is created
+ *   (WorkOrderService::buildProcessSnapshot()) and appended as the next #182
+ *   version (reason `process_template_edited`), and the steps of its batches are
+ *   regenerated from it. A material therefore follows the template step it is
+ *   consumed at, and a line added to or removed from the template reaches the
+ *   order. The revision and engineering documents stay as released. Nothing has
+ *   to be undone: materials are reserved only when a step starts, and an order
+ *   with any material allocation counts as started.
  * - New orders snapshot the template as it is, so they need nothing from here.
  *
- * "Not started" = status PENDING or ACCEPTED, nothing produced, and no batch with
- * any execution (a batch past PENDING, or a step started, done, or skipped by
- * somebody). Anything else — including a PENDING order whose first step was
- * started before its status caught up — counts as in progress.
+ * "Not started" = status PENDING or ACCEPTED, nothing produced, no material
+ * allocated, and no batch with any execution (a batch past PENDING, or a step
+ * started, done, or skipped by somebody). Anything else — including a PENDING
+ * order whose first step was started before its status caught up — counts as in
+ * progress.
  *
  * Trigger: model events on the template rows call markDirty(), which queues a
  * RefreshNotStartedOrders job once the edit commits (unique per template).
@@ -94,8 +100,13 @@ class ProcessTemplateChangePropagator
                     return 0;
                 }
 
+                $current = $template->fresh();
+                if (! $current) {
+                    return 0; // template deleted meanwhile: nothing to move onto
+                }
+
                 $previous = $workOrder->process_snapshot ?? [];
-                $snapshot = $this->rebuild($previous, $template->fresh());
+                $snapshot = $this->rebuild($workOrder, $previous, $current);
                 if ($snapshot === null || $snapshot == $previous) {
                     return 0;
                 }
@@ -130,10 +141,11 @@ class ProcessTemplateChangePropagator
     {
         $orders = $this->openOrders($template)->with('batches:id,work_order_id,status,produced_qty')->get();
         $executed = $this->executedBatchIds($orders->flatMap->batches->pluck('id')->all());
+        $allocated = $this->allocatedOrderIds($orders->modelKeys());
 
         $counts = ['in_progress' => 0, 'not_started' => 0, 'secondary_bom' => 0];
         foreach ($orders as $workOrder) {
-            $counts[$this->notStarted($workOrder, $workOrder->batches, $executed) ? 'not_started' : 'in_progress']++;
+            $counts[$this->notStarted($workOrder, $workOrder->batches, $executed, $allocated) ? 'not_started' : 'in_progress']++;
         }
 
         $counts['secondary_bom'] = WorkOrder::query()
@@ -154,14 +166,23 @@ class ProcessTemplateChangePropagator
     {
         $batches = collect($batches ?? $workOrder->batches);
 
-        return $this->notStarted($workOrder, $batches, $this->executedBatchIds($batches->pluck('id')->all()));
+        return $this->notStarted(
+            $workOrder,
+            $batches,
+            $this->executedBatchIds($batches->pluck('id')->all()),
+            $this->allocatedOrderIds([$workOrder->id]),
+        );
     }
 
-    /** @param  array<int, true>  $executed  batch ids with execution */
-    private function notStarted(WorkOrder $workOrder, iterable $batches, array $executed): bool
+    /**
+     * @param  array<int, true>  $executed  batch ids with execution
+     * @param  array<int, true>  $allocated  order ids with a material allocation
+     */
+    private function notStarted(WorkOrder $workOrder, iterable $batches, array $executed, array $allocated): bool
     {
         if (! in_array($workOrder->status, self::NOT_STARTED_STATUSES, true)
-            || (float) $workOrder->produced_qty > 0) {
+            || (float) $workOrder->produced_qty > 0
+            || isset($allocated[$workOrder->id])) {
             return false;
         }
 
@@ -199,6 +220,34 @@ class ProcessTemplateChangePropagator
             ->all();
     }
 
+    /**
+     * Orders with any material allocation (reserved, consumed or returned), on the
+     * order or on one of its batches: their BOM is in use, so it is not rebuilt.
+     *
+     * @param  array<int, int>  $orderIds
+     * @return array<int, true>
+     */
+    private function allocatedOrderIds(array $orderIds): array
+    {
+        if ($orderIds === []) {
+            return [];
+        }
+
+        // Unscoped: a guard against touching an order whose BOM is in use must not
+        // miss an allocation because of the tenant context the job runs in.
+        $allocations = fn () => MaterialAllocation::withoutGlobalScope(TenantScope::class);
+
+        $direct = $allocations()->whereIn('work_order_id', $orderIds)->distinct()->pluck('work_order_id');
+        $viaBatch = Batch::withoutGlobalScopes()->whereIn('work_order_id', $orderIds)
+            ->whereIn('id', $allocations()->select('batch_id'))
+            ->distinct()
+            ->pluck('work_order_id');
+
+        return $direct->merge($viaBatch)
+            ->mapWithKeys(fn ($id) => [(int) $id => true])
+            ->all();
+    }
+
     /** Non-terminal orders whose process (primary template) is this template. */
     private function openOrders(ProcessTemplate $template): Builder
     {
@@ -213,13 +262,14 @@ class ProcessTemplateChangePropagator
     }
 
     /**
-     * The snapshot with the template's current steps (and name / version); every
-     * other key — BOM, BOM selection, revision, engineering documents — as released.
+     * The snapshot rebuilt from the order's BOM selection as it is now — steps from
+     * this (primary) template, BOM merged from every selected template, exactly as
+     * at order creation. The revision and engineering documents stay as released.
      *
      * @param  array<string, mixed>  $current
      * @return array<string, mixed>|null Null when there is nothing to refresh.
      */
-    private function rebuild(array $current, ProcessTemplate $template): ?array
+    private function rebuild(WorkOrder $workOrder, array $current, ProcessTemplate $template): ?array
     {
         // An order released without any process steps has no routing to refresh;
         // giving it one now would be a different order, not an edited one.
@@ -227,16 +277,28 @@ class ProcessTemplateChangePropagator
             return null;
         }
 
-        $fresh = $template->toSnapshot();
+        $selected = $current['bom_template_ids'] ?? $workOrder->bomTemplates()->pluck('process_templates.id')->all();
+        $templateIds = array_values(array_unique(array_map('intval', [$template->id, ...$selected])));
+
+        try {
+            $fresh = $this->workOrders->buildProcessSnapshot($workOrder->product_type_id, $templateIds);
+        } catch (\InvalidArgumentException $e) {
+            // A selected BOM was deleted or moved to another product: the order
+            // cannot be rebuilt the way it was released, so it stays as it is.
+            Log::warning('Process template edited: a not-started order was left as released because its BOM selection can no longer be built', [
+                'work_order_id' => $workOrder->id,
+                'process_template_id' => $template->id,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
         if (empty($fresh['steps'])) {
             return null; // every step removed: keep the order runnable as released
         }
 
-        return array_merge($current, [
-            'template_name' => $fresh['template_name'],
-            'template_version' => $fresh['template_version'],
-            'steps' => $fresh['steps'],
-        ]);
+        return array_merge($current, $fresh);
     }
 
     /**

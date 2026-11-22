@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { Breadcrumbs, Button, Dropdown, Checkbox, Icon as UiIcon, Modal, TextField } from '@openmes/ui';
+import { Breadcrumbs, Button, Dropdown, Checkbox, Icon as UiIcon, InlineAlert, Modal, RadioGroup, TextField } from '@openmes/ui';
 import PageTitle from '../../../components/PageTitle';
 import { DragDropProvider } from '@dnd-kit/react';
 import { useSortable } from '@dnd-kit/react/sortable';
@@ -1111,8 +1111,42 @@ function RailStep({ id, index, disabled, children }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Deleting a step that BOM materials are consumed at: remove them from
+   the BOM, or move them to another step. The choice is written to
+   `choiceRef` and read when the delete is confirmed. */
+function StepBomChoice({ step, otherSteps, choiceRef }) {
+    const [mode, setMode] = useState(choiceRef.current.bom_items);
+    const [target, setTarget] = useState(choiceRef.current.move_to_step_id);
+    const update = (next) => { choiceRef.current = { ...choiceRef.current, ...next }; };
+
+    return (
+        <div className="space-y-2 text-sm">
+            <p>{__('Materials are consumed at this step: :materials', { materials: step.bom_material_names.join(', ') })}</p>
+            <RadioGroup
+                label={__('Materials of this step')}
+                options={[
+                    { value: 'delete', label: __('Remove them from the BOM (no longer used in this product)') },
+                    ...(otherSteps.length > 0 ? [{ value: 'move', label: __('Move them to another step') }] : []),
+                ]}
+                value={mode}
+                onChange={(v) => { setMode(v); update({ bom_items: v }); }}
+            />
+            {mode === 'move' && (
+                <Dropdown
+                    aria-label={__('Move them to another step')}
+                    value={target}
+                    onChange={(v) => { setTarget(v); update({ move_to_step_id: v }); }}
+                    options={otherSteps.map((s) => ({ value: String(s.id), label: `#${s.step_number} ${s.name}` }))}
+                    className="w-full"
+                />
+            )}
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
 export default function ProcessTemplatesShow() {
-    const { productType, processTemplate, workstations = [], processSegments = [], workstationTypes = [] } = usePage().props;
+    const { productType, processTemplate, workstations = [], processSegments = [], workstationTypes = [], errors = {} } = usePage().props;
 
     const steps = processTemplate.steps ?? [];
     // Who an edit reaches: orders in progress keep their snapshot, orders not
@@ -1186,14 +1220,23 @@ export default function ProcessTemplatesShow() {
         ));
     };
 
+    const bomChoiceRef = useRef({ bom_items: 'delete', move_to_step_id: '' });
     const handleDelete = (step) => {
+        const hasMaterials = (step.bom_material_names ?? []).length > 0;
+        const otherSteps = steps.filter((st) => st.id !== step.id);
+        bomChoiceRef.current = { bom_items: 'delete', move_to_step_id: otherSteps[0] ? String(otherSteps[0].id) : '' };
         confirm({
             title: __('Delete this step?'),
-            body: activeWoCount > 0 ? inUseSummary : undefined,
+            body: (
+                <>
+                    {activeWoCount > 0 && <p className="mb-3">{inUseSummary}</p>}
+                    {hasMaterials && <StepBomChoice step={step} otherSteps={otherSteps} choiceRef={bomChoiceRef} />}
+                </>
+            ),
         }, () => {
             router.delete(
                 `/admin/product-types/${productType.id}/process-templates/${processTemplate.id}/steps/${step.id}`,
-                { preserveScroll: true },
+                { data: hasMaterials ? bomChoiceRef.current : {}, preserveScroll: true },
             );
         });
     };
@@ -1256,6 +1299,12 @@ export default function ProcessTemplatesShow() {
                     />
                 </PageTitle>
 
+                {(errors.bom_items || errors.move_to_step_id) && (
+                    <div className="mb-4">
+                        <InlineAlert severity="error" title={errors.bom_items ?? errors.move_to_step_id} />
+                    </div>
+                )}
+
                 {/* In-use warning (template-edit-guard): editing steps here
                     mutates the template in place. */}
                 {activeWoCount > 0 && (
@@ -1268,7 +1317,7 @@ export default function ProcessTemplatesShow() {
                                 {inUseSummary}
                             </p>
                             <p className="text-om-muted mt-0.5">
-                                {__('Edits to steps, checklists, outputs and media reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.')}
+                                {__('Edits to steps, checklists, outputs, media and the BOM reach orders that have not started yet: each gets a new configuration version and its batch steps are rebuilt. Orders already in progress keep what they were released with. For a controlled change to a running order, use its change request.')}
                             </p>
                             {secondaryBomWoCount > 0 && (
                                 <p className="text-om-muted mt-0.5">

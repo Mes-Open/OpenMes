@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Concerns\StaysOnList;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DeleteTemplateStepRequest;
 use App\Http\Requests\Web\Admin\StoreTemplateStepRequest;
 use App\Http\Requests\Web\Admin\UpdateTemplateStepRequest;
 use App\Models\AuditLog;
@@ -12,6 +13,7 @@ use App\Models\ProductType;
 use App\Models\TemplateStep;
 use App\Models\Workstation;
 use App\Services\ProcessTemplate\ProcessTemplateChangePropagator;
+use App\Services\ProcessTemplate\StepBomItems;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -102,6 +104,8 @@ class ProcessTemplateManagementController extends Controller
         ]);
         $workstations = Workstation::active()->with('line')->orderBy('name')->get();
         $counts = app(ProcessTemplateChangePropagator::class)->orderCounts($processTemplate);
+        $bomByStep = $processTemplate->bomItems()->whereNotNull('template_step_id')
+            ->with(['material:id,name', 'productType:id,name'])->get()->groupBy('template_step_id');
         $processSegments = \App\Models\ProcessSegment::query()
             ->active()
             ->orderBy('segment_type')
@@ -143,6 +147,9 @@ class ProcessTemplateManagementController extends Controller
                     'is_default_variant' => (bool) $s->is_default_variant,
                     'kind' => $s->kind,
                     'config' => $s->config,
+                    // Materials consumed at this step: deleting it asks what happens to them.
+                    'bom_material_names' => $bomByStep->get($s->id, collect())
+                        ->map(fn ($b) => $b->material?->name ?? $b->productType?->name)->filter()->values(),
                     'workstation' => $s->workstation ? [
                         'id' => $s->workstation->id,
                         'name' => $s->workstation->name,
@@ -413,7 +420,7 @@ class ProcessTemplateManagementController extends Controller
     /**
      * Delete a step from the process template
      */
-    public function deleteStep(ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step)
+    public function deleteStep(DeleteTemplateStepRequest $request, ProductType $productType, ProcessTemplate $processTemplate, TemplateStep $step, StepBomItems $bomItems)
     {
         // Ensure template belongs to this product type and step belongs to template
         if ($processTemplate->product_type_id !== $productType->id || $step->process_template_id !== $processTemplate->id) {
@@ -425,7 +432,9 @@ class ProcessTemplateManagementController extends Controller
 
         // One transaction: the not-started orders are refreshed once it commits,
         // from the renumbered shape, not from the half-way state in between.
-        DB::transaction(function () use ($step, $stepNumber, $processTemplate) {
+        DB::transaction(function () use ($step, $stepNumber, $processTemplate, $request, $bomItems) {
+            // The step's BOM lines go first, as the admin chose (removed or moved).
+            $bomItems->settle($step, $request->validated('bom_items'), $request->integer('move_to_step_id') ?: null);
             $step->delete();
 
             // Renumber the live steps after it in two phases: a single
