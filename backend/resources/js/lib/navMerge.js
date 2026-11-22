@@ -106,3 +106,25 @@ export function groupMatch(match, children) {
 
     return [...new Set([...(match ?? []), ...fromChildren])];
 }
+
+/**
+ * Put module links into the supervisor sidebar's groups.
+ *
+ * MenuRegistry::addSupervisorItem() names a group by its short key (orders,
+ * production, reports); supervisorNav.js keys the same groups `supervisor-<key>`.
+ * A group that gets links also matches their paths, so it opens and lights up on
+ * the module's own screens.
+ *
+ * @param {Array<object>} groups  SUPERVISOR_GROUPS
+ * @param {Record<string, Array<object>>} items  short group key => sidebar children
+ */
+export function mergeSupervisorItems(groups, items) {
+    return groups.map((group) => {
+        const extra = items?.[group.key.replace(/^supervisor-/, '')];
+        if (! extra?.length) {
+            return group;
+        }
+
+        return { ...group, match: groupMatch(group.match, extra), children: mergeChildren(group.children, extra) };
+    });
+}

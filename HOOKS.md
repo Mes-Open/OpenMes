@@ -223,6 +223,13 @@ $menu->addItem('production', 'My Page', url('/modules/your-module'), order: 90);
 $menu->addGroup('yourmod', 'Your Module', order: 55);
 // (c) … and add links to it
 $menu->addGroupItem('yourmod', 'Overview', url('/modules/your-module'), order: 10);
+
+// Optional: a Lucide icon, and the access tab the viewer needs to see the entry.
+$menu->addItem('warehouses', 'Certificates', '/admin/certificates', order: 35, icon: 'file-badge', tab: 'materials');
+
+// The supervisor sees their own sidebar; reach it with addSupervisorItem()
+// (groups: orders | production | reports). The module's routes must let Supervisor in.
+$menu->addSupervisorItem('production', 'Register', '/admin/register', order: 90, icon: 'list-checks');
 ```
 
 Resolve URLs with `url()` (not `route()`) so registration never depends on route
@@ -484,7 +491,7 @@ class SyncToErp implements ShouldQueue
 `User\UserAssignedToLine`, `Resource\ResourceChanged` (generic CRUD),
 `Schedule\WorkOrderScheduled`.
 
-**Menu** (`App\Services\MenuRegistry`): `addItem`, `addGroup`, `addGroupItem`.
+**Menu** (`App\Services\MenuRegistry`): `addItem`, `addGroup`, `addGroupItem`, `addSupervisorItem`.
 
 **Widgets** (`App\Services\WidgetRegistry`): `register` — zones `kpi`, `main`,
 `sidebar`.

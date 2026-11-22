@@ -9,6 +9,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Icons, access tabs and supervisor entries for module menu items.** `MenuRegistry::addItem()`
+  and `addGroupItem()` take an optional Lucide `icon` and a `tab`; an entry with a tab is hidden
+  from users who do not hold it, instead of leading them to a 403. `addSupervisorItem()` adds
+  an entry to the supervisor sidebar (orders, production, reports), which never showed module
+  entries before.
 - **Dashboard widgets that stay current.** `WidgetRegistry::register()` also takes a
   callable, called on every dashboard render and returning the card (or null for none). A
   count or status built in a module's `boot()` used to keep the value of the moment the

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
-import { byOrder, groupMatch, mergeChildren, mergeGroups } from '../lib/navMerge';
+import { byOrder, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems } from '../lib/navMerge';
 import { filterNavItems, flattenNavItems, groupVisible, searchResultKeys } from '../lib/navSearch';
 import LiveAlertCount from '../components/LiveAlertCount';
 import ViewAsBar from '../components/ViewAsBar';
@@ -54,6 +54,8 @@ function moduleItemToChild(item) {
         external: true,
         order: item.order,
         badge: item.badge,
+        lucide: item.icon ?? undefined,
+        tab: item.tab ?? undefined,
     };
 }
 
@@ -206,6 +208,11 @@ function navRoot(links) {
 // Merge module-registered hooks into ADMIN_GROUPS: inject items into built-in
 // dropdowns (by aliased key) and place any custom top-level dropdowns at the
 // position the module asked for. See lib/navMerge.js for the scale.
+/** The supervisor entries modules registered, as sidebar children per group. */
+function supervisorModuleItems(moduleNav) {
+    return Object.fromEntries(Object.entries(moduleNav?.supervisor ?? {}).map(([group, list]) => [group, (list ?? []).map(moduleItemToChild)]));
+}
+
 function mergeModuleNav(moduleNav) {
     const items = moduleNav?.items ?? {};
     const groups = moduleNav?.groups ?? [];
@@ -308,7 +315,7 @@ function useNavTree() {
         if ((! isAdmin && isSupervisor) || (isAdmin && viewAs === 'supervisor')) {
             return {
                 links: withGrantedTabs(withEnabledModules(SUPERVISOR_LINKS, enabledModules), allowedTabs),
-                groups: withGrantedTabs(withEnabledModules(SUPERVISOR_GROUPS, enabledModules), allowedTabs),
+                groups: withGrantedTabs(withEnabledModules(mergeSupervisorItems(SUPERVISOR_GROUPS, supervisorModuleItems(moduleNav)), enabledModules), allowedTabs),
                 // The supervisor tree is gated by the route group's role
                 // middleware, not the admin access matrix. Only its entries that
                 // carry a `tab` key (an admin page granted in Settings → Access)
