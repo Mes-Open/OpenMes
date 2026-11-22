@@ -199,6 +199,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Material lot page in the selected language.** The lot status badge, the sublot and
+  consumption table headers, sublot statuses and the inspection status were always shown
+  in English.
+
+- **Supervisor menu links to granted material pages.** A supervisor given the *Materials &
+  tracing* tab in Settings → Access now sees *Traceability*, *Material Lots* and *Materials*
+  in the sidebar; before, the pages worked only by URL.
+
 - **Operator messages in the selected language.** Messages on the operator path that were
   always shown in English are now translated: step start / complete / skip refusals (e.g.
   "Work order is blocked by issues"), batch release refusals and the "Batch released (LOT …)"

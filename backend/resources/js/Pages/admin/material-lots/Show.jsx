@@ -4,6 +4,7 @@ import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import PageTrail from '../../../components/PageTrail';
 import { __, todayInPlant } from '../../../lib/i18n';
+import { materialLotStatusLabel } from './fields';
 
 const STATUS_COLORS = {
     received:   'bg-om-chip text-om-accent',
@@ -14,9 +15,19 @@ const STATUS_COLORS = {
     rejected:   'bg-om-blocked-bg text-om-blocked',
 };
 
-function ucFirst(str) {
-    if (!str) return '—';
-    return str.charAt(0).toUpperCase() + str.slice(1);
+function sublotStatusLabel(status) {
+    const labels = { available: __('Available'), reserved: __('Reserved'), consumed: __('Consumed') };
+    return labels[status] ?? status ?? '—';
+}
+
+function inspectionStatusLabel(status) {
+    const labels = {
+        pending: __('Pending'),
+        pass: __('Pass'),
+        conditional_pass: __('Conditional pass'),
+        fail: __('Fail'),
+    };
+    return labels[status] ?? status ?? '—';
 }
 
 function trimQty(val) {
@@ -51,13 +62,13 @@ export default function MaterialLotShow({ lot }) {
         {
             id: 'sublot',
             accessorKey: 'sublot_number',
-            header: 'Sublot',
+            header: __('Sublot'),
             cell: ({ row }) => <span className="font-mono">{row.original.sublot_number}</span>,
         },
         {
             id: 'quantity',
             accessorFn: (r) => Number(r.quantity ?? 0),
-            header: 'Quantity',
+            header: __('Quantity'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className="font-mono">
@@ -69,15 +80,15 @@ export default function MaterialLotShow({ lot }) {
         {
             id: 'status',
             accessorKey: 'status',
-            header: 'Status',
+            header: __('Status'),
             cell: ({ row }) => (
-                <span className="px-2 py-0.5 rounded text-xs bg-om-chip">{ucFirst(row.original.status)}</span>
+                <span className="px-2 py-0.5 rounded text-xs bg-om-chip">{sublotStatusLabel(row.original.status)}</span>
             ),
         },
         {
             id: 'notes',
             accessorKey: 'notes',
-            header: 'Notes',
+            header: __('Notes'),
             cell: ({ row }) => <span className="text-om-muted">{row.original.notes ?? '—'}</span>,
         },
     ], []);
@@ -86,7 +97,7 @@ export default function MaterialLotShow({ lot }) {
         {
             id: 'when',
             accessorFn: (r) => r.consumed_at,
-            header: 'When',
+            header: __('When'),
             cell: ({ row }) => <span className="text-om-muted">{fmtDateTime(row.original.consumed_at)}</span>,
         },
         {
@@ -95,7 +106,7 @@ export default function MaterialLotShow({ lot }) {
                 const wo = r.batch_step?.batch?.work_order;
                 return wo ? (wo.lot_number ?? `#${wo.id}`) : '—';
             },
-            header: 'Work order',
+            header: __('Work order'),
             cell: ({ row }) => {
                 const wo = row.original.batch_step?.batch?.work_order;
                 return (
@@ -111,7 +122,7 @@ export default function MaterialLotShow({ lot }) {
                 const batch = r.batch_step?.batch;
                 return batch ? (batch.lot_number ?? `#${batch.id}`) : '—';
             },
-            header: 'Batch',
+            header: __('Batch'),
             cell: ({ row }) => {
                 const batch = row.original.batch_step?.batch;
                 return (
@@ -124,13 +135,13 @@ export default function MaterialLotShow({ lot }) {
         {
             id: 'step',
             accessorFn: (r) => r.batch_step?.name ?? '—',
-            header: 'Step',
+            header: __('Step'),
             cell: ({ row }) => row.original.batch_step?.name ?? '—',
         },
         {
             id: 'quantity',
             accessorFn: (r) => Number(r.quantity_consumed ?? 0),
-            header: 'Quantity',
+            header: __('Quantity'),
             meta: { align: 'right' },
             cell: ({ row }) => (
                 <span className="font-mono">
@@ -142,7 +153,7 @@ export default function MaterialLotShow({ lot }) {
         {
             id: 'by',
             accessorFn: (r) => r.recorded_by?.name ?? '—',
-            header: 'By',
+            header: __('By'),
             cell: ({ row }) => <span className="text-om-muted">{row.original.recorded_by?.name ?? '—'}</span>,
         },
     ], [lot.unit_of_measure]);
@@ -168,7 +179,7 @@ export default function MaterialLotShow({ lot }) {
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
-                            {ucFirst(lot.status)}
+                            {materialLotStatusLabel(lot.status)}
                         </span>
                         {/* The incoming-inspection label: lot, material and the IQC verdict, for the warehouse shelf. */}
                         <a href={`/packaging/labels/material-lot/${lot.id}/pdf`} target="_blank" rel="noopener" className="btn-touch btn-secondary">{__('IQC label')}</a>
@@ -282,7 +293,7 @@ export default function MaterialLotShow({ lot }) {
                                             href={`/operator/inspections/${lot.inspection.id}`}
                                             className="text-om-accent hover:underline"
                                         >
-                                            #{lot.inspection.id} — {ucFirst(lot.inspection.status)}
+                                            #{lot.inspection.id} — {inspectionStatusLabel(lot.inspection.status)}
                                         </Link>
                                     ) : (
                                         <span className="text-om-faint">{__('No inbound inspection')}</span>

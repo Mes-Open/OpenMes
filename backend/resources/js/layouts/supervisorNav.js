@@ -91,6 +91,20 @@ export const SUPERVISOR_GROUPS = [
         ],
     },
     {
+        // Admin pages a supervisor holds only through the `materials` tab grant
+        // (Settings → Access) — hidden for everyone without it.
+        key: 'supervisor-materials',
+        label: 'Materials & tracing',
+        lucide: 'layers',
+        href: '/admin/traceability',
+        match: ['/admin/traceability', '/admin/material-lots', '/admin/materials'],
+        children: [
+            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
+            { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
+            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'package' },
+        ],
+    },
+    {
         // Scan-to-load verification (#400): plan loads, then follow the dock.
         key: 'supervisor-logistics',
         label: 'Logistics',
