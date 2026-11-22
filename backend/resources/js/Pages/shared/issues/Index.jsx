@@ -74,8 +74,14 @@ export default function IssuesIndex() {
         workstations = [],
         reportableWorkOrders = [],
         issueCustomFields = [],
+        // issue id => label a module attaches (e.g. a non-conformance number);
+        // absent without such a module. Loaded with the page, so an issue filed
+        // since shows its label after a reload.
+        issueReferences = {},
         csrf_token: csrf,
     } = usePage().props;
+    const referenceOf = (r) => issueReferences[r.id] ?? '';
+    const hasReferences = Object.keys(issueReferences).length > 0;
 
     const base =
         typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
@@ -95,6 +101,9 @@ export default function IssuesIndex() {
     const focusFilter = useCallback((r) => Number(r.id) === focusId, [focusId]);
 
     const columns = [
+        ...(hasReferences
+            ? [{ key: 'reference', label: __('Reference number'), className: 'font-mono text-om-ink whitespace-nowrap', filter: 'text', value: referenceOf, render: (r) => referenceOf(r) || '—' }]
+            : []),
         { key: 'title', label: __('Issue'), className: 'font-medium text-om-ink', filter: 'text' },
         { key: 'type', label: __('Type'), className: 'text-om-muted', value: (r) => issueTypeNames[r.issue_type_id] ?? '—', render: (r) => issueTypeNames[r.issue_type_id] ?? '—' },
         { key: 'wo', label: __('Work Order'), className: 'text-om-muted', value: (r) => workOrderNos[r.work_order_id] ?? '—', render: (r) => workOrderNos[r.work_order_id] ?? '—' },
@@ -187,6 +196,7 @@ export default function IssuesIndex() {
             {dispositionFor && (
                 <DispositionModal
                     issue={dispositionFor}
+                    reference={referenceOf(dispositionFor)}
                     base={base}
                     onClose={() => setDispositionFor(null)}
                 />
@@ -194,6 +204,7 @@ export default function IssuesIndex() {
             {actionsFor && (
                 <ActionsModal
                     issue={actionsFor}
+                    reference={referenceOf(actionsFor)}
                     base={base}
                     csrf={csrf}
                     users={reporterNames}
@@ -486,7 +497,7 @@ function ReportIssueDrawer({
 
 // ── Non-conformance disposition modal (#11) ─────────────────────────────────
 
-function DispositionModal({ issue, base, onClose }) {
+function DispositionModal({ issue, reference, base, onClose }) {
     const { data, setData, post, processing, errors } = useForm({
         disposition: issue.disposition ?? 'pending',
         non_conforming_qty: issue.non_conforming_qty ?? '',
@@ -513,7 +524,7 @@ function DispositionModal({ issue, base, onClose }) {
             open
             onClose={onClose}
             title={__('Disposition')}
-            subtitle={issue.title}
+            subtitle={reference ? `${reference} · ${issue.title}` : issue.title}
             closeLabel={__('Close')}
             width={520}
             footer={
@@ -590,7 +601,7 @@ function DispositionModal({ issue, base, onClose }) {
 
 // ── Corrective / preventive actions modal ───────────────────────────────────
 
-function ActionsModal({ issue, base, csrf, users, onClose }) {
+function ActionsModal({ issue, reference, base, csrf, users, onClose }) {
     const { prompt, dialog: promptDialog } = usePrompt();
     const [actions, setActions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -662,7 +673,7 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
                 open
                 onClose={onClose}
                 title={__('Corrective / preventive actions')}
-                subtitle={issue.title}
+                subtitle={reference ? `${reference} · ${issue.title}` : issue.title}
                 closeLabel={__('Close')}
                 width={640}
             >

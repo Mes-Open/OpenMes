@@ -9,6 +9,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Modules can label issues on the Issues page.** A module fills the `issues.references`
+  filter (issue id → label, e.g. a non-conformance number) and *Issues* shows a **Reference number**
+  column (searchable, sortable) plus the label in the disposition and actions dialogs.
+  Without such a module nothing changes. Labels load with the page, so an issue filed
+  since shows its label after a reload.
+
 - **Workstation devices: operator panels.** *Admin → Workstation devices* now also lists
   every browser running the operator panel. While an operator is logged in, the panel
   reports itself every 20 seconds; the roster shows its status (**Active** / **Inactive**),

@@ -1806,8 +1806,8 @@
     "Reject": "Odrzuć",
     "Reject this work order?": "Odrzucić to zlecenie?",
     "Reject work order": "Odrzuć zlecenie",
-    "Release Batch": "Zwolnij serię",
-    "Release this batch?": "Zwolnić tę serię?",
+    "Release Batch": "Zwolnij partię",
+    "Release this batch?": "Zwolnić tę partię?",
     "Released By": "Zwolnił",
     "Remaining": "Pozostało",
     "Remember me": "Zapamiętaj mnie",
@@ -7956,5 +7956,6 @@
     "Actual setup + run time cannot exceed the actual elapsed time.": "Rzeczywisty czas przezbrojenia + pracy nie może przekroczyć rzeczywistego czasu całkowitego.",
     "Only a pending step can be assigned a workstation.": "Stanowisko można przypisać tylko do oczekującego kroku.",
     "The selected workstation is not available.": "Wybrane stanowisko jest niedostępne.",
-    "Work Order :order": "Zlecenie :order"
+    "Work Order :order": "Zlecenie :order",
+    "Reference number": "Numer"
 }

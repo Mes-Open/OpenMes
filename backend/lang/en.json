@@ -7956,5 +7956,6 @@
     "Actual setup + run time cannot exceed the actual elapsed time.": "Actual setup + run time cannot exceed the actual elapsed time.",
     "Only a pending step can be assigned a workstation.": "Only a pending step can be assigned a workstation.",
     "The selected workstation is not available.": "The selected workstation is not available.",
-    "Work Order :order": "Work Order :order"
+    "Work Order :order": "Work Order :order",
+    "Reference number": "Reference number"
 }

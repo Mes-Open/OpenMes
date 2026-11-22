@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Extension\FilterRegistry;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BulkIssueActionRequest;
 use App\Http\Requests\SetDispositionRequest;
@@ -35,6 +36,8 @@ class IssueManagementController extends Controller
 
     public function index(Request $request, CustomFieldService $cf)
     {
+        $references = $this->issueReferences($request);
+
         return Inertia::render('shared/issues/Index', [
             'issueTypeNames' => IssueType::pluck('name', 'id'),
             'lineNames' => Line::pluck('name', 'id'),
@@ -47,7 +50,40 @@ class IssueManagementController extends Controller
             'workstations' => Workstation::where('is_active', true)->orderBy('name')->get(['id', 'line_id', 'code', 'name']),
             'reportableWorkOrders' => $this->reportableWorkOrders(),
             'issueCustomFields' => $cf->clientConfig('issue'),
+            // Only when a module labels issues: without one the page has no "Reference number" column.
+            ...($references !== [] ? ['issueReferences' => $references] : []),
         ]);
+    }
+
+    /**
+     * Reference labels modules attach to issues (e.g. a non-conformance number),
+     * through the `issues.references` filter: issue id => label.
+     *
+     * Core hands the filter an empty map and no issue ids: the list rows come
+     * from the synced collection, so loading every issue here just to ask about
+     * it would grow with the whole history. A module answers from its own
+     * table, which only holds the issues it labelled. Rows filed after the page
+     * loaded get their label on the next visit. When two modules label the
+     * same issue, the first filter (lower order) wins.
+     *
+     * @return array<int, string>
+     */
+    private function issueReferences(Request $request): array
+    {
+        $filters = app(FilterRegistry::class);
+        if (! $filters->has('issues.references')) {
+            return [];
+        }
+
+        $references = [];
+        foreach ((array) $filters->filter('issues.references', [], ['user' => $request->user()]) as $id => $label) {
+            if ((is_int($id) || ctype_digit((string) $id)) && (int) $id > 0 && (is_string($label) || is_int($label)) && trim((string) $label) !== '') {
+                // Capped so one runaway label cannot stretch the column.
+                $references[(int) $id] = mb_substr(trim((string) $label), 0, 100);
+            }
+        }
+
+        return $references;
     }
 
     /**
