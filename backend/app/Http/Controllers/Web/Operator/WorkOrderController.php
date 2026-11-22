@@ -132,7 +132,7 @@ class WorkOrderController extends Controller
         $lineId = $request->session()->get('selected_line_id');
 
         if ($workOrder->line_id != $lineId) {
-            return back()->with('error', 'This work order does not belong to the selected line.');
+            return back()->with('error', __('This work order does not belong to the selected line.'));
         }
 
         $validated = $request->validated();
@@ -169,7 +169,7 @@ class WorkOrderController extends Controller
 
         $workOrder->update($updates);
 
-        return back()->with('success', 'Status updated.');
+        return back()->with('success', __('Status updated.'));
     }
 
     /**
@@ -222,7 +222,7 @@ class WorkOrderController extends Controller
         // Verify work order belongs to selected line
         if ($workOrder->line_id != $lineId) {
             return redirect()->route('operator.queue')
-                ->with('error', 'This work order does not belong to the selected line.');
+                ->with('error', __('This work order does not belong to the selected line.'));
         }
 
         $workOrder->load([

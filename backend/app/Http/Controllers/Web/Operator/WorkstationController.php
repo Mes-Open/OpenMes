@@ -219,7 +219,7 @@ class WorkstationController extends Controller
         $lineId = $request->session()->get('selected_line_id');
 
         if (! $lineId || (int) $workstation->line_id !== (int) $lineId) {
-            return redirect()->back()->with('error', 'That workstation is not on your selected line.');
+            return redirect()->back()->with('error', __('That workstation is not on your selected line.'));
         }
 
         $note = $request->validated()['note'] ?? null;
@@ -232,7 +232,7 @@ class WorkstationController extends Controller
             'manual',
         );
 
-        return redirect()->back()->with('success', 'Machine state updated.');
+        return redirect()->back()->with('success', __('Machine state updated.'));
     }
 
     /**
@@ -320,18 +320,18 @@ class WorkstationController extends Controller
         $lineId = $request->session()->get('selected_line_id');
 
         if ($workOrder->line_id != $lineId) {
-            return back()->with('error', 'Work order does not belong to this line.');
+            return back()->with('error', __('Work order does not belong to this line.'));
         }
 
         $workOrder->assertProductionAvailable();
 
         if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED])) {
-            return back()->with('error', 'Work order cannot be started from current status.');
+            return back()->with('error', __('Work order cannot be started from current status.'));
         }
 
         $workOrder->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
-        return back()->with('success', "Production started: {$workOrder->order_no}");
+        return back()->with('success', __('Production started: :order', ['order' => $workOrder->order_no]));
     }
 
     /**
@@ -358,15 +358,15 @@ class WorkstationController extends Controller
         $lineId = $request->session()->get('selected_line_id');
 
         if ($workOrder->line_id != $lineId) {
-            return back()->with('error', 'Work order does not belong to this line.');
+            return back()->with('error', __('Work order does not belong to this line.'));
         }
 
         if ($workOrder->status === WorkOrder::STATUS_DONE) {
-            return back()->with('error', 'Work order is already completed.');
+            return back()->with('error', __('Work order is already completed.'));
         }
 
         if (! $workOrder->allowsOperatorEntry()) {
-            return back()->with('error', 'This work order is machine-counted; quantities are recorded automatically from the machine.');
+            return back()->with('error', __('This work order is machine-counted; quantities are recorded automatically from the machine.'));
         }
 
         $validated = $request->validated();
@@ -398,7 +398,7 @@ class WorkstationController extends Controller
 
         $remaining = max(0, $planned - $newProduced);
 
-        return back()->with('success', "{$workOrder->order_no}: +{$addedQty} produced (remaining: {$remaining})");
+        return back()->with('success', __(':order: +:qty produced (remaining: :remaining)', ['order' => $workOrder->order_no, 'qty' => $addedQty, 'remaining' => $remaining]));
     }
 
     /**
@@ -424,15 +424,15 @@ class WorkstationController extends Controller
         $lineId = $request->session()->get('selected_line_id');
 
         if ($workOrder->line_id != $lineId) {
-            return back()->with('error', 'Work order does not belong to this line.');
+            return back()->with('error', __('Work order does not belong to this line.'));
         }
 
         if ($workOrder->status === WorkOrder::STATUS_DONE) {
-            return back()->with('error', 'Work order is already completed.');
+            return back()->with('error', __('Work order is already completed.'));
         }
 
         if (! $workOrder->allowsOperatorEntry()) {
-            return back()->with('error', 'This work order is machine-counted; quantities are recorded automatically from the machine.');
+            return back()->with('error', __('This work order is machine-counted; quantities are recorded automatically from the machine.'));
         }
 
         $validated = $request->validated();
@@ -492,7 +492,7 @@ class WorkstationController extends Controller
         $shift = Shift::find($validated['shift_id']);
         $remaining = max(0, $planned - $totalProduced);
 
-        return back()->with('success', "{$workOrder->order_no} [{$shift->code}]: +{$qty} (remaining: {$remaining})");
+        return back()->with('success', __(':order [:shift]: +:qty (remaining: :remaining)', ['order' => $workOrder->order_no, 'shift' => $shift->code, 'qty' => $qty, 'remaining' => $remaining]));
     }
 
     /**

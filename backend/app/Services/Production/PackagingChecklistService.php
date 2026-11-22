@@ -14,7 +14,7 @@ class PackagingChecklistService
     public function submit(Batch $batch, User $user, array $data): PackagingChecklist
     {
         if ($batch->packagingChecklist) {
-            throw new \RuntimeException('Packaging checklist already submitted for this batch.');
+            throw new \RuntimeException(__('Packaging checklist already submitted for this batch.'));
         }
 
         return PackagingChecklist::create([

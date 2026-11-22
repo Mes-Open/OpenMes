@@ -31,7 +31,7 @@ class ProcessConfirmationService
     public function confirmDrying(Batch $batch, User $user, int $hoursOfDrying, ?BatchStep $step = null): ProcessConfirmation
     {
         if ($hoursOfDrying < 12) {
-            throw new \RuntimeException("Drying time must be at least 12 hours. Provided: {$hoursOfDrying}h.");
+            throw new \RuntimeException(__('Drying time must be at least 12 hours. Provided: :hours.', ['hours' => $hoursOfDrying.'h']));
         }
 
         return $this->confirm(

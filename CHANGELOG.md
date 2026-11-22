@@ -193,6 +193,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Operator messages in the selected language.** Messages on the operator path that were
+  always shown in English are now translated: step start / complete / skip refusals (e.g.
+  "Work order is blocked by issues"), batch release refusals and the "Batch released (LOT …)"
+  confirmation, checklist, output, downtime and workstation-panel confirmations, quality
+  control and corrective-action status errors, and the **Cancel** buttons in the operator
+  work order dialogs.
+
 - **FEFO no longer proposes expired lots.** The automatic lot pick and the operator's pick list
   skip lots past their expiry date — FEFO used to put them first, having the earliest date of
   all. A lot is usable through its expiry day. A manual pick and the consume API refuse an

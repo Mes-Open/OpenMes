@@ -31,7 +31,7 @@ class IssueActionService
     public function start(IssueAction $action): IssueAction
     {
         if ($action->status !== IssueAction::STATUS_OPEN) {
-            throw new \DomainException("Only an OPEN action can be started (is {$action->status}).");
+            throw new \DomainException(__('Only an OPEN action can be started (is :status).', ['status' => $action->status]));
         }
 
         $action->update(['status' => IssueAction::STATUS_IN_PROGRESS]);
@@ -42,7 +42,7 @@ class IssueActionService
     public function complete(IssueAction $action, User $by, ?string $notes = null): IssueAction
     {
         if (! in_array($action->status, [IssueAction::STATUS_OPEN, IssueAction::STATUS_IN_PROGRESS], true)) {
-            throw new \DomainException("Only an open/in-progress action can be completed (is {$action->status}).");
+            throw new \DomainException(__('Only an open/in-progress action can be completed (is :status).', ['status' => $action->status]));
         }
 
         $action->update([
@@ -58,7 +58,7 @@ class IssueActionService
     public function verify(IssueAction $action, User $by): IssueAction
     {
         if ($action->status !== IssueAction::STATUS_DONE) {
-            throw new \DomainException("Only a completed (DONE) action can be verified (is {$action->status}).");
+            throw new \DomainException(__('Only a completed (DONE) action can be verified (is :status).', ['status' => $action->status]));
         }
 
         $action->update([

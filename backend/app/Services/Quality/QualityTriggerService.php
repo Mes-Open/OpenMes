@@ -216,7 +216,7 @@ class QualityTriggerService
     public function createRoamingTask(QualityControlTrigger $trigger, array $links = [], ?string $reason = null): QualityControlTask
     {
         if (($links['batch_id'] ?? null) === null) {
-            throw new \DomainException('A roaming quality control must target a batch.');
+            throw new \DomainException(__('A roaming quality control must target a batch.'));
         }
 
         return $this->createTask($trigger, $links, $reason ?? __('Roaming check'));
@@ -230,7 +230,7 @@ class QualityTriggerService
     public function performTask(QualityControlTask $task, User $user, array $samples, ?float $productionQuantity = null, ?string $notes = null, ?Pallet $pallet = null): QualityControlTask
     {
         if ($task->batch_id === null) {
-            throw new \DomainException('This control is not tied to a batch and cannot record a quality check.');
+            throw new \DomainException(__('This control is not tied to a batch and cannot record a quality check.'));
         }
 
         return DB::transaction(function () use ($task, $user, $samples, $productionQuantity, $notes, $pallet) {
@@ -238,7 +238,7 @@ class QualityTriggerService
             // the open-state check and commit conflicting terminal actions.
             $task = QualityControlTask::whereKey($task->getKey())->lockForUpdate()->firstOrFail();
             if (! $task->isOpen()) {
-                throw new \DomainException('This control has already been completed.');
+                throw new \DomainException(__('This control has already been completed.'));
             }
             $task->loadMissing(['batch', 'trigger']);
 
@@ -274,7 +274,7 @@ class QualityTriggerService
         return DB::transaction(function () use ($task, $user) {
             $task = QualityControlTask::whereKey($task->getKey())->lockForUpdate()->firstOrFail();
             if (! $task->isOpen()) {
-                throw new \DomainException('This control has already been completed.');
+                throw new \DomainException(__('This control has already been completed.'));
             }
 
             $task->update([

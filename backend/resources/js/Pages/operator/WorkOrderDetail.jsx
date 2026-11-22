@@ -344,11 +344,11 @@ function ProcessPhotosSection({ photos = [] }) {
                                     type="button"
                                     onClick={() => setLightbox(photo)}
                                     className="block w-full cursor-pointer"
-                                    aria-label={photo.caption || 'Work instruction'}
+                                    aria-label={photo.caption || __('Work instruction')}
                                 >
                                     <img
                                         src={photo.url}
-                                        alt={photo.caption || 'Work instruction'}
+                                        alt={photo.caption || __('Work instruction')}
                                         loading="lazy"
                                         className="w-full h-32 object-cover rounded-om-sm border border-om-line bg-om-chip"
                                     />
@@ -372,19 +372,19 @@ function ProcessPhotosSection({ photos = [] }) {
                     <figure className="max-w-4xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
                         <img
                             src={lightbox.url}
-                            alt={lightbox.caption || 'Work instruction'}
+                            alt={lightbox.caption || __('Work instruction')}
                             className="max-w-full max-h-[80vh] rounded-om shadow-2xl"
                         />
                         {lightbox.caption && (
                             <figcaption className="text-white/90 text-sm mt-3 text-center">{lightbox.caption}</figcaption>
                         )}
                     </figure>
-                    <Tooltip label="Close">
+                    <Tooltip label={__('Close')}>
                         <button
                             type="button"
                             onClick={() => setLightbox(null)}
                             className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none cursor-pointer"
-                            aria-label="Close"
+                            aria-label={__('Close')}
                         >
                             ×
                         </button>
@@ -643,7 +643,7 @@ function ReleaseForm({ batch, onClose }) {
                     </Button>
                 )}
                 <Button variant="secondary" onClick={onClose} className="px-5 py-3 text-[14px]">
-                    Cancel
+                    {__('Cancel')}
                 </Button>
             </div>
         </div>
@@ -775,7 +775,7 @@ function ProductionControls({ batch }) {
                     rel="noreferrer"
                     className="inline-flex items-center justify-center rounded-om-sm border border-om-line bg-transparent px-5 py-3 text-[14px] font-semibold text-om-ink hover:bg-om-chip transition-colors"
                 >
-                    Series Report
+                    {__('Series Report')}
                 </a>
             )}
         </div>
@@ -791,7 +791,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
     const showControls = batch.status === 'IN_PROGRESS' || batch.status === 'DONE';
 
     const releaseLabel =
-        batch.release_type === 'for_sale' ? 'For Sale' : 'For Production';
+        batch.release_type === 'for_sale' ? __('For Sale') : __('For Production');
     const isReleased = !!(batch.released_at || batch.released);
 
     return (
@@ -1143,16 +1143,16 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 {step.step_number}/{steps.length}
                             </span>
                             {photo && (
-                                <Tooltip label={photo.caption || 'Step photo'}>
+                                <Tooltip label={photo.caption || __('Step photo')}>
                                     <button
                                         type="button"
                                         onClick={() => setPhotoZoom(photo)}
                                         className="flex-shrink-0 cursor-pointer"
-                                        aria-label={photo.caption || 'Step photo'}
+                                        aria-label={photo.caption || __('Step photo')}
                                     >
                                         <img
                                             src={photo.url}
-                                            alt={photo.caption || 'Step photo'}
+                                            alt={photo.caption || __('Step photo')}
                                             loading="lazy"
                                             className="w-12 h-12 object-cover rounded-om-sm border border-om-line bg-om-chip"
                                         />
@@ -1372,7 +1372,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
             {photoZoom && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onClick={() => setPhotoZoom(null)}>
                     <figure className="max-w-3xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
-                        <img src={photoZoom.url} alt={photoZoom.caption || 'Step photo'} className="max-w-full max-h-[80vh] rounded-om shadow-2xl" />
+                        <img src={photoZoom.url} alt={photoZoom.caption || __('Step photo')} className="max-w-full max-h-[80vh] rounded-om shadow-2xl" />
                         {photoZoom.caption && (
                             <figcaption className="text-white/90 text-sm mt-3 text-center">{photoZoom.caption}</figcaption>
                         )}
@@ -1879,12 +1879,12 @@ function LotPickModal({ step, materials, onClose }) {
                                                         onChange={(v) => setLineQty(m.material_id, idx, v)}
                                                         className="text-[12px] text-om-ink bg-om-bg border border-om-line rounded-om-sm px-2 py-1 outline-none w-20 text-right focus:border-om-accent transition-colors font-mono"
                                                     />
-                                                    <Tooltip label="Remove lot">
+                                                    <Tooltip label={__('Remove lot')}>
                                                         <button
                                                             type="button"
                                                             onClick={() => removeLine(m.material_id, idx)}
                                                             className="cursor-pointer p-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
-                                                            aria-label="Remove lot"
+                                                            aria-label={__('Remove lot')}
                                                         >
                                                             ×
                                                         </button>
@@ -1927,7 +1927,7 @@ function LotPickModal({ step, materials, onClose }) {
                 </div>
                 <div className={modalFooterCls}>
                     <Button variant="secondary" type="button" onClick={onClose}>
-                        Cancel
+                        {__('Cancel')}
                     </Button>
                     <Button variant="accent" type="submit" disabled={!allValid || submitting}>
                         {submitting ? '…' : __('Confirm picks & start')}
@@ -2065,7 +2065,7 @@ function CreateBatchModal({ workOrder, workstations, defaultWorkstationId, batch
                         onClick={onClose}
                         className="px-6 py-4 text-[15px] font-semibold"
                     >
-                        Cancel
+                        {__('Cancel')}
                     </Button>
                     <Button
                         type="submit"
@@ -2165,7 +2165,7 @@ function ReportIssueModal({ workOrder, issueTypes, customFields = [], onClose })
 
                 <div className={modalFooterCls}>
                     <Button variant="secondary" onClick={onClose} className="px-6 py-4 text-[15px] font-semibold">
-                        Cancel
+                        {__('Cancel')}
                     </Button>
                     <Button
                         type="submit"
@@ -2262,7 +2262,7 @@ function ReportScrapModal({ workOrder, scrapReasons, onClose }) {
 
                 <div className={modalFooterCls}>
                     <Button variant="secondary" onClick={onClose} className="px-6 py-4 text-[15px] font-semibold">
-                        Cancel
+                        {__('Cancel')}
                     </Button>
                     <Button
                         type="submit"
@@ -2391,7 +2391,7 @@ export default function WorkOrderDetail() {
 
     return (
         <>
-            <Head title={`Work Order ${workOrder.order_no}`} />
+            <Head title={__('Work Order :order', { order: workOrder.order_no })} />
 
             {/* Live-refresh when the work order changes on the line */}
             {line && <LineSync lineId={line.id} reloadOnly={['workOrder', 'batchableQty']} />}

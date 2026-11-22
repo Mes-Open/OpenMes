@@ -107,10 +107,10 @@ export default function OperatorLayout({ children }) {
                         {operatorCanLogout && (
                             <form action="/logout" method="POST">
                                 <input type="hidden" name="_token" value={csrf_token} />
-                                <Tooltip label="Logout">
+                                <Tooltip label={__('Logout')}>
                                     <button
                                         type="submit"
-                                        aria-label="Logout"
+                                        aria-label={__('Logout')}
                                         className="p-2.5 rounded-om-sm text-om-faint hover:text-om-blocked hover:bg-om-chip transition-colors"
                                     >
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

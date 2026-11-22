@@ -53,7 +53,7 @@ class BatchController extends Controller
     public function pickPreview(Request $request, BatchStep $batchStep)
     {
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
-            return response()->json(['message' => 'This step does not belong to the selected line.'], 403);
+            return response()->json(['message' => __('This step does not belong to the selected line.')], 403);
         }
 
         return response()->json([
@@ -132,7 +132,7 @@ class BatchController extends Controller
     public function completeStep(CompleteBatchStepRequest $request, BatchStep $batchStep)
     {
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         // Operator-confirmed actual times (ISA-95 L3, #52) — from the completion
@@ -140,7 +140,7 @@ class BatchController extends Controller
         try {
             $this->batchService->completeStep($batchStep, $request->user(), $request->validated());
 
-            return back()->with('success', 'Step completed.');
+            return back()->with('success', __('Step completed.'));
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -200,12 +200,12 @@ class BatchController extends Controller
         $step = $batchStepDocument->batchStep;
 
         if (! $step || ! $this->stepBelongsToSelectedLine($request, $step)) {
-            return back()->with('error', 'This document does not belong to the selected line.');
+            return back()->with('error', __('This document does not belong to the selected line.'));
         }
 
         $batchStepDocument->markValidated($request->user());
 
-        return back()->with('success', 'Document validated.');
+        return back()->with('success', __('Document validated.'));
     }
 
     /**
@@ -270,14 +270,14 @@ class BatchController extends Controller
         throw_if($batchStep->trashed(), StepRegeneratedException::class);
 
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         // Anti-IDOR: the item must be one the order was released with on this step
         // (process snapshot). Bound with trashed rows, so an item deleted from the
         // template later can still be ticked on an order that was released with it.
         if (! StepDefinitions::stepHas($batchStep, StepDefinitions::CHECKLIST, $checklistItem->id)) {
-            return back()->with('error', 'This checklist item does not belong to this step.');
+            return back()->with('error', __('This checklist item does not belong to this step.'));
         }
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $batchStep, $checklistItem) {
@@ -292,7 +292,7 @@ class BatchController extends Controller
             if ($existing) {
                 $existing->delete();
 
-                return back()->with('success', 'Checklist item unchecked.');
+                return back()->with('success', __('Checklist item unchecked.'));
             }
 
             BatchStepChecklistCompletion::create([
@@ -302,7 +302,7 @@ class BatchController extends Controller
                 'checked_at' => now(),
             ]);
 
-            return back()->with('success', 'Checklist item checked.');
+            return back()->with('success', __('Checklist item checked.'));
         });
     }
 
@@ -319,13 +319,13 @@ class BatchController extends Controller
         throw_if($batchStep->trashed(), StepRegeneratedException::class);
 
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         // Anti-IDOR: the output must be one the order was released with on this
         // step (see toggleChecklistItem()).
         if (! StepDefinitions::stepHas($batchStep, StepDefinitions::OUTPUTS, $output->id)) {
-            return back()->with('error', 'This output does not belong to this step.');
+            return back()->with('error', __('This output does not belong to this step.'));
         }
 
         if ($batchStep->recordsLocked()) {
@@ -461,7 +461,7 @@ class BatchController extends Controller
     public function skipStep(Request $request, BatchStep $batchStep)
     {
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         $validated = $request->validate([
@@ -471,7 +471,7 @@ class BatchController extends Controller
         try {
             $this->batchService->skipStep($batchStep, $request->user(), $validated['skip_reason'] ?? null);
 
-            return back()->with('success', 'Step skipped.');
+            return back()->with('success', __('Step skipped.'));
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -483,13 +483,13 @@ class BatchController extends Controller
     public function chooseVariant(Request $request, BatchStep $batchStep)
     {
         if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         try {
             $this->batchService->chooseVariant($batchStep, $request->user());
 
-            return back()->with('success', 'Variant selected.');
+            return back()->with('success', __('Variant selected.'));
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -517,7 +517,7 @@ class BatchController extends Controller
         $workOrder = WorkOrder::find($request->input('work_order_id'));
 
         if ($workOrder->line_id != $request->session()->get('selected_line_id')) {
-            return back()->with('error', 'This work order does not belong to the selected line.');
+            return back()->with('error', __('This work order does not belong to the selected line.'));
         }
 
         if ($request->filled('lot_number') && ! \App\Services\Lot\BatchLotRules::manualEntryAllowed()) {
@@ -554,7 +554,7 @@ class BatchController extends Controller
             } catch (\Illuminate\Validation\ValidationException $e) {
                 throw $e;
             } catch (\Exception $e) {
-                return back()->with('error', 'Failed to create batch: '.$e->getMessage())->withInput();
+                return back()->with('error', __('Failed to create batch: :error', ['error' => $e->getMessage()]))->withInput();
             }
         });
     }
@@ -574,7 +574,7 @@ class BatchController extends Controller
                 $this->confirmationService->confirm($batch, $request->user(), $request->input('confirmation_type'), null, $request->input('notes'), $request->input('value'));
             }
 
-            return back()->with('success', 'Process confirmed successfully.');
+            return back()->with('success', __('Process confirmed successfully.'));
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -609,7 +609,7 @@ class BatchController extends Controller
         );
 
         return back()->with($check->all_passed ? 'success' : 'warning',
-            $check->all_passed ? 'Quality check passed.' : 'Quality check recorded — some samples failed.');
+            $check->all_passed ? __('Quality check passed.') : __('Quality check recorded — some samples failed.'));
     }
 
     public function packagingChecklist(Request $request, Batch $batch)
@@ -632,7 +632,7 @@ class BatchController extends Controller
             ]);
 
             return back()->with($checklist->fresh()->all_passed ? 'success' : 'warning',
-                $checklist->fresh()->all_passed ? 'Packaging checklist passed.' : 'Packaging checklist — some items failed.');
+                $checklist->fresh()->all_passed ? __('Packaging checklist passed.') : __('Packaging checklist — some items failed.'));
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -647,10 +647,9 @@ class BatchController extends Controller
         try {
             $released = $this->releaseService->release($batch, $request->user(), $request->validated('release_type'));
 
-            $msg = "Batch released (LOT: {$released->lot_number})";
-            if ($released->expiry_date) {
-                $msg .= " — Expiry: {$released->expiry_date->format('Y-m-d')}";
-            }
+            $msg = $released->expiry_date
+                ? __('Batch released (LOT: :lot) — Expiry: :expiry', ['lot' => $released->lot_number, 'expiry' => $released->expiry_date->format('Y-m-d')])
+                : __('Batch released (LOT: :lot)', ['lot' => $released->lot_number]);
 
             return back()->with('success', $msg);
         } catch (\RuntimeException $e) {

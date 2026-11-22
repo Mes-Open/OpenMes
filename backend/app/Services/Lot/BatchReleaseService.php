@@ -40,25 +40,25 @@ class BatchReleaseService
     {
         if (! $batch->canRelease()) {
             if ($batch->isReleased()) {
-                throw new \RuntimeException('Batch is already released.');
+                throw new \RuntimeException(__('Batch is already released.'));
             }
-            throw new \RuntimeException('Batch must be completed (DONE) before release.');
+            throw new \RuntimeException(__('Batch must be completed (DONE) before release.'));
         }
 
         if (! in_array($releaseType, [Batch::RELEASE_FOR_PRODUCTION, Batch::RELEASE_FOR_SALE])) {
-            throw new \RuntimeException("Invalid release type: {$releaseType}");
+            throw new \RuntimeException(__('Invalid release type: :type', ['type' => $releaseType]));
         }
 
         // Quality gate: don't release a batch whose work order is blocked by an
         // open non-conformance, or that consumed a held (quarantined/rejected) lot.
         if ($batch->workOrder?->isBlocked()) {
-            throw new \RuntimeException('Cannot release: the work order is blocked by an open non-conformance.');
+            throw new \RuntimeException(__('Cannot release: the work order is blocked by an open non-conformance.'));
         }
         if ($this->hasHeldConsumedLot($batch)) {
-            throw new \RuntimeException('Cannot release: a material lot consumed by this batch is on quality hold.');
+            throw new \RuntimeException(__('Cannot release: a material lot consumed by this batch is on quality hold.'));
         }
         if (QualityControlTask::hasOpenBlockingForBatch($batch->id)) {
-            throw new \RuntimeException('Cannot release: a required quality control is still outstanding for this batch.');
+            throw new \RuntimeException(__('Cannot release: a required quality control is still outstanding for this batch.'));
         }
 
         return DB::transaction(function () use ($batch, $user, $releaseType) {

@@ -27,13 +27,13 @@ class DowntimeController extends Controller
         $lineId = $request->session()->get('selected_line_id');
         $line = $lineId ? Line::find($lineId) : null;
         if (! $line) {
-            return back()->with('error', 'No line selected.');
+            return back()->with('error', __('No line selected.'));
         }
 
         // Don't open a second concurrent downtime for the same line.
         $active = ProductionDowntime::where('line_id', $line->id)->whereNull('ended_at')->exists();
         if ($active) {
-            return back()->with('warning', 'A downtime is already in progress for this line.');
+            return back()->with('warning', __('A downtime is already in progress for this line.'));
         }
 
         $workstationId = $request->session()->get('selected_workstation_id');
@@ -46,22 +46,22 @@ class DowntimeController extends Controller
             $validated['notes'] ?? null,
         );
 
-        return back()->with('success', 'Downtime started.');
+        return back()->with('success', __('Downtime started.'));
     }
 
     public function stop(Request $request, ProductionDowntime $downtime)
     {
         $lineId = $request->session()->get('selected_line_id');
         if (! $lineId || $downtime->line_id != $lineId) {
-            return back()->with('error', 'This downtime does not belong to the selected line.');
+            return back()->with('error', __('This downtime does not belong to the selected line.'));
         }
 
         if ($downtime->ended_at) {
-            return back()->with('info', 'Downtime already stopped.');
+            return back()->with('info', __('Downtime already stopped.'));
         }
 
         $stopped = $this->downtimeService->stop($downtime);
 
-        return back()->with('success', 'Downtime stopped. Duration: '.$stopped->duration_minutes.' min.');
+        return back()->with('success', __('Downtime stopped. Duration: :minutes min.', ['minutes' => $stopped->duration_minutes]));
     }
 }

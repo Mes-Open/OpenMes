@@ -161,7 +161,7 @@ class BatchService
 
             // Validate step can be completed
             if (! $step->canComplete()) {
-                throw new \Exception('Step cannot be completed. Current status: '.$step->status);
+                throw new \Exception(__('Step cannot be completed. Current status: :status', ['status' => $step->status]));
             }
 
             // Transfer flow: nothing may still be on its way here, and nothing
@@ -505,7 +505,7 @@ class BatchService
             $this->guardWorkstationRouting($step, $user);
 
             if (! $step->canSkip()) {
-                throw new \Exception('This step is required and cannot be skipped.');
+                throw new \Exception(__('This step is required and cannot be skipped.'));
             }
 
             $this->guardUnprocessedRouting($step);
@@ -546,11 +546,11 @@ class BatchService
             }
 
             if ($step->variant_group === null) {
-                throw new \Exception('This step is not part of a variant group.');
+                throw new \Exception(__('This step is not part of a variant group.'));
             }
 
             if ($step->status === BatchStep::STATUS_DONE) {
-                throw new \Exception('This variant is already completed.');
+                throw new \Exception(__('This variant is already completed.'));
             }
 
             $this->guardUnprocessedRouting($step);
@@ -803,14 +803,14 @@ class BatchService
     protected function throwValidationError(BatchStep $step): void
     {
         if (! in_array($step->status, [BatchStep::STATUS_PENDING, BatchStep::STATUS_READY], true)) {
-            throw new \Exception("Step is already {$step->status}");
+            throw new \Exception(__('Step is already :status', ['status' => $step->status]));
         }
 
         $workOrder = $step->batch->workOrder;
         if ($workOrder->isBlocked()) {
             $issues = $workOrder->openBlockingIssues();
             $issueList = $issues->pluck('title')->join(', ');
-            throw new \Exception("Work order is blocked by issues: {$issueList}");
+            throw new \Exception(__('Work order is blocked by issues: :issues', ['issues' => $issueList]));
         }
 
         // Check sequential enforcement
@@ -825,6 +825,6 @@ class BatchService
             }
         }
 
-        throw new \Exception('Step cannot be started');
+        throw new \Exception(__('Step cannot be started'));
     }
 }

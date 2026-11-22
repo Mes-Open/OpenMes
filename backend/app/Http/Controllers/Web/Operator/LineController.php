@@ -77,7 +77,7 @@ class LineController extends Controller
 
         // Verify operator has access to this line
         if (! $request->user()->lines()->where('lines.id', $lineId)->exists()) {
-            return back()->with('error', 'You do not have access to this line.');
+            return back()->with('error', __('You do not have access to this line.'));
         }
 
         // If workstation selected, verify it belongs to this line

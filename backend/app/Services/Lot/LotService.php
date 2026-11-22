@@ -29,7 +29,9 @@ class LotService
 
         if (! $sequence) {
             throw new \RuntimeException(
-                'No '.self::purposeLabel($purpose).' sequence configured'.($productType ? " for product type: {$productType->name}" : '')
+                $productType
+                    ? __('No :purpose sequence configured for product type: :type', ['purpose' => __(self::purposeLabel($purpose)), 'type' => $productType->name])
+                    : __('No :purpose sequence configured', ['purpose' => __(self::purposeLabel($purpose))])
             );
         }
 
