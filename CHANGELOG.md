@@ -14,6 +14,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   from users who do not hold it, instead of leading them to a 403. `addSupervisorItem()` adds
   an entry to the supervisor sidebar (orders, production, reports), which never showed module
   entries before.
+- **Dashboard widgets that stay current.** `WidgetRegistry::register()` also takes a
+  callable, called on every dashboard render and returning the card (or null for none). A
+  count or status built in a module's `boot()` used to keep the value of the moment the
+  Octane worker started.
+- **Workstation devices: operator panels.** *Admin → Workstation devices* now also lists
+  every browser running the operator panel. While an operator is logged in, the panel
+  reports itself every 20 seconds; the roster shows its status (**Active** / **Inactive**),
+  **who** is logged in, the IP address and the selected line. A panel that
+  is hidden, closed or logged out is shown inactive at once, and one that sends nothing for
+  over a minute is inactive too (the window for Workstation clients is now 60 s as well).
+  A **Type** column (Operator panel / Workstation client) with a filter and an
+  *Active: n / total* counter sit on top. Admins can **rename** a station (e.g. "Tablet –
+  Line 2, assembly"); the panel never overwrites that name. Panel rows not seen for
+  30 days move to the trash daily (`workstation-devices:prune-panels`,
+  `WORKSTATION_PANEL_PRUNE_DAYS`, 0 disables); Workstation client rows are never pruned.
+- **Modules can add a card to Settings.** Display hook `display.settings.index.cards`
+  (title, description, link; asked with the signed-in user) puts a module's own settings
+  page in the list on *Settings*, next to Profile and Password, so it can be found without
+  knowing its address. No module listening – no change.
+- **Modules can refuse a step start.** Filter `production.step_start_blockers` runs in
+  `BatchService::startStep()` after core's own checks, with the step and the user; a reason a
+  listener returns stops the start and is shown to the operator (422 in the API). Lets a
+  module enforce e.g. a valid welder qualification for the step. No listener – no change.
 - **Quality holds in the scheduler.** An order held back by quality — an open quality
   control whose trigger is blocking, or an open or acknowledged issue that blocks the work
   order — is no longer placed by *Automatic scheduling*. Its operations get the new status
@@ -113,6 +136,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **"x minutes ago" and live status are no longer an hour off.** Rows that load from live
+  sync carry UTC timestamps without a time zone, and relative times read them as the
+  browser's local time. East of UTC a panel that had just reported in showed as
+  *Inactive*, "1 hour ago", until its next heartbeat. Relative times now read these
+  values as UTC and use each language's plural forms ("5 godzin temu", not "5 hours temu").
 - **An order between two batches stays in progress.** In whole-batch flow, finishing a
   batch that left the order short of its plan put it back to `PENDING`. An order that had
   already made parts could then be deleted or rejected through the API, could not be

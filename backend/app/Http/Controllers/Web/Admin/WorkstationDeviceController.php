@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdateWorkstationDeviceRequest;
 use App\Models\Line;
 use App\Models\WorkstationDevice;
 use Inertia\Inertia;
 
 /**
- * MAIN-side roster of registered workstation clients. Rows live-sync via the
- * `workstation_devices` shape; the page derives online/offline from
- * last_seen_at. Admin can forget (soft-delete) a decommissioned station.
+ * MAIN-side roster of stations: operator panels (browser) and OpenMES
+ * Workstation clients. Rows live-sync via the `workstation_devices` shape; the
+ * page derives active/inactive from the reported status and last_seen_at.
+ * Admin can rename a station and forget (soft-delete) a decommissioned one.
  */
 class WorkstationDeviceController extends Controller
 {
@@ -19,7 +21,16 @@ class WorkstationDeviceController extends Controller
         return Inertia::render('admin/workstation-devices/Index', [
             'onlineWindowSeconds' => WorkstationDevice::ONLINE_WINDOW_SECONDS,
             'lines' => Line::orderBy('name')->pluck('name', 'id'),
+            'panelPruneDays' => (int) config('openmmes.workstation_panel_prune_days'),
         ]);
+    }
+
+    public function update(UpdateWorkstationDeviceRequest $request, WorkstationDevice $workstationDevice)
+    {
+        $workstationDevice->update(['name' => $request->validated('name')]);
+
+        return redirect()->route('admin.workstation-devices.index')
+            ->with('success', __('Workstation device renamed.'));
     }
 
     /**

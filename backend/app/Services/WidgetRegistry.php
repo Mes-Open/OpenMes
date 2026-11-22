@@ -27,10 +27,19 @@ namespace App\Services;
  *       'href'   => url('/modules/mymodule'),   // optional
  *       'external' => true,                       // optional: full page load
  *   ], order: 50);
+ *
+ * A value that changes (a count, a status) must not be computed in boot(): under
+ * Octane the provider boots once per worker, so it would freeze at that moment.
+ * Pass a callable instead – it is called every time the dashboard is rendered and
+ * returns the card (or null to show nothing):
+ *   app(WidgetRegistry::class)->register('kpi', fn () => [
+ *       'title'  => 'Open jobs',
+ *       'metric' => (string) Job::open()->count(),
+ *   ]);
  */
 class WidgetRegistry
 {
-    /** @var array<string, list<array<string, mixed>>> */
+    /** @var array<string, list<array{order: int, card: array<string, mixed>|callable}>> */
     private array $widgets = [];
 
     /** Fields a widget may carry; anything else is ignored (keeps the prop lean and safe). */
@@ -40,28 +49,33 @@ class WidgetRegistry
      * Register a dashboard card for a zone.
      *
      * @param  string  $zone  kpi | main | sidebar
-     * @param  array<string, mixed>  $widget  title (required) + optional metric/body/href/external/tone
+     * @param  array<string, mixed>|callable(): ?array<string, mixed>  $widget  title (required) + optional metric/body/href/external/tone, or a callable returning that per render
      * @param  int  $order  Sort weight within the zone — lower renders first
      */
-    public function register(string $zone, array $widget, int $order = 50): void
+    public function register(string $zone, array|callable $widget, int $order = 50): void
     {
-        $card = array_intersect_key($widget, array_flip(self::ALLOWED));
-        $card['order'] = $order;
-
-        $this->widgets[$zone][] = $card;
+        $this->widgets[$zone][] = ['order' => $order, 'card' => $widget];
     }
 
     /**
-     * Widgets for one zone, sorted by order.
+     * Widgets for one zone, sorted by order. A callable is resolved now; one that
+     * returns null or an empty card is left out.
      *
      * @return list<array<string, mixed>>
      */
     public function getWidgets(string $zone): array
     {
-        $widgets = $this->widgets[$zone] ?? [];
-        usort($widgets, fn ($a, $b) => $a['order'] <=> $b['order']);
+        $cards = [];
+        foreach ($this->widgets[$zone] ?? [] as $entry) {
+            $card = is_callable($entry['card']) ? ($entry['card'])() : $entry['card'];
+            if (! is_array($card) || $card === []) {
+                continue;
+            }
+            $cards[] = [...array_intersect_key($card, array_flip(self::ALLOWED)), 'order' => $entry['order']];
+        }
+        usort($cards, fn ($a, $b) => $a['order'] <=> $b['order']);
 
-        return $widgets;
+        return $cards;
     }
 
     public function hasWidgets(string $zone): bool
