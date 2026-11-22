@@ -304,6 +304,15 @@ $widgets->register('kpi', [
 ], order: 50);
 ```
 
+A value that changes (a count, a status) belongs in a callable, not in an array
+built in `boot()`: under Octane a provider boots once per worker, so the array
+would keep the value of that moment. The callable runs on every dashboard render
+and returns the card, or `null` for none:
+
+```php
+$widgets->register('kpi', fn () => ['title' => 'Open jobs', 'metric' => (string) Job::open()->count()]);
+```
+
 Zones: `kpi` and `sidebar` render as compact cards in the grid under the core
 KPIs; `main` renders as a full-width card at the bottom of the dashboard column.
 

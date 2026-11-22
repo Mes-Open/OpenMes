@@ -9,6 +9,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Dashboard widgets that stay current.** `WidgetRegistry::register()` also takes a
+  callable, called on every dashboard render and returning the card (or null for none). A
+  count or status built in a module's `boot()` used to keep the value of the moment the
+  Octane worker started.
 - **Workstation devices: operator panels.** *Admin → Workstation devices* now also lists
   every browser running the operator panel. While an operator is logged in, the panel
   reports itself every 20 seconds; the roster shows its status (**Active** / **Inactive**),
