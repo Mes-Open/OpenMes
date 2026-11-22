@@ -7957,5 +7957,6 @@
     "Only a pending step can be assigned a workstation.": "Stanowisko można przypisać tylko do oczekującego kroku.",
     "The selected workstation is not available.": "Wybrane stanowisko jest niedostępne.",
     "Work Order :order": "Zlecenie :order",
-    "Reference number": "Numer"
+    "Reference number": "Numer",
+    "The value was not saved.": "Wartość nie została zapisana."
 }

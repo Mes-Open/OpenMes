@@ -1070,12 +1070,25 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
 
     // Record a typed output value (scalar or a picture file). forceFormData carries
     // the File for a picture; scalars post a plain value.
+    // A refused value (rule or module check, 422) is shown under its own field;
+    // before, the save failed with no message and the operator saw nothing.
+    const [outputErrors, setOutputErrors] = useState({});
     const handleRecordOutput = (step, output, value) => {
-        setInflightCheckId(`out:${step.id}:${output.id}`);
+        const key = `${step.id}:${output.id}`;
+        setInflightCheckId(`out:${key}`);
+        setOutputErrors((prev) => ({ ...prev, [key]: null }));
         router.post(
             `/operator/batch-step/${step.id}/outputs/${output.id}`,
             { value },
-            { preserveScroll: true, forceFormData: value instanceof File, onFinish: () => setInflightCheckId(null) }
+            {
+                preserveScroll: true,
+                forceFormData: value instanceof File,
+                onError: (errors) => setOutputErrors((prev) => ({
+                    ...prev,
+                    [key]: errors.value ?? Object.values(errors)[0] ?? __('The value was not saved.'),
+                })),
+                onFinish: () => setInflightCheckId(null),
+            }
         );
     };
 
@@ -1285,6 +1298,7 @@ function BatchStepList({ steps, labelTemplates = [], stepPhotos = {}, stepMedia 
                                 canRecord={canRecord}
                                 inflightCheckId={inflightCheckId}
                                 onRecord={handleRecordOutput}
+                                errors={outputErrors}
                             />
                         )}
 
@@ -1639,7 +1653,7 @@ function StepChecklist({ step, items = [], completedItemIds, completions = [], c
 
 // Typed operator outputs on a step: one input per definition; a picture output
 // takes a file upload and shows the recorded photo. Records who filled each value.
-function StepOutputs({ step, outputs = [], values = [], canRecord, inflightCheckId, onRecord }) {
+function StepOutputs({ step, outputs = [], values = [], canRecord, inflightCheckId, onRecord, errors = {} }) {
     const byOutput = Object.fromEntries(values.map((v) => [v.output_id, v]));
 
     const displayValue = (o, v) => {
@@ -1705,6 +1719,9 @@ function StepOutputs({ step, outputs = [], values = [], canRecord, inflightCheck
                                 </select>
                             ) : (
                                 <OutputScalarInput output={o} initial={displayValue(o, v)} disabled={!canRecord || busy} onSubmit={(val) => onRecord(step, o, val)} />
+                            )}
+                            {errors[`${step.id}:${o.id}`] && (
+                                <p role="alert" className={errorCls}>{errors[`${step.id}:${o.id}`]}</p>
                             )}
                         </li>
                     );

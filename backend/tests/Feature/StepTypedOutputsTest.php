@@ -171,6 +171,26 @@ class StepTypedOutputsTest extends TestCase
         $this->assertSame($this->operator->id, $value->recorded_by_id);
     }
 
+    public function test_a_value_refused_by_a_module_check_returns_a_field_error_and_keeps_the_old_one(): void
+    {
+        $output = $this->def(['value_type' => 'text']);
+        $url = "/operator/batch-step/{$this->batchStep->id}/outputs/{$output->id}";
+        $this->asOperator()->post($url, ['value' => 'GOOD'])->assertRedirect();
+
+        // A module rejects the code the way a scan check does (model event).
+        BatchStepOutputValue::creating(function (BatchStepOutputValue $v) {
+            if ($v->value_text === 'WRONG') {
+                throw \Illuminate\Validation\ValidationException::withMessages(['value' => 'Code does not match.']);
+            }
+        });
+
+        $this->asOperator()->post($url, ['value' => 'WRONG'])
+            ->assertRedirect()
+            ->assertSessionHasErrors(['value' => 'Code does not match.']);
+
+        $this->assertSame(['GOOD'], BatchStepOutputValue::where('output_id', $output->id)->pluck('value_text')->all());
+    }
+
     public function test_boolean_output_requires_an_explicit_value(): void
     {
         $output = $this->def(['key' => 'passed', 'value_type' => 'boolean']);

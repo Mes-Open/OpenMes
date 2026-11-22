@@ -7957,5 +7957,6 @@
     "Only a pending step can be assigned a workstation.": "Only a pending step can be assigned a workstation.",
     "The selected workstation is not available.": "The selected workstation is not available.",
     "Work Order :order": "Work Order :order",
-    "Reference number": "Reference number"
+    "Reference number": "Reference number",
+    "The value was not saved.": "The value was not saved."
 }

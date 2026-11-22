@@ -199,6 +199,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **A refused step output shows why.** When a typed output value is refused (a validation
+  rule or a module check, e.g. a scanned code that does not match), the operator screen now
+  shows the message under that field; before, the save failed silently and the old value
+  stayed without a word.
+
 - **Material lot page in the selected language.** The lot status badge, the sublot and
   consumption table headers, sublot statuses and the inspection status were always shown
   in English.
