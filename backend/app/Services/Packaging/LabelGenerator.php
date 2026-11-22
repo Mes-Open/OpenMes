@@ -165,7 +165,10 @@ class LabelGenerator
     private function labelDataForCarton(UnitCarton $carton, LabelTemplate $template): array
     {
         $carton->loadMissing('workOrder.productType', 'pallet:id,pallet_no');
-        $units = $carton->units()->orderBy('serial_no')->get(['serial_no', 'psn'])->map(fn ($u) => $u->serial_no ?? $u->psn)->all();
+        // A unit scrapped after packing was pulled out of the box: it stays
+        // linked for the packing list and the trace, but is not contents.
+        $units = $carton->units()->where('status', '!=', SerialUnit::STATUS_SCRAPPED)
+            ->orderBy('serial_no')->get(['serial_no', 'psn'])->map(fn ($u) => $u->serial_no ?? $u->psn)->all();
         $wo = $carton->workOrder;
 
         return [

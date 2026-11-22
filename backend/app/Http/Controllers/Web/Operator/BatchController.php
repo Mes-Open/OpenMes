@@ -486,9 +486,12 @@ class BatchController extends Controller
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
             $workOrder = WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->firstOrFail();
 
-            $batchable = \App\Support\ProductionRules::batchableQty($workOrder);
-            if ($batchable !== null && (float) $request->input('target_qty') - $batchable > 0.001) {
-                return back()->withErrors(['target_qty' => \App\Support\ProductionRules::exceedsPlanMessage($batchable)])->withInput();
+            // Closed order → flash; whole pieces / over the plan → a target_qty
+            // field error (ValidationException) the modal shows under the input.
+            try {
+                $this->workOrderService->assertCanCreateBatch($workOrder, (float) $request->input('target_qty'));
+            } catch (\DomainException $e) {
+                return back()->with('error', $e->getMessage())->withInput();
             }
 
             try {

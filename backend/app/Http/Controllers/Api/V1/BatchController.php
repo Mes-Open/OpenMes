@@ -78,26 +78,25 @@ class BatchController extends Controller
 
         // The plan check and the new batch under one work-order lock (the one
         // createBatch() takes too), so concurrent requests cannot both pass it.
-        $batch = DB::transaction(function () use ($workOrder, $validated) {
-            $workOrder = WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->firstOrFail();
+        // Same rule as the operator screen: a closed order is refused, and so
+        // is more than the order still needs (Settings → Production "Allow
+        // overproduction") or a fraction of a piece — those two as a 422
+        // ValidationException on target_qty.
+        try {
+            $batch = DB::transaction(function () use ($workOrder, $validated) {
+                $workOrder = WorkOrder::whereKey($workOrder->getKey())->lockForUpdate()->firstOrFail();
 
-            $total = \App\Support\ProductionRules::batchedQty($workOrder) + (float) $validated['target_qty'];
-            if (\App\Support\ProductionRules::exceedsPlan($workOrder, $total)) {
-                return null;
-            }
+                $this->workOrderService->assertCanCreateBatch($workOrder, (float) $validated['target_qty']);
 
-            return $this->workOrderService->createBatch(
-                $workOrder,
-                $validated['target_qty'],
-                $validated['workstation_id'] ?? null,
-                $validated['lot_number'] ?? null,
-            );
-        });
-
-        if ($batch === null) {
-            return response()->json([
-                'message' => 'Total batch quantity would exceed planned quantity',
-            ], 422);
+                return $this->workOrderService->createBatch(
+                    $workOrder,
+                    $validated['target_qty'],
+                    $validated['workstation_id'] ?? null,
+                    $validated['lot_number'] ?? null,
+                );
+            });
+        } catch (\DomainException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
         $response = [

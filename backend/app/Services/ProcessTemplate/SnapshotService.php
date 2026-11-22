@@ -34,6 +34,7 @@ class SnapshotService
                     'name' => $step->name,
                     'instruction' => $step->instruction,
                     'requires_confirmation' => (bool) $step->requires_confirmation,
+                    'quantity_entry' => $step->quantity_entry ?? \App\Models\TemplateStep::QUANTITY_ENTRY_QUANTITIES,
                     'estimated_duration_minutes' => $step->estimated_duration_minutes,
                     'setup_time_minutes' => $step->setup_time_minutes,
                     'run_time_per_unit_minutes' => $step->run_time_per_unit_minutes,

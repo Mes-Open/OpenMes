@@ -114,6 +114,7 @@ class UnitHoldTest extends TestCase
         $wo = WorkOrder::factory()->create();
         $pallet = Pallet::create(['work_order_id' => $wo->id, 'status' => 'open', 'qty' => 1]);
         $this->unit->update(['pallet_id' => $pallet->id, 'work_order_id' => $wo->id]);
+        $this->withSession(['selected_line_id' => $wo->line_id]);
         app(SerialTraceService::class)->recordStep($this->unit, $this->operator, null, ['result' => 'pass', 'parameters' => ['event' => 'test']]);
         $this->assertSame(Pallet::QUALITY_PASS, $pallet->fresh()->quality_status);
 

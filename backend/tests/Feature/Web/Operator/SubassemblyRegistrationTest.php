@@ -43,6 +43,8 @@ class SubassemblyRegistrationTest extends TestCase
         $this->module = Material::factory()->create(['code' => 'MOD-A', 'name' => 'Module A', 'material_type_id' => $type->id,
             'tracking_type' => 'serial', 'is_manufactured' => true, 'producing_process_template_id' => $routing->id]);
         $this->subOrder = WorkOrder::factory()->create(['line_id' => $line->id, 'product_type_id' => $subProduct->id, 'status' => WorkOrder::STATUS_IN_PROGRESS]);
+        // The station works on the order's line (unit actions are line-scoped).
+        $this->withSession(['selected_line_id' => $line->id]);
     }
 
     private function register(array $body)

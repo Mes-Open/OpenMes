@@ -102,10 +102,11 @@ class UnitLabelStationController extends Controller
      */
     public function apply(BindUnitLabelRequest $request): JsonResponse
     {
-        if ($denied = $this->unlessAllowed($request, UnitLabelActions::LABEL)) {
+        $data = $request->validated();
+        if ($denied = $this->unlessAllowed($request, UnitLabelActions::LABEL)
+            ?? $this->unlessOnLine($request, isset($data['work_order_id']) ? WorkOrder::find($data['work_order_id']) : null)) {
             return $denied;
         }
-        $data = $request->validated();
         $user = $request->user();
 
         // Re-binding a unit that already carries another process serial is a
@@ -179,11 +180,11 @@ class UnitLabelStationController extends Controller
      */
     public function start(StartUnitRequest $request, LotService $lots): JsonResponse
     {
-        if ($denied = $this->unlessAllowed($request, UnitLabelActions::START)) {
-            return $denied;
-        }
         $data = $request->validated();
         $workOrder = isset($data['work_order_id']) ? WorkOrder::find($data['work_order_id']) : null;
+        if ($denied = $this->unlessAllowed($request, UnitLabelActions::START) ?? $this->unlessOnLine($request, $workOrder)) {
+            return $denied;
+        }
         $psn = $data['psn'] ?? null;
         if ($psn === null) {
             try {
@@ -216,10 +217,10 @@ class UnitLabelStationController extends Controller
      */
     public function subassembly(RegisterSubassemblyRequest $request): JsonResponse
     {
-        if ($denied = $this->unlessAllowed($request, UnitLabelActions::SUBASSEMBLY)) {
+        $workOrder = WorkOrder::findOrFail($request->integer('work_order_id'));
+        if ($denied = $this->unlessAllowed($request, UnitLabelActions::SUBASSEMBLY) ?? $this->unlessOnLine($request, $workOrder)) {
             return $denied;
         }
-        $workOrder = WorkOrder::findOrFail($request->integer('work_order_id'));
         $material = Material::findOrFail($request->integer('material_id'));
         if (! (self::producedSerialMaterials(new \Illuminate\Database\Eloquent\Collection([$workOrder]))[$workOrder->id] ?? collect())->contains('id', $material->id)) {
             return response()->json(['message' => __('Order :order does not make :material.', ['order' => $workOrder->order_no, 'material' => $material->name])], 422);
@@ -268,6 +269,9 @@ class UnitLabelStationController extends Controller
     /** Hold a non-conforming unit with an error code; a supervisor releases it. */
     public function block(BlockUnitRequest $request, SerialUnit $serialUnit): JsonResponse
     {
+        if ($denied = $this->unlessOnLine($request, $serialUnit->workOrder)) {
+            return $denied;
+        }
         try {
             $unit = $this->serials->blockUnit(
                 $serialUnit,
@@ -286,6 +290,9 @@ class UnitLabelStationController extends Controller
     /** Release a held unit - supervisors and admins, with the reason. */
     public function unblock(UnblockUnitRequest $request, SerialUnit $serialUnit): JsonResponse
     {
+        if ($denied = $this->unlessOnLine($request, $serialUnit->workOrder)) {
+            return $denied;
+        }
         try {
             $unit = $this->serials->unblockUnit(
                 $serialUnit,
@@ -303,6 +310,9 @@ class UnitLabelStationController extends Controller
     /** Scrap a unit from the station - with a reason, recorded in its history. */
     public function scrap(ScrapUnitRequest $request, SerialUnit $serialUnit): JsonResponse
     {
+        if ($denied = $this->unlessOnLine($request, $serialUnit->workOrder)) {
+            return $denied;
+        }
         try {
             $unit = $this->serials->scrapUnit(
                 $serialUnit,
@@ -333,6 +343,9 @@ class UnitLabelStationController extends Controller
         if (! $unit) {
             return response()->json(['message' => __('Unknown unit :sn - start it or apply its label first.', ['sn' => $data['serial_no']])], 404);
         }
+        if ($denied = $this->unlessOnLine($request, $unit->workOrder)) {
+            return $denied;
+        }
 
         try {
             $component = $this->serials->bindComponent($unit, $data['identifier'], $request->user(), [
@@ -355,7 +368,8 @@ class UnitLabelStationController extends Controller
     /** Take a component out of a unit (a repair, a wrong scan) - the reason stays on the unit's history. */
     public function unbindComponent(UnbindUnitComponentRequest $request, SerialUnitComponent $component): JsonResponse
     {
-        if ($denied = $this->unlessAllowed($request, UnitLabelActions::COMPONENTS)) {
+        if ($denied = $this->unlessAllowed($request, UnitLabelActions::COMPONENTS)
+            ?? $this->unlessOnLine($request, $component->unit?->workOrder)) {
             return $denied;
         }
         try {
@@ -386,6 +400,9 @@ class UnitLabelStationController extends Controller
         }
         $data = $request->validated();
         $workOrder = WorkOrder::findOrFail($data['work_order_id']);
+        if ($denied = $this->unlessOnLine($request, $workOrder)) {
+            return $denied;
+        }
         $productType = $workOrder->productType;
         $settings = app(UnitSerialisation::class);
 
@@ -487,8 +504,14 @@ class UnitLabelStationController extends Controller
     {
         $workOrderId = $request->integer('work_order_id') ?: null;
 
+        // The line's own units (and units not on any order yet) — the list is
+        // what the station acts on, and unit actions are refused off the line.
+        $lineId = $request->user()->hasRole('Admin') ? null : app(OperatorWorkstationSelection::class)->resolveLine($request);
         $units = SerialUnit::query()
             ->when($workOrderId, fn ($q) => $q->where('work_order_id', $workOrderId))
+            ->when(! $request->user()->hasRole('Admin'), fn ($q) => $q->where(fn ($q) => $q
+                ->whereNull('work_order_id')
+                ->orWhereHas('workOrder', fn ($w) => $w->where('line_id', $lineId ?? 0))))
             ->with('workOrder:id,order_no')
             ->orderByDesc('id')
             ->limit(50)
@@ -518,6 +541,25 @@ class UnitLabelStationController extends Controller
      * the screen: a bench pinned to "components" cannot start units by a
      * hand-made request. Supervisors and admins keep every action.
      */
+    /**
+     * Unit actions hold to the line the session works at, on the server too:
+     * the station lists only its own line's units, and a hand-made request
+     * cannot block, scrap or release a unit of another line's order. Admins
+     * act on any line; a unit not on an order yet carries no line.
+     */
+    private function unlessOnLine(Request $request, ?WorkOrder $workOrder): ?JsonResponse
+    {
+        if ($workOrder === null || $request->user()->hasRole('Admin')) {
+            return null;
+        }
+        $lineId = app(OperatorWorkstationSelection::class)->resolveLine($request);
+        if ($lineId !== null && (int) $workOrder->line_id === $lineId) {
+            return null;
+        }
+
+        return response()->json(['message' => __('Unit actions are limited to the line you work on — order :order is on another line.', ['order' => $workOrder->order_no])], 403);
+    }
+
     private function unlessAllowed(Request $request, string $action): ?JsonResponse
     {
         $benchId = $request->session()->get('selected_workstation_id') ?: $request->user()->workstation_id;

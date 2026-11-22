@@ -126,6 +126,7 @@ class ProcessTemplateManagementController extends Controller
                     'name' => $s->name,
                     'instruction' => $s->instruction,
                     'requires_confirmation' => (bool) $s->requires_confirmation,
+                    'quantity_entry' => $s->quantity_entry ?? TemplateStep::QUANTITY_ENTRY_QUANTITIES,
                     'estimated_duration_minutes' => $s->estimated_duration_minutes,
                     'setup_time_minutes' => $s->setup_time_minutes,
                     'run_time_per_unit_minutes' => $s->run_time_per_unit_minutes,
@@ -345,6 +346,7 @@ class ProcessTemplateManagementController extends Controller
     {
         $data = $request->validated();
         $data['requires_confirmation'] = $request->boolean('requires_confirmation');
+        $data['quantity_entry'] = $data['quantity_entry'] ?? TemplateStep::QUANTITY_ENTRY_QUANTITIES;
         $data['is_optional'] = $request->boolean('is_optional');
         $data['variant_group'] = $request->filled('variant_group') ? $request->input('variant_group') : null;
         $data['is_default_variant'] = $data['variant_group'] !== null && $request->boolean('is_default_variant');

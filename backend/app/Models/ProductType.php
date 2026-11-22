@@ -42,6 +42,20 @@ class ProductType extends Model
         ];
     }
 
+    /**
+     * Units of measure that count whole pieces. A product measured in one of
+     * these (or with no unit at all — the default is pcs) cannot be logged,
+     * scrapped or batched in fractions; kg, m, l and the like can.
+     */
+    public const COUNTED_UNITS = ['pcs', 'pc', 'piece', 'pieces', 'ea', 'each', 'unit', 'units', 'szt', 'szt.', 'sztuka', 'sztuk'];
+
+    public function isCountedInPieces(): bool
+    {
+        $unit = mb_strtolower(trim((string) $this->unit_of_measure));
+
+        return $unit === '' || in_array($unit, self::COUNTED_UNITS, true);
+    }
+
     protected static function booted(): void
     {
         // Only drop the photo on a permanent delete — a soft delete is

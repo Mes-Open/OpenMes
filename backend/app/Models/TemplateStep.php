@@ -22,6 +22,17 @@ class TemplateStep extends Model
 
     public const KINDS = [self::KIND_PRODUCTION, self::KIND_PACKING];
 
+    /**
+     * How the operator logs the pieces leaving the running step (transfer
+     * flow): good / scrap counts typed in, with a small +1 beside them, or one
+     * large +1 per good piece and one per scrapped piece.
+     */
+    public const QUANTITY_ENTRY_QUANTITIES = 'quantities';
+
+    public const QUANTITY_ENTRY_PIECE = 'piece';
+
+    public const QUANTITY_ENTRIES = [self::QUANTITY_ENTRY_QUANTITIES, self::QUANTITY_ENTRY_PIECE];
+
     /** Packing container levels, innermost first. */
     public const PACKING_UNITS = ['unit', 'carton', 'pallet'];
 
@@ -73,6 +84,7 @@ class TemplateStep extends Model
         'required_operators',
         'min_duration_minutes',
         'requires_confirmation',
+        'quantity_entry',
         'workstation_id',
         'workstation_type_id',
         'setup_time_minutes',

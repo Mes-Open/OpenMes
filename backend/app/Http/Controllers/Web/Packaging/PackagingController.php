@@ -362,6 +362,7 @@ class PackagingController extends Controller
     {
         $query = Pallet::where('status', PalletStatus::Open->value)
             ->with(['workOrder:id,order_no,line_id', 'workOrder.line:id,name', 'batch:id,batch_number,lot_number', 'activeBy:id,name', 'activeWorkstation:id,name'])
+            ->withCount(['cartons as closed_cartons_count' => fn ($q) => $q->where('status', UnitCarton::STATUS_CLOSED)])
             ->orderByDesc('updated_at');
 
         if ($workOrderId = $request->integer('work_order_id')) {
@@ -529,6 +530,8 @@ class PackagingController extends Controller
             'batch_lot' => $pallet->batch?->lot_number,
             'batch_number' => $pallet->batch?->batch_number,
             'qty' => (int) $pallet->qty,
+            // Closed cartons count towards a full pallet; the station draws one slot per carton.
+            'cartons_closed' => (int) ($pallet->closed_cartons_count ?? $pallet->cartons()->where('status', UnitCarton::STATUS_CLOSED)->count()),
             'status' => $pallet->status instanceof PalletStatus ? $pallet->status->value : $pallet->status,
             'location' => $pallet->location,
             'active_by_id' => $pallet->active_by_id,
