@@ -136,6 +136,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Admin pages no longer scroll the whole window.** Screen-reader-only text in the page
+  content (e.g. the severity of a *Needs action* row on the dashboard) escaped the scroll
+  area and stretched the document, so scrolling moved the sidebar and page away and left a
+  grey band at the bottom. The content area now contains it.
 - **"x minutes ago" and live status are no longer an hour off.** Rows that load from live
   sync carry UTC timestamps without a time zone, and relative times read them as the
   browser's local time. East of UTC a panel that had just reported in showed as

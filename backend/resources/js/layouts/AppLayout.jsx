@@ -441,7 +441,10 @@ export default function AppLayout({ children }) {
                     showNavTrail={!hasPageTitle}
                 />
 
-                <main className="flex-1 overflow-auto">
+                {/* `relative` makes <main> the containing block of absolutely
+                    positioned page content (e.g. `sr-only` text), so it stays
+                    in this scroll area instead of stretching the document. */}
+                <main className="relative flex-1 overflow-auto">
                     {/* Whatever an installed module has to say on every admin
                         screen. Renders nothing when no module listens. */}
                     <Hook name="display.admin.layout" hooks={adminHooks} />
