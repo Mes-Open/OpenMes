@@ -87,6 +87,7 @@ export default function IssuesIndex() {
 
     const [actionsFor, setActionsFor] = useState(null); // issue row whose actions modal is open
     const [dispositionFor, setDispositionFor] = useState(null); // issue row whose disposition modal is open
+    const [reworkFor, setReworkFor] = useState(null); // issue row whose rework modal is open (#400)
     const [reportOpen, setReportOpen] = useState(false);
     // Bumped after a save so the next opening starts empty; closing without
     // saving keeps what was typed (the drawer stays mounted).
@@ -132,6 +133,10 @@ export default function IssuesIndex() {
             { label: __('Disposition'), onClick: () => setDispositionFor(r) },
             { label: __('Actions'), onClick: () => setActionsFor(r) },
         ];
+        // Rework routing (#400): pieces of a production non-conformance go back to an earlier step.
+        if (r.work_order_id && ['pending', 'rework', null, undefined].includes(r.disposition)) {
+            list.push({ label: __('Rework'), onClick: () => setReworkFor(r) });
+        }
         const s = r.status;
         if (s === 'OPEN') {
             list.push({ label: __('Acknowledge'), onClick: () => post(r.id, 'acknowledge') }, resolveAction(r));
@@ -189,6 +194,14 @@ export default function IssuesIndex() {
                     issue={dispositionFor}
                     base={base}
                     onClose={() => setDispositionFor(null)}
+                />
+            )}
+            {reworkFor && (
+                <ReworkModal
+                    issue={reworkFor}
+                    base={base}
+                    csrf={csrf}
+                    onClose={() => setReworkFor(null)}
                 />
             )}
             {actionsFor && (
@@ -781,6 +794,164 @@ function ActionsModal({ issue, base, csrf, users, onClose }) {
             >
                 {confirmDelete?.title}
             </ConfirmDialog>
+            {promptDialog}
+        </>
+    );
+}
+
+// ── Rework routing (#400) ───────────────────────────────────────────────────
+
+const REWORK_STATUS = {
+    open: { tone: 'pending', label: 'Open' },
+    in_progress: { tone: 'running', label: 'In progress' },
+    completed: { tone: 'done', label: 'Completed' },
+    cancelled: { tone: 'downtime', label: 'Cancelled' },
+};
+
+/**
+ * Send pieces of the issue back to an earlier step. They are held at the step
+ * where the defect was found until the rework is completed on the operator
+ * panel (accepted pieces return, the rest is scrapped) or cancelled here.
+ */
+function ReworkModal({ issue, base, csrf, onClose }) {
+    const { prompt, dialog: promptDialog } = usePrompt();
+    const [payload, setPayload] = useState({ reworks: [], steps: [] });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [form, setForm] = useState({ source: issue.batch_step_id ? String(issue.batch_step_id) : '', target: '', quantity: '', reason: '' });
+
+    const api = async (url, method = 'GET', body) => {
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrf },
+            credentials: 'same-origin',
+            body: body ? JSON.stringify(body) : undefined,
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.message || __('Request failed'));
+        return json;
+    };
+
+    useEffect(() => {
+        api(`${base}/issues/${issue.id}/rework`)
+            .then(setPayload)
+            .catch((e) => setError(e.message))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const run = async (fn) => {
+        setError(null);
+        try {
+            setPayload(await fn());
+            return true;
+        } catch (e) {
+            setError(e.message);
+            return false;
+        }
+    };
+
+    const stepLabel = (s) => `${__('Batch')} ${s.batch_number} · ${s.step_number}. ${s.name}`;
+    const source = payload.steps.find((s) => String(s.id) === form.source);
+    const sourceOptions = [
+        { value: '', label: __('— Step where the defect was found —') },
+        ...payload.steps
+            .filter((s) => s.available_qty > 0 && s.status !== 'DONE')
+            .map((s) => ({ value: String(s.id), label: `${stepLabel(s)} (${__(':qty waiting', { qty: s.available_qty })})` })),
+    ];
+    const targetOptions = [
+        { value: '', label: __('— Step to redo —') },
+        ...payload.steps
+            .filter((s) => source && s.batch_id === source.batch_id && s.step_number <= source.step_number && s.status !== 'SKIPPED')
+            .map((s) => ({ value: String(s.id), label: stepLabel(s) })),
+    ];
+
+    const add = async (e) => {
+        e.preventDefault();
+        const ok = await run(() => api(`${base}/issues/${issue.id}/rework`, 'POST', {
+            source_batch_step_id: form.source ? Number(form.source) : null,
+            target_batch_step_id: form.target ? Number(form.target) : null,
+            quantity: form.quantity,
+            reason: form.reason.trim(),
+        }));
+        if (ok) setForm({ ...form, quantity: '', reason: '' });
+    };
+
+    const cancel = (r) => prompt(
+        { title: __('Why is this rework cancelled?'), label: __('Reason'), required: true, confirmLabel: __('Cancel rework'), multiline: true },
+        (reason) => run(() => api(`${base}/rework-operations/${r.id}/cancel`, 'POST', { reason })),
+    );
+
+    return (
+        <>
+            <Modal open onClose={onClose} title={__('Rework')} subtitle={issue.title} closeLabel={__('Close')} width={640}>
+                <div className="space-y-4">
+                    {error && (
+                        <InlineAlert severity="error" title={__('Something went wrong')}>
+                            {error}
+                        </InlineAlert>
+                    )}
+
+                    {loading ? (
+                        <p className="py-4 text-[12.5px] text-om-faint">{__('Loading…')}</p>
+                    ) : payload.reworks.length === 0 ? (
+                        <p className="py-3 text-[12.5px] text-om-faint">
+                            {__('No rework yet. Pieces sent to rework are held at their step until the operator completes the rework.')}
+                        </p>
+                    ) : (
+                        <ul className="max-h-72 space-y-2 overflow-y-auto">
+                            {payload.reworks.map((r) => {
+                                const st = REWORK_STATUS[r.status] ?? { tone: 'pending', label: r.status };
+                                return (
+                                    <li key={r.id} className="flex items-center gap-3 rounded-om border border-om-line bg-om-bg px-3 py-3">
+                                        <span className="flex-1 text-[13px] text-om-ink">
+                                            <span className="font-medium">
+                                                {__(':qty pcs back to :step', { qty: r.quantity, step: `${r.target_step?.step_number}. ${r.target_step?.name}` })}
+                                            </span>
+                                            <span className="block text-[11.5px] text-om-faint">
+                                                {__('Held at :step', { step: `${r.source_step?.step_number}. ${r.source_step?.name}` })}
+                                                {r.status === 'completed' && ` · ${__(':accepted accepted, :scrapped scrapped', { accepted: r.accepted_qty, scrapped: r.scrapped_qty })}`}
+                                                {r.actual_labor_minutes != null && ` · ${__('Operator time')} ${r.actual_labor_minutes} min`}
+                                                {r.actual_machine_minutes != null && ` · ${__('Machine time')} ${r.actual_machine_minutes} min`}
+                                            </span>
+                                            <span className="block text-[11.5px] text-om-muted">{r.reason}</span>
+                                        </span>
+                                        <StatusPill status={st.tone} label={__(st.label)} pulse={false} />
+                                        {['open', 'in_progress'].includes(r.status) && (
+                                            <Button variant="secondary" className="px-3 py-1.5 text-[12px]" onClick={() => cancel(r)}>
+                                                {__('Cancel rework')}
+                                            </Button>
+                                        )}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+
+                    {!loading && (
+                        <form onSubmit={add} className="grid grid-cols-1 gap-2 border-t border-om-line2 pt-4 sm:grid-cols-2">
+                            <Dropdown options={sourceOptions} value={form.source} onChange={(v) => setForm({ ...form, source: v, target: '' })} />
+                            <Dropdown options={targetOptions} value={form.target} onChange={(v) => setForm({ ...form, target: v })} />
+                            <TextField
+                                type="number"
+                                value={form.quantity}
+                                onChange={(v) => setForm({ ...form, quantity: v })}
+                                placeholder={__('Quantity')}
+                                required
+                            />
+                            <TextField
+                                value={form.reason}
+                                onChange={(v) => setForm({ ...form, reason: v })}
+                                placeholder={__('Reason')}
+                                maxLength={2000}
+                                required
+                            />
+                            <div className="sm:col-span-2 flex justify-end">
+                                <Button type="submit" variant="primary" disabled={!form.source || !form.target}>{__('Send to rework')}</Button>
+                            </div>
+                        </form>
+                    )}
+                </div>
+            </Modal>
             {promptDialog}
         </>
     );

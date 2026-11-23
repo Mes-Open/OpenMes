@@ -498,14 +498,41 @@ class WorkOrderController extends Controller
                 'status' => $batch->status,
             ] : null,
             'steps' => $steps,
+            // Rework sent back to a step of this batch (#400), still to be done.
+            'reworks' => $batch ? $this->activeReworks($batch, (int) $request->user()->id) : [],
             'flow_mode' => \App\Support\ProductionFlow::mode(),
         ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function activeReworks(Batch $batch, int $userId): array
+    {
+        $time = app(\App\Services\Production\StepTimeService::class);
+
+        return \App\Models\ReworkOperation::where('batch_id', $batch->id)
+            ->whereIn('status', \App\Models\ReworkOperation::ACTIVE_STATUSES)
+            ->with(['sourceStep', 'targetStep', 'timeEntries'])
+            ->orderBy('id')
+            ->get()
+            ->map(function (\App\Models\ReworkOperation $r) use ($time, $userId) {
+                $open = $r->timeEntries->whereNull('ended_at');
+
+                return \App\Services\Quality\ReworkService::present($r) + [
+                    'time' => $time->liveReworkTotals($r) + [
+                        'clocked_on' => $open->contains(fn ($e) => $e->kind === 'labor' && (int) $e->user_id === $userId),
+                        'operators_on' => $open->where('kind', 'labor')->count(),
+                        'machine_running' => $open->contains('kind', 'machine'),
+                    ],
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /** @return array{labor_minutes: int, machine_minutes: int, clocked_on: bool, operators_on: int, machine_running: bool} */
     private function stepTime(BatchStep $step, \App\Services\Production\StepTimeService $time, int $userId): array
     {
-        $open = $step->timeEntries->whereNull('ended_at');
+        $open = $step->timeEntries->whereNull('ended_at')->whereNull('rework_operation_id');
         $labor = $open->where('kind', \App\Models\BatchStepTimeEntry::KIND_LABOR);
 
         return $time->liveTotals($step) + [

@@ -4,6 +4,7 @@ namespace App\Services\Production;
 
 use App\Models\BatchStep;
 use App\Models\BatchStepTimeEntry;
+use App\Models\ReworkOperation;
 use App\Models\User;
 use App\Models\Workstation;
 use App\Models\WorkstationState;
@@ -30,6 +31,12 @@ use Illuminate\Support\Facades\Log;
  * machine run unattended while its operator works elsewhere. The step's own
  * start / completion and its confirmed elapsed, setup and run minutes are not
  * touched.
+ *
+ * Rework (#400, item 2): time spent reworking pieces is recorded on the step
+ * being reworked but tagged with the rework operation. It counts towards the
+ * rework's totals, never towards the step's own, so the original operation's
+ * history stays as it was. The one-open-entry rules above still apply across
+ * both, so an operator is never on a step and a rework at the same time.
  */
 class StepTimeService
 {
@@ -39,19 +46,20 @@ class StepTimeService
      *
      * @throws \DomainException
      */
-    public function startLabor(BatchStep $step, User $operator, ?User $by = null, ?Carbon $at = null): BatchStepTimeEntry
+    public function startLabor(BatchStep $step, User $operator, ?User $by = null, ?Carbon $at = null, ?ReworkOperation $rework = null): BatchStepTimeEntry
     {
         $at ??= now();
-        $this->assertRunning($step);
+        $this->assertRunning($step, $rework);
 
-        return $this->guardUnique(fn () => DB::transaction(function () use ($step, $operator, $by, $at) {
+        return $this->guardUnique(fn () => DB::transaction(function () use ($step, $operator, $by, $at, $rework) {
             $open = BatchStepTimeEntry::open()
                 ->where('kind', BatchStepTimeEntry::KIND_LABOR)
                 ->where('user_id', $operator->id)
                 ->lockForUpdate()
                 ->first();
 
-            if ($open && (int) $open->batch_step_id === (int) $step->id) {
+            if ($open && (int) $open->batch_step_id === (int) $step->id
+                && (int) $open->rework_operation_id === (int) $rework?->id) {
                 return $open;
             }
 
@@ -61,13 +69,14 @@ class StepTimeService
 
             $entry = BatchStepTimeEntry::create([
                 'batch_step_id' => $step->id,
+                'rework_operation_id' => $rework?->id,
                 'kind' => BatchStepTimeEntry::KIND_LABOR,
                 'user_id' => $operator->id,
                 'started_at' => $at,
                 'source' => BatchStepTimeEntry::SOURCE_OPERATOR,
                 'created_by_id' => ($by ?? $operator)->id,
             ]);
-            $this->recalculate($step);
+            $this->recalculateFor($entry);
 
             return $entry;
         }), __('You are already clocked onto another step.'));
@@ -78,10 +87,10 @@ class StepTimeService
      *
      * @throws \DomainException when the operator is not clocked onto this step
      */
-    public function stopLabor(BatchStep $step, User $operator, ?User $by = null, ?Carbon $at = null): BatchStepTimeEntry
+    public function stopLabor(BatchStep $step, User $operator, ?User $by = null, ?Carbon $at = null, ?ReworkOperation $rework = null): BatchStepTimeEntry
     {
-        return DB::transaction(function () use ($step, $operator, $by, $at) {
-            $open = $step->timeEntries()->open()
+        return DB::transaction(function () use ($step, $operator, $by, $at, $rework) {
+            $open = $this->context($step->timeEntries(), $rework)->open()
                 ->where('kind', BatchStepTimeEntry::KIND_LABOR)
                 ->where('user_id', $operator->id)
                 ->lockForUpdate()
@@ -103,15 +112,15 @@ class StepTimeService
      *
      * @throws \DomainException
      */
-    public function startMachine(BatchStep $step, ?Workstation $workstation, User $by, ?Carbon $at = null): BatchStepTimeEntry
+    public function startMachine(BatchStep $step, ?Workstation $workstation, User $by, ?Carbon $at = null, ?ReworkOperation $rework = null): BatchStepTimeEntry
     {
-        $this->assertRunning($step);
+        $this->assertRunning($step, $rework);
         $workstation ??= $step->workstation;
         if (! $workstation) {
             throw new \DomainException(__('This step has no workstation. Choose the machine that runs it.'));
         }
 
-        return $this->openMachine($step, $workstation, BatchStepTimeEntry::SOURCE_OPERATOR, $at ?? now(), $by);
+        return $this->openMachine($step, $workstation, BatchStepTimeEntry::SOURCE_OPERATOR, $at ?? now(), $by, $rework);
     }
 
     /**
@@ -119,10 +128,10 @@ class StepTimeService
      *
      * @throws \DomainException when no machine time is running on the step
      */
-    public function stopMachine(BatchStep $step, ?Workstation $workstation, User $by, ?Carbon $at = null): Collection
+    public function stopMachine(BatchStep $step, ?Workstation $workstation, User $by, ?Carbon $at = null, ?ReworkOperation $rework = null): Collection
     {
-        return DB::transaction(function () use ($step, $workstation, $by, $at) {
-            $open = $step->timeEntries()->open()
+        return DB::transaction(function () use ($step, $workstation, $by, $at, $rework) {
+            $open = $this->context($step->timeEntries(), $rework)->open()
                 ->where('kind', BatchStepTimeEntry::KIND_MACHINE)
                 ->when($workstation, fn ($q) => $q->where('workstation_id', $workstation->id))
                 ->lockForUpdate()
@@ -174,6 +183,7 @@ class StepTimeService
 
             $entry = BatchStepTimeEntry::create([
                 'batch_step_id' => $step->id,
+                'rework_operation_id' => $data['rework_operation_id'] ?? null,
                 'kind' => $data['kind'],
                 'user_id' => $labor ? $ownerId : null,
                 'workstation_id' => $labor ? null : $ownerId,
@@ -184,7 +194,7 @@ class StepTimeService
                 'created_by_id' => $by->id,
                 'ended_by_id' => $by->id,
             ]);
-            $this->recalculate($step);
+            $this->recalculateFor($entry);
 
             return $entry;
         });
@@ -195,15 +205,23 @@ class StepTimeService
     {
         DB::transaction(function () use ($entry) {
             $entry->delete();
-            $this->recalculate($entry->batchStep);
+            $this->recalculateFor($entry);
         });
     }
 
-    /** Close everything still open on a step — it was completed at $at. */
+    /** Close the step's own open time — it was completed at $at. Rework time is the rework's. */
     public function closeOpenForStep(BatchStep $step, ?User $by = null, ?Carbon $at = null): void
     {
         $at ??= now();
-        $step->timeEntries()->open()->lockForUpdate()->get()
+        $step->timeEntries()->open()->whereNull('rework_operation_id')->lockForUpdate()->get()
+            ->each(fn (BatchStepTimeEntry $e) => $this->close($e, $at, $by));
+    }
+
+    /** Close the rework's open time — it was completed or cancelled. */
+    public function closeOpenForRework(ReworkOperation $rework, ?User $by = null, ?Carbon $at = null): void
+    {
+        $at ??= now();
+        $rework->timeEntries()->open()->lockForUpdate()->get()
             ->each(fn (BatchStepTimeEntry $e) => $this->close($e, $at, $by));
     }
 
@@ -258,8 +276,25 @@ class StepTimeService
      */
     public function recalculate(BatchStep $step): void
     {
-        $entries = $step->timeEntries()->whereNotNull('ended_at')->get();
+        $entries = $step->timeEntries()->whereNull('rework_operation_id')->whereNotNull('ended_at')->get();
 
+        $step->forceFill(self::closedTotals($entries))->save();
+    }
+
+    /** The same totals for a rework, over the time tagged with it. */
+    public function recalculateRework(ReworkOperation $rework): void
+    {
+        $entries = $rework->timeEntries()->whereNotNull('ended_at')->get();
+
+        $rework->forceFill(self::closedTotals($entries))->save();
+    }
+
+    /**
+     * @param  Collection<int, BatchStepTimeEntry>  $entries
+     * @return array{actual_labor_minutes: int|null, actual_machine_minutes: int|null}
+     */
+    private static function closedTotals(Collection $entries): array
+    {
         $minutes = function (string $kind, string $owner) use ($entries): ?int {
             $ofKind = $entries->where('kind', $kind);
             if ($ofKind->isEmpty()) {
@@ -272,10 +307,25 @@ class StepTimeService
             return (int) round($seconds / 60);
         };
 
-        $step->forceFill([
+        return [
             'actual_labor_minutes' => $minutes(BatchStepTimeEntry::KIND_LABOR, 'user_id'),
             'actual_machine_minutes' => $minutes(BatchStepTimeEntry::KIND_MACHINE, 'workstation_id'),
-        ])->save();
+        ];
+    }
+
+    /** Refresh the totals an entry counts towards: its rework's, else its step's. */
+    private function recalculateFor(BatchStepTimeEntry $entry): void
+    {
+        if ($entry->rework_operation_id) {
+            $rework = ReworkOperation::withTrashed()->find($entry->rework_operation_id);
+            if ($rework) {
+                $this->recalculateRework($rework);
+            }
+
+            return;
+        }
+
+        $this->recalculate($entry->batchStep);
     }
 
     /**
@@ -318,7 +368,28 @@ class StepTimeService
      */
     public function liveTotals(BatchStep $step): array
     {
-        $entries = $step->relationLoaded('timeEntries') ? $step->timeEntries : $step->timeEntries()->get();
+        $entries = ($step->relationLoaded('timeEntries') ? $step->timeEntries : $step->timeEntries()->get())
+            ->whereNull('rework_operation_id');
+
+        return self::liveTotalsOf($entries);
+    }
+
+    /**
+     * Totals for display of a rework, open entries counted up to now.
+     *
+     * @return array{labor_minutes: int, machine_minutes: int}
+     */
+    public function liveReworkTotals(ReworkOperation $rework): array
+    {
+        return self::liveTotalsOf($rework->relationLoaded('timeEntries') ? $rework->timeEntries : $rework->timeEntries()->get());
+    }
+
+    /**
+     * @param  Collection<int, BatchStepTimeEntry>  $entries
+     * @return array{labor_minutes: int, machine_minutes: int}
+     */
+    private static function liveTotalsOf(Collection $entries): array
+    {
         $sum = fn (string $kind, string $owner) => (int) round($entries->where('kind', $kind)
             ->groupBy(fn (BatchStepTimeEntry $e) => $e->{$owner} ?? 'entry:'.$e->id)
             ->sum(fn (Collection $group) => self::mergedSeconds($group)) / 60);
@@ -360,16 +431,17 @@ class StepTimeService
         ];
     }
 
-    private function openMachine(BatchStep $step, Workstation $workstation, string $source, Carbon $at, ?User $by): BatchStepTimeEntry
+    private function openMachine(BatchStep $step, Workstation $workstation, string $source, Carbon $at, ?User $by, ?ReworkOperation $rework = null): BatchStepTimeEntry
     {
-        return $this->guardUnique(fn () => DB::transaction(function () use ($step, $workstation, $source, $at, $by) {
+        return $this->guardUnique(fn () => DB::transaction(function () use ($step, $workstation, $source, $at, $by, $rework) {
             $open = BatchStepTimeEntry::open()
                 ->where('kind', BatchStepTimeEntry::KIND_MACHINE)
                 ->where('workstation_id', $workstation->id)
                 ->lockForUpdate()
                 ->first();
 
-            if ($open && (int) $open->batch_step_id === (int) $step->id) {
+            if ($open && (int) $open->batch_step_id === (int) $step->id
+                && (int) $open->rework_operation_id === (int) $rework?->id) {
                 return $open;
             }
             if ($open) {
@@ -378,13 +450,14 @@ class StepTimeService
 
             $entry = BatchStepTimeEntry::create([
                 'batch_step_id' => $step->id,
+                'rework_operation_id' => $rework?->id,
                 'kind' => BatchStepTimeEntry::KIND_MACHINE,
                 'workstation_id' => $workstation->id,
                 'started_at' => $at,
                 'source' => $source,
                 'created_by_id' => $by?->id,
             ]);
-            $this->recalculate($step);
+            $this->recalculateFor($entry);
 
             return $entry;
         }), __('Machine :machine is already running on another step.', ['machine' => $workstation->name]));
@@ -397,15 +470,43 @@ class StepTimeService
             'ended_at' => $at->lessThan($entry->started_at) ? $entry->started_at : $at,
             'ended_by_id' => $by?->id,
         ]);
-        $this->recalculate($entry->batchStep);
+        $this->recalculateFor($entry);
     }
 
-    /** @throws \DomainException */
-    private function assertRunning(BatchStep $step): void
+    /**
+     * Step time needs the step in progress; rework time needs the rework in
+     * progress, on the step it reworks (which is usually finished already).
+     *
+     * @throws \DomainException
+     */
+    private function assertRunning(BatchStep $step, ?ReworkOperation $rework = null): void
     {
+        if ($rework) {
+            if ($rework->status !== ReworkOperation::STATUS_IN_PROGRESS || (int) $rework->target_batch_step_id !== (int) $step->id) {
+                throw new \DomainException(__('Time can only be recorded on a rework in progress.'));
+            }
+
+            return;
+        }
+
         if ($step->status !== BatchStep::STATUS_IN_PROGRESS) {
             throw new \DomainException(__('Time can only be recorded on a step in progress.'));
         }
+    }
+
+    /**
+     * Entries of one context: the step's own, or one rework's.
+     *
+     * @template TRelation of \Illuminate\Database\Eloquent\Relations\Relation|\Illuminate\Database\Eloquent\Builder
+     *
+     * @param  TRelation  $query
+     * @return TRelation
+     */
+    private function context($query, ?ReworkOperation $rework)
+    {
+        return $rework
+            ? $query->where('rework_operation_id', $rework->id)
+            : $query->whereNull('rework_operation_id');
     }
 
     /**
