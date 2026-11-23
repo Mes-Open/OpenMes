@@ -9,6 +9,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Separate operator and machine time per operation (#400).** A running step now records
+  operator (labor) time and machine time independently. On the operator panel, the operator
+  taps **Clock on** / **Clock off**, and **Start machine** / **Stop machine** for the
+  machine. A machine keeps running unattended after its operator clocks off to work
+  elsewhere. Time is never counted twice:
+  - clocking onto another step closes the open one;
+  - a machine cannot run for two steps at once;
+  - time a supervisor enters afterwards may not overlap time already recorded;
+  - totals merge any overlapping intervals.
+
+  On a connected machine, the workstation's *Running* state records machine time on the step
+  in progress there. Completing a step closes its open time. The step's start, completion,
+  elapsed, setup and run times are unchanged. REST endpoints:
+  - `GET /api/v1/batch-steps/{id}/time-entries`;
+  - `POST …/labor/start|stop`, `…/machine/start|stop`;
+  - manual entry and delete for supervisors;
+  - `GET /api/v1/work-orders/{id}/operation-times`;
+  - the ERP `?include=operations` section.
+
+  Costing is unchanged: labor cost still comes from logged work time.
 - **Icons, access tabs and supervisor entries for module menu items.** `MenuRegistry::addItem()`
   and `addGroupItem()` take an optional Lucide `icon` and a `tab`; an entry with a tab is hidden
   from users who do not hold it, instead of leading them to a 403. `addSupervisorItem()` adds

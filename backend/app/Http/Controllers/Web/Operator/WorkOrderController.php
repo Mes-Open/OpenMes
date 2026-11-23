@@ -421,6 +421,7 @@ class WorkOrderController extends Controller
             'batches.steps.documents',
             'batches.steps.checklistCompletions',
             'batches.steps.outputValues',
+            'batches.steps.timeEntries',
         ]);
         $workOrder->setAttribute('uses_step_ledger', $workOrder->usesStepLedger());
 
@@ -438,7 +439,9 @@ class WorkOrderController extends Controller
 
         $steps = collect();
         if ($batch) {
-            $steps = $batch->steps->sortBy('step_number')->values()->map(function (BatchStep $step) use ($batch, $workOrder, $instructions, $transfer) {
+            $time = app(\App\Services\Production\StepTimeService::class);
+            $userId = (int) $request->user()->id;
+            $steps = $batch->steps->sortBy('step_number')->values()->map(function (BatchStep $step) use ($batch, $workOrder, $instructions, $transfer, $time, $userId) {
                 $step->setRelation('batch', $batch->withoutRelations()->setRelation('workOrder', $workOrder->withoutRelations())->setRelation('steps', $batch->steps));
                 $done = $step->checklistCompletions->pluck('checklist_item_id')->all();
                 $recorded = $step->outputValues->pluck('output_id')->all();
@@ -465,6 +468,8 @@ class WorkOrderController extends Controller
                         ->map(fn ($item) => $item + ['done' => in_array($item['id'], $done, true)])->values(),
                     'photo' => $instructions['stepPhotos'][$step->step_number] ?? null,
                     'media' => $instructions['stepMedia'][$step->step_number] ?? [],
+                    // Operator and machine time (#400): totals so far and what is running now.
+                    'time' => $this->stepTime($step, $time, $userId),
                 ];
                 $step->unsetRelation('batch');
 
@@ -495,6 +500,19 @@ class WorkOrderController extends Controller
             'steps' => $steps,
             'flow_mode' => \App\Support\ProductionFlow::mode(),
         ]);
+    }
+
+    /** @return array{labor_minutes: int, machine_minutes: int, clocked_on: bool, operators_on: int, machine_running: bool} */
+    private function stepTime(BatchStep $step, \App\Services\Production\StepTimeService $time, int $userId): array
+    {
+        $open = $step->timeEntries->whereNull('ended_at');
+        $labor = $open->where('kind', \App\Models\BatchStepTimeEntry::KIND_LABOR);
+
+        return $time->liveTotals($step) + [
+            'clocked_on' => $labor->contains(fn ($e) => (int) $e->user_id === $userId),
+            'operators_on' => $labor->count(),
+            'machine_running' => $open->contains('kind', \App\Models\BatchStepTimeEntry::KIND_MACHINE),
+        ];
     }
 
     /**

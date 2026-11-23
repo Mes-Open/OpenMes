@@ -58,6 +58,8 @@ class BatchStep extends Model
         'actual_elapsed_minutes',
         'actual_setup_minutes',
         'actual_run_minutes',
+        'actual_labor_minutes',
+        'actual_machine_minutes',
         'assigned_by_id',
         'assigned_at',
     ];
@@ -82,6 +84,8 @@ class BatchStep extends Model
             'actual_elapsed_minutes' => 'integer',
             'actual_setup_minutes' => 'integer',
             'actual_run_minutes' => 'integer',
+            'actual_labor_minutes' => 'integer',
+            'actual_machine_minutes' => 'integer',
         ];
     }
 
@@ -172,7 +176,14 @@ class BatchStep extends Model
         return [
             [BatchStepDocument::class, 'batch_step_id'],
             [BatchStepOutputValue::class, 'batch_step_id'],
+            [BatchStepTimeEntry::class, 'batch_step_id'],
         ];
+    }
+
+    /** Operator (labor) and machine time recorded against this step (#400). */
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(BatchStepTimeEntry::class);
     }
 
     /** Checklist-item completions recorded against this step (who/when). */

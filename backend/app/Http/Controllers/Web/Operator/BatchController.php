@@ -6,6 +6,7 @@ use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\CompleteBatchStepRequest;
 use App\Http\Requests\Operator\RecordStepQuantityRequest;
+use App\Http\Requests\Operator\RecordStepTimeRequest;
 use App\Http\Requests\Operator\StartStepRequest;
 use App\Models\Batch;
 use App\Models\BatchStep;
@@ -15,6 +16,7 @@ use App\Models\BatchStepOutputValue;
 use App\Models\TemplateStepChecklistItem;
 use App\Models\TemplateStepOutput;
 use App\Models\WorkOrder;
+use App\Models\Workstation;
 use App\Services\Lot\BatchReleaseService;
 use App\Services\Lot\LotService;
 use App\Services\Material\MaterialAllocationService;
@@ -22,6 +24,7 @@ use App\Services\Media\ImageSanitizer;
 use App\Services\Production\PackagingChecklistService;
 use App\Services\Production\ProcessConfirmationService;
 use App\Services\Production\QualityCheckService;
+use App\Services\Production\StepTimeService;
 use App\Services\WorkOrder\BatchService;
 use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Http\Request;
@@ -221,6 +224,38 @@ class BatchController extends Controller
         $batchStep->markReadConfirmed($request->user());
 
         return back()->with('success', __('Instructions acknowledged.'));
+    }
+
+    /**
+     * Operator and machine time on a running step (#400): the operator clocks
+     * themselves on / off, or starts / stops the machine. Machine time runs on
+     * the step's workstation, else on the terminal's selected one.
+     */
+    public function recordTime(RecordStepTimeRequest $request, BatchStep $batchStep, string $kind, string $action, StepTimeService $time)
+    {
+        if (! $this->stepBelongsToSelectedLine($request, $batchStep)) {
+            return back()->with('error', __('This step does not belong to the selected line.'));
+        }
+
+        $user = $request->user();
+
+        try {
+            if ($kind === 'labor') {
+                $action === 'start' ? $time->startLabor($batchStep, $user) : $time->stopLabor($batchStep, $user);
+
+                return back()->with('success', $action === 'start' ? __('Clocked on.') : __('Clocked off.'));
+            }
+
+            $workstation = $batchStep->workstation
+                ?? Workstation::find($request->session()->get('selected_workstation_id'));
+            $action === 'start'
+                ? $time->startMachine($batchStep, $workstation, $user)
+                : $time->stopMachine($batchStep, null, $user);
+
+            return back()->with('success', $action === 'start' ? __('Machine time started.') : __('Machine time stopped.'));
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /**

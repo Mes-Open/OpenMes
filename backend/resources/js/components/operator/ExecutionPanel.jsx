@@ -191,6 +191,7 @@ export default function ExecutionPanel({ workOrderId, fallback = null, labelTemp
                                 onZoom={setZoom}
                                 onConfirmRead={() => post(`/operator/batch-step/${viewed.id}/confirm-instructions`, {}, `confirm:${viewed.id}`)}
                                 onToggle={(item) => post(`/operator/batch-step/${viewed.id}/checklist/${item.id}/toggle`, {}, `check:${viewed.id}:${item.id}`)}
+                                onTime={(kind, act) => post(`/operator/batch-step/${viewed.id}/time/${kind}/${act}`, {}, `time:${viewed.id}:${kind}`)}
                             />
                         )}
                     </>
@@ -331,7 +332,7 @@ function StepRow({ step, last, current, viewing, blocked, onSelect }) {
     );
 }
 
-function StepBox({ step, inflight, transfer, orderUrl, onZoom, onConfirmRead, onToggle }) {
+function StepBox({ step, inflight, transfer, orderUrl, onZoom, onConfirmRead, onToggle, onTime }) {
     const open = !['DONE', 'SKIPPED'].includes(step.status);
     const items = step.checklist ?? [];
     const ticked = items.filter((c) => c.done).length;
@@ -405,6 +406,8 @@ function StepBox({ step, inflight, transfer, orderUrl, onZoom, onConfirmRead, on
                 </>
             )}
 
+            <StepTime step={step} inflight={inflight} onTime={onTime} />
+
             {blocker && <p className="text-[12px] text-om-muted mt-3 mb-0">{blocker}</p>}
 
             {needsOrderPage && (
@@ -417,6 +420,73 @@ function StepBox({ step, inflight, transfer, orderUrl, onZoom, onConfirmRead, on
                     </Link>
                 </div>
             )}
+        </div>
+    );
+}
+
+/**
+ * Operator and machine time on the step (#400), recorded independently: the
+ * operator clocks themselves on and off, and the machine's time runs on its
+ * own — it keeps running when the operator clocks off to work elsewhere.
+ * Shown while the step runs, and afterwards when time was recorded.
+ */
+function StepTime({ step, inflight, onTime }) {
+    const t = step.time;
+    const running = step.status === 'IN_PROGRESS';
+    if (!t || (!running && !t.labor_minutes && !t.machine_minutes)) return null;
+
+    const rows = [
+        {
+            kind: 'labor',
+            label: __('Operator time'),
+            minutes: t.labor_minutes,
+            detail: t.operators_on > 0 ? __(':count clocked on', { count: t.operators_on }) : null,
+            on: t.clocked_on,
+            startLabel: __('Clock on'),
+            stopLabel: __('Clock off'),
+        },
+        {
+            kind: 'machine',
+            label: __('Machine time'),
+            minutes: t.machine_minutes,
+            detail: t.machine_running ? __('Running') : null,
+            on: t.machine_running,
+            startLabel: __('Start machine'),
+            stopLabel: __('Stop machine'),
+        },
+    ];
+
+    return (
+        <div className="mt-3">
+            <div className={`${monoLabelCls} mb-2`}>{__('Time')}</div>
+            <div className="flex flex-col gap-1.5">
+                {rows.map((r) => {
+                    const busy = inflight === `time:${step.id}:${r.kind}`;
+                    return (
+                        <div key={r.kind} className="flex items-center justify-between gap-3 bg-om-card border border-om-line2 rounded-lg px-[11px] py-[9px]">
+                            <div className="min-w-0">
+                                <div className="text-[12.5px] text-om-ink">{r.label}</div>
+                                <div className="font-mono text-[10px] text-om-faint">
+                                    {__(':min min', { min: formatNumber(r.minutes ?? 0) })}{r.detail ? ` · ${r.detail}` : ''}
+                                </div>
+                            </div>
+                            {running && (
+                                <button
+                                    type="button"
+                                    disabled={busy}
+                                    aria-pressed={r.on}
+                                    onClick={() => onTime(r.kind, r.on ? 'stop' : 'start')}
+                                    className={`text-[12.5px] font-semibold rounded-[8px] px-3.5 py-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
+                                        r.on ? 'bg-om-blocked-bg text-om-blocked' : 'bg-om-ink text-om-on-ink'
+                                    }`}
+                                >
+                                    {busy ? '…' : (r.on ? r.stopLabel : r.startLabel)}
+                                </button>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }

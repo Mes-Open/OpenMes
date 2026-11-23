@@ -309,6 +309,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/quantity', [OperatorBatchController::class, 'recordQuantity'])->name('batch-step.quantity');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
+        // Operator and machine time (#400): clock on/off, start/stop the machine.
+        Route::post('/batch-step/{batchStep}/time/{kind}/{action}', [OperatorBatchController::class, 'recordTime'])
+            ->whereIn('kind', ['labor', 'machine'])->whereIn('action', ['start', 'stop'])->name('batch-step.time');
         // Read-confirmation: acknowledge reading a critical step's instructions.
         Route::post('/batch-step/{batchStep}/confirm-instructions', [OperatorBatchController::class, 'confirmInstructions'])->name('batch-step.confirm-instructions');
         // Document control: validate a mandatory document so its step can complete.
