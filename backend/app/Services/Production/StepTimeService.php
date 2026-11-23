@@ -52,6 +52,7 @@ class StepTimeService
         $this->assertRunning($step, $rework);
 
         return $this->guardUnique(fn () => DB::transaction(function () use ($step, $operator, $by, $at, $rework) {
+            $this->lockRunningRework($step, $rework);
             $open = BatchStepTimeEntry::open()
                 ->where('kind', BatchStepTimeEntry::KIND_LABOR)
                 ->where('user_id', $operator->id)
@@ -183,7 +184,6 @@ class StepTimeService
 
             $entry = BatchStepTimeEntry::create([
                 'batch_step_id' => $step->id,
-                'rework_operation_id' => $data['rework_operation_id'] ?? null,
                 'kind' => $data['kind'],
                 'user_id' => $labor ? $ownerId : null,
                 'workstation_id' => $labor ? null : $ownerId,
@@ -434,6 +434,7 @@ class StepTimeService
     private function openMachine(BatchStep $step, Workstation $workstation, string $source, Carbon $at, ?User $by, ?ReworkOperation $rework = null): BatchStepTimeEntry
     {
         return $this->guardUnique(fn () => DB::transaction(function () use ($step, $workstation, $source, $at, $by, $rework) {
+            $this->lockRunningRework($step, $rework);
             $open = BatchStepTimeEntry::open()
                 ->where('kind', BatchStepTimeEntry::KIND_MACHINE)
                 ->where('workstation_id', $workstation->id)
@@ -491,6 +492,21 @@ class StepTimeService
 
         if ($step->status !== BatchStep::STATUS_IN_PROGRESS) {
             throw new \DomainException(__('Time can only be recorded on a step in progress.'));
+        }
+    }
+
+    /**
+     * Re-check the rework under a row lock (taken before any time entry, the
+     * same order ReworkService uses), so it can't be completed or cancelled
+     * while time opens on it — that would leave an entry open on a finished
+     * rework, holding its operator or machine.
+     *
+     * @throws \DomainException
+     */
+    private function lockRunningRework(BatchStep $step, ?ReworkOperation $rework): void
+    {
+        if ($rework) {
+            $this->assertRunning($step, ReworkOperation::whereKey($rework->getKey())->lockForUpdate()->firstOrFail());
         }
     }
 

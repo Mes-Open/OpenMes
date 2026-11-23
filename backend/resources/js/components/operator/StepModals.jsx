@@ -346,6 +346,7 @@ export function CompleteReworkModal({ rework, onClose }) {
     const [scrapped, setScrapped] = useState('0');
     const [notes, setNotes] = useState('');
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
 
     const num = (v) => (String(v).trim() === '' || Number.isNaN(Number(v)) ? null : Number(v));
     const a = num(accepted);
@@ -355,13 +356,19 @@ export function CompleteReworkModal({ rework, onClose }) {
     const submit = () => {
         if (mismatch) return;
         setSaving(true);
+        setError(null);
         router.post(`/operator/rework/${rework.id}/complete`, {
             accepted_qty: a,
             scrapped_qty: s,
             notes: notes.trim() || null,
         }, {
             preserveScroll: true,
-            onSuccess: (page) => { if (!page.props.flash?.error) onClose(); },
+            // A 422 or a refused completion stays visible instead of being dismissed.
+            onError: (errors) => setError(Object.values(errors).join(' ')),
+            onSuccess: (page) => {
+                if (page.props.flash?.error) setError(page.props.flash.error);
+                else onClose();
+            },
             onFinish: () => setSaving(false),
         });
     };
@@ -370,7 +377,7 @@ export function CompleteReworkModal({ rework, onClose }) {
     const labelCls = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1';
 
     return (
-        <ModalShell title={__('Complete rework')} subtitle={__(':qty pcs · :reason', { qty: fmtQty(total, 0), reason: rework.reason })} onClose={onClose}>
+        <ModalShell title={__('Complete rework')} subtitle={__(':qty pcs · :reason', { qty: formatNumber(total), reason: rework.reason })} onClose={onClose}>
             <div className="px-[18px] py-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -389,9 +396,10 @@ export function CompleteReworkModal({ rework, onClose }) {
                 <p className={mismatch ? 'text-om-blocked text-xs m-0' : 'text-om-muted text-xs m-0'}>
                     {__('Accepted pieces go back to :step; scrapped pieces are booked as scrap there. Together they must make :qty.', {
                         step: rework.source_step?.name ?? '',
-                        qty: fmtQty(total, 0),
+                        qty: formatNumber(total),
                     })}
                 </p>
+                {error && <p role="alert" className={errorCls}>{error}</p>}
             </div>
             <div className={modalFooterCls}>
                 <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>

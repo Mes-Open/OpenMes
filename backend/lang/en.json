@@ -8041,5 +8041,8 @@
     "Cancel rework": "Cancel rework",
     "No rework yet. Pieces sent to rework are held at their step until the operator completes the rework.": "No rework yet. Pieces sent to rework are held at their step until the operator completes the rework.",
     ":accepted accepted, :scrapped scrapped": ":accepted accepted, :scrapped scrapped",
-    "Send to rework": "Send to rework"
+    "Send to rework": "Send to rework",
+    "Found at": "Found at",
+    "Send back to": "Send back to",
+    "Rework not sent": "Rework not sent"
 }
