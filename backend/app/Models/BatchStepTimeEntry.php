@@ -39,6 +39,7 @@ class BatchStepTimeEntry extends Model
 
     protected $fillable = [
         'batch_step_id',
+        'rework_operation_id',
         'kind',
         'user_id',
         'workstation_id',
@@ -61,6 +62,12 @@ class BatchStepTimeEntry extends Model
     public function batchStep(): BelongsTo
     {
         return $this->belongsTo(BatchStep::class);
+    }
+
+    /** Set when the time was spent reworking pieces (#400) — it counts on the rework. */
+    public function reworkOperation(): BelongsTo
+    {
+        return $this->belongsTo(ReworkOperation::class);
     }
 
     public function user(): BelongsTo

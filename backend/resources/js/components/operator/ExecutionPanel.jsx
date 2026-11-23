@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { Icon } from '@openmes/ui';
 import LabelPrintMenu from '../LabelPrintMenu';
-import { ConfirmTimesModal, LotPickModal } from './StepModals';
+import { CompleteReworkModal, ConfirmTimesModal, LotPickModal } from './StepModals';
 import { apiGet } from '../../lib/http';
 import { __, formatNumber } from '../../lib/i18n';
 import { batchLabel, dueInfo, fmtQty, monoLabelCls, statusMeta } from './operatorUi';
@@ -32,6 +32,7 @@ export default function ExecutionPanel({ workOrderId, fallback = null, labelTemp
     const [actionError, setActionError] = useState(null);
     const [pickModal, setPickModal] = useState(null);
     const [timesModal, setTimesModal] = useState(null);
+    const [reworkModal, setReworkModal] = useState(null);
     const [zoom, setZoom] = useState(null);
 
     // Every finished visit may have changed the order: read it again.
@@ -194,6 +195,15 @@ export default function ExecutionPanel({ workOrderId, fallback = null, labelTemp
                                 onTime={(kind, act) => post(`/operator/batch-step/${viewed.id}/time/${kind}/${act}`, {}, `time:${viewed.id}:${kind}`)}
                             />
                         )}
+                        {(data.reworks ?? []).length > 0 && (
+                            <ReworkList
+                                reworks={data.reworks}
+                                inflight={inflight}
+                                onStart={(r) => post(`/operator/rework/${r.id}/start`, {}, `rework:${r.id}`)}
+                                onTime={(r, kind, act) => post(`/operator/rework/${r.id}/time/${kind}/${act}`, {}, `rtime:${r.id}:${kind}`)}
+                                onComplete={(r) => setReworkModal(r)}
+                            />
+                        )}
                     </>
                 )}
             </div>
@@ -227,6 +237,7 @@ export default function ExecutionPanel({ workOrderId, fallback = null, labelTemp
 
             {pickModal && <LotPickModal step={pickModal.step} materials={pickModal.materials} onClose={() => setPickModal(null)} />}
             {timesModal && <ConfirmTimesModal step={timesModal.step} onClose={() => setTimesModal(null)} />}
+            {reworkModal && <CompleteReworkModal rework={reworkModal} onClose={() => setReworkModal(null)} />}
             {zoom && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onClick={() => setZoom(null)}>
                     <figure className="max-w-3xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
@@ -435,6 +446,16 @@ function StepTime({ step, inflight, onTime }) {
     const running = step.status === 'IN_PROGRESS';
     if (!t || (!running && !t.labor_minutes && !t.machine_minutes)) return null;
 
+    return (
+        <div className="mt-3">
+            <div className={`${monoLabelCls} mb-2`}>{__('Time')}</div>
+            <TimeRows t={t} running={running} busy={(kind) => inflight === `time:${step.id}:${kind}`} onTime={onTime} />
+        </div>
+    );
+}
+
+/** Operator and machine time, each with its own on/off button while it may run. */
+function TimeRows({ t, running, busy, onTime }) {
     const rows = [
         {
             kind: 'labor',
@@ -457,30 +478,78 @@ function StepTime({ step, inflight, onTime }) {
     ];
 
     return (
-        <div className="mt-3">
-            <div className={`${monoLabelCls} mb-2`}>{__('Time')}</div>
-            <div className="flex flex-col gap-1.5">
-                {rows.map((r) => {
-                    const busy = inflight === `time:${step.id}:${r.kind}`;
-                    return (
-                        <div key={r.kind} className="flex items-center justify-between gap-3 bg-om-card border border-om-line2 rounded-lg px-[11px] py-[9px]">
-                            <div className="min-w-0">
-                                <div className="text-[12.5px] text-om-ink">{r.label}</div>
-                                <div className="font-mono text-[10px] text-om-faint">
-                                    {__(':min min', { min: formatNumber(r.minutes ?? 0) })}{r.detail ? ` · ${r.detail}` : ''}
-                                </div>
+        <div className="flex flex-col gap-1.5">
+            {rows.map((r) => {
+                const isBusy = busy(r.kind);
+                return (
+                    <div key={r.kind} className="flex items-center justify-between gap-3 bg-om-card border border-om-line2 rounded-lg px-[11px] py-[9px]">
+                        <div className="min-w-0">
+                            <div className="text-[12.5px] text-om-ink">{r.label}</div>
+                            <div className="font-mono text-[10px] text-om-faint">
+                                {__(':min min', { min: formatNumber(r.minutes ?? 0) })}{r.detail ? ` · ${r.detail}` : ''}
                             </div>
+                        </div>
+                        {running && (
+                            <button
+                                type="button"
+                                disabled={isBusy}
+                                aria-pressed={r.on}
+                                onClick={() => onTime(r.kind, r.on ? 'stop' : 'start')}
+                                className={`text-[12.5px] font-semibold rounded-[8px] px-3.5 py-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
+                                    r.on ? 'bg-om-blocked-bg text-om-blocked' : 'bg-om-ink text-om-on-ink'
+                                }`}
+                            >
+                                {isBusy ? '…' : (r.on ? r.stopLabel : r.startLabel)}
+                            </button>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+/**
+ * Rework sent back to a step of this batch (#400): pieces held at the step
+ * where the defect was found, to be reworked at an earlier one. The operator
+ * starts it, records its own operator and machine time, and completes it with
+ * how many came back good and how many were scrapped.
+ */
+function ReworkList({ reworks, inflight, onStart, onTime, onComplete }) {
+    return (
+        <div className="mt-4">
+            <div className={`${monoLabelCls} mb-2`}>{__('Rework')}</div>
+            <div className="flex flex-col gap-2">
+                {reworks.map((r) => {
+                    const running = r.status === 'in_progress';
+                    return (
+                        <div key={r.id} className="bg-om-bg border border-om-line2 rounded-xl px-[15px] py-3.5" data-testid="rework-card">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="text-[13.5px] font-semibold text-om-ink">
+                                    {__(':qty pcs back to :step', { qty: fmtQty(r.quantity), step: `${r.target_step?.step_number}. ${r.target_step?.name}` })}
+                                </span>
+                                <span className={`font-mono text-[9px] tracking-[0.05em] uppercase rounded-full px-[9px] py-[3px] ${running ? 'bg-om-accent-bg text-om-accent' : 'bg-om-chip text-om-muted'}`}>
+                                    {running ? __('In progress') : __('Open')}
+                                </span>
+                            </div>
+                            <div className="font-mono text-[9.5px] text-om-faint mb-2">
+                                {__('Held at :step', { step: `${r.source_step?.step_number}. ${r.source_step?.name}` })}
+                            </div>
+                            <p className="text-[12.5px] text-om-muted leading-[1.5] mt-0 mb-3 whitespace-pre-line">{r.reason}</p>
                             {running && (
-                                <button
-                                    type="button"
-                                    disabled={busy}
-                                    aria-pressed={r.on}
-                                    onClick={() => onTime(r.kind, r.on ? 'stop' : 'start')}
-                                    className={`text-[12.5px] font-semibold rounded-[8px] px-3.5 py-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
-                                        r.on ? 'bg-om-blocked-bg text-om-blocked' : 'bg-om-ink text-om-on-ink'
-                                    }`}
-                                >
-                                    {busy ? '…' : (r.on ? r.stopLabel : r.startLabel)}
+                                <div className="mb-3">
+                                    <TimeRows t={r.time} running busy={(kind) => inflight === `rtime:${r.id}:${kind}`} onTime={(kind, act) => onTime(r, kind, act)} />
+                                </div>
+                            )}
+                            {running ? (
+                                <button type="button" onClick={() => onComplete(r)}
+                                        className="w-full text-[13px] font-semibold rounded-[10px] py-[11px] bg-om-accent text-white cursor-pointer hover:brightness-95">
+                                    {__('Complete rework')}
+                                </button>
+                            ) : (
+                                <button type="button" disabled={inflight === `rework:${r.id}`} onClick={() => onStart(r)}
+                                        className="w-full text-[13px] font-semibold rounded-[10px] py-[11px] bg-om-ink text-om-on-ink cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {inflight === `rework:${r.id}` ? '…' : __('Start rework')}
                                 </button>
                             )}
                         </div>

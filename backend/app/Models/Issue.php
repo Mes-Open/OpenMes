@@ -179,6 +179,12 @@ class Issue extends Model
      * Soft-deleting an issue also soft-deletes its CAPA actions (mirrors the
      * cascadeOnDelete FK, which doesn't fire on a soft delete).
      */
+    /** Rework operations sent from this non-conformance (#400). */
+    public function reworkOperations(): HasMany
+    {
+        return $this->hasMany(ReworkOperation::class);
+    }
+
     public function softDeleteCascades(): array
     {
         return [
