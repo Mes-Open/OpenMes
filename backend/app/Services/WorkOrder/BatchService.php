@@ -248,6 +248,9 @@ class BatchService
                 'actual_run_minutes' => $actualRun,
             ]);
 
+            // Operator and machine time still running on the step ends with it (#400).
+            app(\App\Services\Production\StepTimeService::class)->closeOpenForStep($step, $user, $step->completed_at);
+
             // Update batch status
             $batch = $step->batch;
             $this->updateBatchStatus($batch);

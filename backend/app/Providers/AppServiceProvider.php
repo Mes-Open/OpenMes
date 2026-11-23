@@ -175,6 +175,13 @@ class AppServiceProvider extends ServiceProvider
             \App\Listeners\GenerateWorkOrderStockDocuments::class,
         );
 
+        // Operator and machine time (#400): a workstation's RUNNING state
+        // records machine time on the step in progress there.
+        Event::listen(
+            \App\Events\Machine\WorkstationStateChanged::class,
+            \App\Listeners\RecordStepMachineTime::class,
+        );
+
         // Outgoing webhooks (#20): observe the source models so a status change /
         // creation fans out to subscribed endpoints. The dispatcher is
         // best-effort and never breaks the underlying write.

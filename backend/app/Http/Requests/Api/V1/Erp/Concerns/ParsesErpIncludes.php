@@ -4,13 +4,13 @@ namespace App\Http\Requests\Api\V1\Erp\Concerns;
 
 /**
  * Optional `?include=` on the ERP work-order export: a comma-separated subset
- * of the settlement sections (consumption, scrap, costs). Anything else is a
+ * of the settlement sections (consumption, scrap, costs, operations). Anything else is a
  * 422 on `include`, so a typo never silently returns a smaller payload.
  */
 trait ParsesErpIncludes
 {
     /** Sections an ERP may request on top of the base work-order shape. */
-    public const ERP_INCLUDES = ['consumption', 'scrap', 'costs'];
+    public const ERP_INCLUDES = ['consumption', 'scrap', 'costs', 'operations'];
 
     protected function includeRules(): array
     {

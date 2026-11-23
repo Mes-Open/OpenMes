@@ -4,11 +4,13 @@ namespace App\Services\Erp;
 
 use App\Models\AdditionalCost;
 use App\Models\AllocationLotPick;
+use App\Models\BatchStep;
 use App\Models\MaterialAllocation;
 use App\Models\ScrapEntry;
 use App\Models\Worker;
 use App\Models\WorkOrder;
 use App\Services\Production\ProductionCostService;
+use App\Services\Production\StepTimeService;
 
 /**
  * Settlement sections of the ERP work-order export (`?include=`): what an ERP
@@ -21,7 +23,10 @@ use App\Services\Production\ProductionCostService;
  *  - scrap: the order's scrap entries (soft-deleted ones excluded);
  *  - costs: ProductionCostService::breakdown(), i.e. the same numbers as the
  *    Production Cost report (materials, labor, additional costs). There is no
- *    machine-cost model in the application, so none is emitted.
+ *    machine-cost model in the application, so none is emitted;
+ *  - operations: every batch step with its standard, operator-confirmed and
+ *    recorded operator (labor) and machine minutes (#400), for an ERP that
+ *    costs time itself.
  *
  * Read-only. Every child row is reached through the order's own relations, so
  * the order's tenant scope bounds everything returned. Person names (workers,
@@ -73,6 +78,10 @@ class WorkOrderSettlementPresenter
             $relations['additionalCosts.costSource'] = fn ($q) => $q->withTrashed()->select('id', 'code', 'name');
         }
 
+        if (in_array('operations', $includes, true)) {
+            $relations['batches.steps.workstation'] = fn ($q) => $q->withTrashed()->select('id', 'code', 'name');
+        }
+
         return $relations;
     }
 
@@ -94,6 +103,9 @@ class WorkOrderSettlementPresenter
         }
         if (in_array('costs', $includes, true)) {
             $out['costs'] = $this->costs($wo);
+        }
+        if (in_array('operations', $includes, true)) {
+            $out['operations'] = $this->operations($wo);
         }
 
         return $out;
@@ -144,6 +156,15 @@ class WorkOrderSettlementPresenter
                 'notes' => $e->notes,
             ])->values()->all(),
         ];
+    }
+
+    /** Every step of every batch with its times; labor and machine minutes are null when nothing was recorded. */
+    private function operations(WorkOrder $wo): array
+    {
+        return $wo->batches->sortBy('batch_number')
+            ->flatMap(fn ($batch) => $batch->steps->sortBy('step_number')->map(fn (BatchStep $s) => StepTimeService::operation($s, $batch)))
+            ->values()
+            ->all();
     }
 
     private function costs(WorkOrder $wo): array

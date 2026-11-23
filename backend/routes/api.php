@@ -717,6 +717,21 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::post('/batch-steps/{batchStep}/confirm-instructions', [BatchStepController::class, 'confirmInstructions']);
     Route::post('/batch-steps/{batchStep}/problem', [BatchStepController::class, 'problem']);
 
+    // Operator (labor) and machine time per step (#400): operators clock on/off
+    // and start/stop machine time; supervisors enter or remove time afterwards.
+    Route::controller(\App\Http\Controllers\Api\V1\BatchStepTimeController::class)->group(function () {
+        Route::get('/batch-steps/{batchStep}/time-entries', 'index');
+        Route::post('/batch-steps/{batchStep}/time-entries/labor/start', 'startLabor');
+        Route::post('/batch-steps/{batchStep}/time-entries/labor/stop', 'stopLabor');
+        Route::post('/batch-steps/{batchStep}/time-entries/machine/start', 'startMachine');
+        Route::post('/batch-steps/{batchStep}/time-entries/machine/stop', 'stopMachine');
+        Route::get('/work-orders/{workOrder}/operation-times', 'workOrder');
+        Route::middleware('role:Supervisor|Admin')->group(function () {
+            Route::post('/batch-steps/{batchStep}/time-entries', 'store');
+            Route::delete('/batch-step-time-entries/{timeEntry}', 'destroy');
+        });
+    });
+
     // Step document control: validate a mandatory document so its step can
     // complete (any production user); attaching is Supervisor/Admin only.
     Route::post('/batch-step-documents/{batchStepDocument}/validate', [BatchStepDocumentController::class, 'validateDocument']);
