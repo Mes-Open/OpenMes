@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { Icon, ToastProvider } from '@openmes/ui';
 import Tooltip from '../components/Tooltip';
 import ViewAsBar from '../components/ViewAsBar';
+import FlashToasts from '../components/FlashToasts';
 import ShiftStrip, { shiftTimes } from '../components/operator/ShiftStrip';
 import { initialsOf, pillCls } from '../components/operator/operatorUi';
 import { Hook } from '../lib/hooks';
@@ -20,7 +21,8 @@ import { useOperatorHeartbeat } from '../lib/operatorHeartbeat';
  * execution panel split) passes `flush`: no padding, and it scrolls itself.
  *
  * Reads from shared Inertia props: auth, line, selectedWorkstation, csrf_token,
- * flash. `line` is present once a line is selected (all operator pages but
+ * flash. Flash messages float as large toasts centred just under the top bar —
+ * the operator's line of sight — and never push the station down. `line` is present once a line is selected (all operator pages but
  * select-line pass it).
  */
 export default function OperatorLayout({ children, flush = false }) {
@@ -59,15 +61,19 @@ export default function OperatorLayout({ children, flush = false }) {
             ?? (shiftSummary?.workstations ? __(':count workstations', { count: shiftSummary.workstations }) : null),
     ].filter(Boolean).join(' · ');
 
+    const headerRef = useRef(null);
+    const toastTop = useBottomOf(headerRef);
+
     return (
-        <ToastProvider dismissLabel={__('Close')}>
+        <ToastProvider dismissLabel={__('Close')} placement="top-center" size="lg" topInset={toastTop}>
+        <FlashToasts />
         <div className={`${flush ? 'h-screen' : 'min-h-screen'} flex bg-om-bg font-sans`}>
             {tabLinks.length > 0 && <OperatorSidebar tabLinks={tabLinks} isActive={isActive} />}
             <div className="flex flex-col flex-1 min-w-0">
             {/* Administrator's view switcher, in the document flow above the bar so
                 it never covers a touch target. Renders nothing for operators. */}
             <ViewAsBar />
-            <header className="shrink-0 bg-om-card border-b border-om-line">
+            <header ref={headerRef} className="shrink-0 bg-om-card border-b border-om-line">
                 {/* One row from xl up; below that the view switch takes a row of its
                     own under the line and the operator, and the bar grows with it. */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-[22px] py-2 min-h-[60px]">
@@ -156,14 +162,12 @@ export default function OperatorLayout({ children, flush = false }) {
                 <main className="flex-1 min-h-0 flex flex-col">
                     <div className="empty:hidden shrink-0 px-[22px] pt-3">
                         <Hook name="display.operator.layout" hooks={operatorHooks} />
-                        <FlashMessages />
                     </div>
                     <div className="flex-1 min-h-0">{children}</div>
                 </main>
             ) : (
                 <main className="flex-1 overflow-auto p-4 md:p-6">
                     <Hook name="display.operator.layout" hooks={operatorHooks} />
-                    <FlashMessages />
                     {children}
                 </main>
             )}
@@ -239,21 +243,27 @@ function ThemeSwitch() {
     );
 }
 
-function FlashMessages() {
-    const { flash } = usePage().props;
-    if (!flash) return null;
-    const items = [
-        ['success', 'bg-om-running-bg border-om-running/30 text-om-running'],
-        ['error', 'bg-om-blocked-bg border-om-blocked/30 text-om-blocked'],
-        ['warning', 'bg-om-downtime-bg border-om-downtime/30 text-om-downtime'],
-        ['info', 'bg-om-chip border-om-line text-om-muted'],
-    ].filter(([k]) => flash[k]);
-    if (!items.length) return null;
-    return (
-        <div className="mb-4 space-y-2 max-w-3xl mx-auto">
-            {items.map(([k, cls]) => (
-                <div key={k} className={`p-3 rounded-om-sm border text-sm ${cls}`}>{flash[k]}</div>
-            ))}
-        </div>
-    );
+/**
+ * Viewport y of the element's bottom edge plus a small gap, kept current as the
+ * bar wraps (narrower tablets) or scrolls away — so the toast stack sits right
+ * under the top bar, over the page, and never over the bar's own controls.
+ */
+function useBottomOf(ref, gap = 12) {
+    const [top, setTop] = useState(72);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return undefined;
+        const update = () => setTop(Math.max(gap, Math.round(el.getBoundingClientRect().bottom) + gap));
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        window.addEventListener('scroll', update, { passive: true, capture: true });
+        window.addEventListener('resize', update);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('scroll', update, { capture: true });
+            window.removeEventListener('resize', update);
+        };
+    }, [ref, gap]);
+    return top;
 }

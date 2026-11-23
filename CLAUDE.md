@@ -60,12 +60,12 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d   # dev ove
 - Config-driven CRUD: `ResourceTable` (list, fed by a synced collection) + `ResourceForm` (create/edit via Inertia `useForm`). Custom forms only when those don't fit.
 - React escaping is the XSS defense — `dangerouslySetInnerHTML` is effectively banned.
 - **Telling the user a write worked** — three mechanisms, pick by whether the page navigates:
-  - **Redirecting (the usual CRUD case) → flash.** `->with('success'|'error', …)` on the
-    redirect; `FlashMessages` in `AppLayout` renders it. The page needs no code. This is what
-    ~86 controllers already do. It sits in the document flow, so it shifts the page down —
-    fine after a navigation, wrong under a rapid in-place interaction.
-  - **Staying on the page → `useToast()`** (`@openmes/ui`, provider already in `AppLayout`;
-    `Snackbar` is its native twin). Portaled, auto-dismisses, no layout shift. For actions
+  - **Redirecting (the usual CRUD case) → flash.** `->with('success'|'error'|'warning'|'info', …)`
+    on the redirect; `FlashToasts` (in both `AppLayout` and `OperatorLayout`) turns it into a
+    floating toast. The page needs no code. This is what ~86 controllers already do. It never
+    shifts the page; an `error` stays until dismissed, the others time out.
+  - **Staying on the page → `useToast()`** (`@openmes/ui`, provider already in both layouts;
+    `Snackbar` is its native twin). Same floating stack as the flash. For actions
     that write over `fetch`/`apiCall` — typically because the rows are a synced collection
     and the screen updates itself.
     **A toast does not survive an Inertia visit**: the visit remounts `AppLayout` and the
