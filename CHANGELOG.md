@@ -9,6 +9,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Modules can hide built-in sidebar links.** Filter `nav.hidden` (list of hrefs) removes
+  core entries from the admin and supervisor sidebar, e.g. when a module replaces a core
+  screen; the page itself keeps working at its address. See HOOKS.md.
+
 - **Modules can label issues on the Issues page.** A module fills the `issues.references`
   filter (issue id → label, e.g. a non-conformance number) and *Issues* shows a **Reference number**
   column (searchable, sortable) plus the label in the disposition and actions dialogs.

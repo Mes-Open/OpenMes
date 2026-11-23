@@ -422,7 +422,11 @@ operator.tabs          list of {key, label, url, prefixes}   the operator top ba
 operator.module_tabs   list of {label, url, order, prefix}   module tabs, per request
 operator.can_logout    bool (default true)                   whether the operator chrome shows its logout button
 production.step_start_blockers  list of strings (default [])  reasons a step may not start; the first one refuses it
+nav.hidden             list of hrefs (default [])            built-in sidebar links to hide (admin and supervisor)
 ```
+
+`nav.hidden` receives `['user' => $user]` and hides only the link - the page keeps
+working at its address. Use it when a module replaces a core screen.
 
 `operator.tabs` and `operator.can_logout` receive `['user' => $user]` as context.
 `operator.module_tabs` runs over what `addOperatorItem()` registered, on every

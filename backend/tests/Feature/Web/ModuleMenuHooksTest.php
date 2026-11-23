@@ -34,6 +34,20 @@ class ModuleMenuHooksTest extends TestCase
         $this->admin->assignRole('Admin');
     }
 
+    public function test_an_install_can_hide_built_in_sidebar_links(): void
+    {
+        $this->actingAs($this->admin)->get('/admin/work-orders')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('moduleNav.hidden', []));
+
+        app(\App\Extension\FilterRegistry::class)->addFilter('nav.hidden', fn (array $hidden) => [...$hidden, '/admin/pallets', 42]);
+
+        $this->actingAs($this->admin)->get('/admin/work-orders')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('moduleNav.hidden', ['/admin/pallets']));
+
+        // Only the link goes: the page itself still opens.
+        $this->actingAs($this->admin)->get('/admin/pallets')->assertOk();
+    }
+
     public function test_module_items_and_groups_are_exposed_as_the_module_nav_prop(): void
     {
         // A module would do this in its ServiceProvider::boot().

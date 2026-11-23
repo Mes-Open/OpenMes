@@ -293,6 +293,23 @@ export const PAGE_TITLE_SLOT = '[data-page-title-slot]';
  * supervisor tree. `viewAs` is sent to Admins only, and the supervisor routes
  * admit Admins, so every entry in that tree still opens.
  */
+/**
+ * Drop sidebar entries whose href an install hides (`moduleNav.hidden`, filter
+ * `nav.hidden`). A group left without children disappears with them.
+ */
+function withoutHidden(nodes, hidden) {
+    if (! Array.isArray(hidden) || hidden.length === 0) {
+        return nodes;
+    }
+
+    return nodes
+        .filter((node) => ! (node.href && ! node.children && hidden.includes(node.href)))
+        .map((node) => (node.children
+            ? { ...node, children: withoutHidden(node.children, hidden) }
+            : node))
+        .filter((node) => ! node.children || node.children.length > 0);
+}
+
 function useNavTree() {
     const page = usePage();
     const isAdmin = page.props.auth?.user?.roles?.includes('Admin');
@@ -308,12 +325,12 @@ function useNavTree() {
     return useMemo(() => {
         if ((! isAdmin && isSupervisor) || (isAdmin && viewAs === 'supervisor')) {
             return {
-                links: withGrantedTabs(withEnabledModules(SUPERVISOR_LINKS, enabledModules), allowedTabs),
-                groups: mergeSupervisorItems(
+                links: withoutHidden(withGrantedTabs(withEnabledModules(SUPERVISOR_LINKS, enabledModules), allowedTabs), moduleNav?.hidden),
+                groups: withoutHidden(mergeSupervisorItems(
                     withGrantedTabs(withEnabledModules(SUPERVISOR_GROUPS, enabledModules), allowedTabs),
                     moduleNav?.supervisor,
                     moduleItemToChild,
-                ),
+                ), moduleNav?.hidden),
                 // The supervisor tree is gated by the route group's role
                 // middleware, not the admin access matrix. Only its entries that
                 // carry a `tab` key (an admin page granted in Settings → Access)
@@ -325,8 +342,8 @@ function useNavTree() {
         }
 
         return {
-            links: ADMIN_LINKS,
-            groups: mergeModuleNav(moduleNav),
+            links: withoutHidden(ADMIN_LINKS, moduleNav?.hidden),
+            groups: withoutHidden(mergeModuleNav(moduleNav), moduleNav?.hidden),
             showTab: (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key),
         };
     }, [isAdmin, isSupervisor, viewAs, moduleNav, allowedTabs, enabledModules]);

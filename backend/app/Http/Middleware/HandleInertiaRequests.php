@@ -77,6 +77,13 @@ class HandleInertiaRequests extends Middleware
                 //   supervisor: { <group>: [{label,url,order,badge}] } links merged
                 //           into the supervisor sidebar (orders|production|logistics|reports).
                 'supervisor' => fn () => app(\App\Services\MenuRegistry::class)->getSupervisorItems(),
+                //   hidden: [href] built-in sidebar entries an install hides
+                //           (filter `nav.hidden`) - e.g. a module that replaces a
+                //           core screen. Only the link goes; the page still works.
+                'hidden' => fn () => array_values(array_unique(array_filter(
+                    (array) app(\App\Extension\FilterRegistry::class)->filter('nav.hidden', [], ['user' => $request->user()]),
+                    'is_string',
+                ))),
             ],
             // Compiled frontends of modules installed after this app was built.
             // Their pages are not in the bundle — nothing rebuilds it on a
