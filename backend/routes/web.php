@@ -785,6 +785,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/batches/{batch}/coa/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('batch-report.coa');
 
         // COA & release workbench
+        // 客户风味标准：COA 规格的真正来源（检验模板只回答“怎么检”）。
+        Route::get('/customer-flavor-standards', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'index'])->name('customer-flavor-standards.index');
+        Route::post('/customer-flavor-standards', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'store'])->name('customer-flavor-standards.store');
+        Route::put('/customer-flavor-standards/{customerFlavorStandard}', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'update'])->name('customer-flavor-standards.update');
+        Route::delete('/customer-flavor-standards/{customerFlavorStandard}', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'destroy'])->name('customer-flavor-standards.destroy');
+        Route::post('/customer-flavor-standards/{customerFlavorStandard}/toggle-status', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'toggleStatus'])->name('customer-flavor-standards.toggle-status');
+
         Route::get('/coa', [\App\Http\Controllers\Web\Admin\CoaController::class, 'index'])->name('coa.index');
         Route::get('/coa/{batch}/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('coa.pdf');
         Route::get('/coa/{batch}', [\App\Http\Controllers\Web\Admin\CoaController::class, 'show'])->name('coa.show');

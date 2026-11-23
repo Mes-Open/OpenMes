@@ -367,6 +367,11 @@ class CoaService
                 'specification_snapshot' => $snapshot['specification'],
                 'quality_snapshot' => $snapshot['quality'],
                 'gate_snapshot' => $snapshot['release_gate'],
+                'prepared_by_id' => $user->id,
+                'prepared_at' => now(),
+                'submitted_at' => null,
+                'approved_by_id' => null,
+                'approved_at' => null,
                 'issued_by_id' => null,
                 'issued_at' => null,
                 'voided_by_id' => null,
@@ -402,6 +407,14 @@ class CoaService
 
         $workOrder = $batch->workOrder;
         $latestCheck = $batch->qualityChecks->first();
+        $standard = app(CustomerFlavorStandardResolver::class)->resolve(
+            $workOrder?->customer_id,
+            $workOrder?->product_type_id,
+            $batch->completed_at ?? now(),
+        );
+        $standardReference = $standard
+            ? trim('客户标准 '.$standard->code.' '.$standard->version)
+            : '客户标准 / 产品企业标准（以客户批准版本为准）';
 
         return [
             'coa_number' => $batch->coaDocument?->coa_number,
@@ -434,8 +447,13 @@ class CoaService
                 'revision_code' => $workOrder?->productRevision?->revision_code,
                 'revision_description' => $workOrder?->productRevision?->description,
                 'external_ref' => $workOrder?->productRevision?->external_ref,
-                'parameters' => $latestCheck?->template?->parameters ?? [],
-                'standard_reference' => '客户标准 / 产品企业标准（以客户批准版本为准）',
+                'standard_code' => $standard?->code,
+                'standard_name' => $standard?->name,
+                'standard_version' => $standard?->version,
+                'standard_reference' => $standardReference,
+                'sensory_profile' => $standard?->sensorySummary(),
+                'packaging_requirement' => $standard?->packaging_requirement,
+                'parameters' => $standard?->parameters() ?: ($latestCheck?->template?->parameters ?? []),
             ],
             'quality' => $latestCheck ? [
                 'check_id' => $latestCheck->id,

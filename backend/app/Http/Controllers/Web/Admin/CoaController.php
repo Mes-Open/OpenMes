@@ -267,7 +267,10 @@ class CoaController extends Controller
 
     public function pdf(Batch $batch)
     {
-        $document = $this->coa->draft($batch);
+        $document = $batch->coaDocument;
+        if (! $document) {
+            abort(404, '该批次尚未生成 COA，请先在 COA 工作台生成草稿。');
+        }
         $document->load(['versions', 'approvedBy', 'issuedBy', 'voidedBy']);
 
         $batch->load([
@@ -298,6 +301,7 @@ class CoaController extends Controller
         $isVoid = $document->status === CoaDocument::STATUS_VOID;
         $allPassed = $quality['all_passed'] ?? $latestCheck?->all_passed;
         $generatedAt = $document->issued_at ?? $document->approved_at ?? $document->prepared_at ?? now();
+        $changeReason = $latestVersion?->change_reason;
 
         $pdf = Pdf::loadView('admin.reports.coa-pdf', [
             'batch' => $batch,
@@ -314,6 +318,7 @@ class CoaController extends Controller
             'specification' => $specification,
             'qualitySnapshot' => $quality,
             'generatedAt' => $generatedAt,
+            'changeReason' => $changeReason,
         ])->setPaper('a4', 'portrait');
 
         // Embed only the glyphs actually used; the bundled CJK font is large.

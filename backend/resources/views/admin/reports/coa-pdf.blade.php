@@ -4,19 +4,19 @@
     <meta charset="utf-8">
     <title>分析证书 {{ $coaNo }}</title>
     <style>
-        @page { margin: 12mm 13mm 10mm; }
+        @page { margin: 10mm 13mm 8mm; }
         body { font-family: "CoaNotoSans", "DejaVu Sans", sans-serif; font-size: 10px; color: #1f2937; }
         strong { font-weight: bold; color: #111827; }
         h1 { font-size: 19px; font-weight: bold; margin: 0 0 2px; letter-spacing: 1px; }
-        h2 { font-size: 12.5px; font-weight: bold; margin: 12px 0 4px; color: #0f766e; border-bottom: 1.5px solid #0f766e; padding-bottom: 3px; }
+        h2 { font-size: 12.5px; font-weight: bold; margin: 9px 0 3px; color: #0f766e; border-bottom: 1.5px solid #0f766e; padding-bottom: 3px; }
         .company { font-size: 13px; font-weight: bold; color: #111827; }
         .sub { font-size: 9px; color: #6b7280; }
         .head { display: table; width: 100%; }
         .head > div { display: table-cell; vertical-align: top; }
         .head .right { text-align: right; }
         .coa-no { font-family: monospace; font-size: 10.5px; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin: 3px 0 7px; }
-        th, td { border: 1px solid #d1d5db; padding: 3px 5px; font-size: 9px; vertical-align: top; }
+        table { width: 100%; border-collapse: collapse; margin: 2px 0 5px; }
+        th, td { border: 1px solid #d1d5db; padding: 2px 4px; font-size: 9px; vertical-align: top; }
         th { background: #f0fdfa; color: #134e4a; text-align: left; font-weight: bold; }
         .pass { color: #15803d; font-weight: bold; }
         .fail { color: #b91c1c; font-weight: bold; }
@@ -26,10 +26,10 @@
         .badge-red { background: #fee2e2; color: #991b1b; }
         .badge-amber { background: #fef3c7; color: #92400e; }
         .box { border: 1px solid #d1d5db; padding: 6px 9px; margin: 6px 0; }
-        .sign { width: 100%; margin-top: 8px; }
-        .sign td { border: none; padding: 8px 6px 2px; border-bottom: 1px solid #9ca3af; font-size: 8.5px; }
+        .sign { width: 100%; margin-top: 5px; }
+        .sign td { border: none; padding: 6px 6px 2px; border-bottom: 1px solid #9ca3af; font-size: 8.5px; }
         .sign .label { border: none; color: #6b7280; padding-top: 2px; }
-        .foot { margin-top: 4px; font-size: 8px; color: #6b7280; line-height: 1.45; }
+        .foot { margin-top: 2px; font-size: 8px; color: #6b7280; line-height: 1.45; }
         .watermark { position: fixed; top: 40%; left: 12%; font-size: 46px; color: rgba(185, 28, 28, 0.12); transform: rotate(-18deg); font-weight: bold; }
     </style>
 </head>
@@ -50,6 +50,9 @@
         <div class="sub">文件状态：{{ $isIssued ? '已签发' : ($isVoid ? '已作废' : '草案') }}</div>
         <div class="sub">签发日期：{{ $generatedAt->format('Y-m-d') }}</div>
         <div class="sub">版本：{{ $coaVersion }}</div>
+        @if (! empty($changeReason))
+            <div class="sub">重签原因：{{ \Illuminate\Support\Str::limit($changeReason, 44) }}</div>
+        @endif
     </div>
 </div>
 
@@ -103,6 +106,12 @@
 
 @if (! empty($specification['parameters']))
     <h2>二、规格要求</h2>
+    @if (! empty($specification['standard_code']) || ! empty($specification['sensory_profile']))
+        <div class="sub" style="margin-bottom:4px;">
+            客户标准：{{ $specification['standard_code'] ?? '—' }} {{ $specification['standard_version'] ?? '' }}
+            @if (! empty($specification['sensory_profile']))｜感官：{{ $specification['sensory_profile'] }}@endif
+        </div>
+    @endif
     <table>
         <thead>
         <tr>

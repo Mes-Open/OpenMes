@@ -74,6 +74,7 @@ class TabRegistry
         // Issues + quality reason codes + controlled COA release (render under the Production nav group).
         'quality' => ['label' => 'Issues & reasons', 'prefixes' => [
             '/admin/issues', '/admin/scrap-reasons', '/admin/downtime-reasons', '/admin/coa',
+            '/admin/customer-flavor-standards',
         ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',

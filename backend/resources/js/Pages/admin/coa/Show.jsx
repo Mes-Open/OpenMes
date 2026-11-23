@@ -182,7 +182,7 @@ export default function CoaShow() {
                             <TimelineRow label="提交复核" value={document.submitted_at} />
                             <TimelineRow label="QA 批准" value={document.approved_at} by={document.approved_by} />
                             <TimelineRow label="签发" value={document.issued_at} by={document.issued_by} />
-                            <TimelineRow label="作废" value={document.voided_at} by={document.voided_by} danger />
+                            <TimelineRow label="作废" value={document.voided_at} by={document.voided_by} danger emptyLabel="未作废" />
                             {document.void_reason && (
                                 <div className="rounded bg-om-blocked-bg px-3 py-2 text-xs text-om-blocked">
                                     {document.void_reason}
@@ -193,6 +193,16 @@ export default function CoaShow() {
                 </div>
 
                 <Section title="COA 规格快照" subtitle="批准 / 签发时冻结，之后不随主数据变化">
+                    {(document.specification?.standard_code || document.specification?.sensory_profile) && (
+                        <div className="mb-3 rounded bg-om-chip px-3 py-2 text-xs text-om-muted">
+                            {document.specification?.standard_code && (
+                                <span className="font-medium text-om-ink">客户标准：{document.specification.standard_code} {document.specification.standard_version}</span>
+                            )}
+                            {document.specification?.sensory_profile && (
+                                <span className="ml-2">感官：{document.specification.sensory_profile}</span>
+                            )}
+                        </div>
+                    )}
                     {document.specification?.parameters?.length ? (
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-[640px] text-sm">
@@ -447,14 +457,14 @@ function InfoGrid({ rows }) {
     );
 }
 
-function TimelineRow({ label, value, by, danger = false }) {
+function TimelineRow({ label, value, by, danger = false, emptyLabel = '未完成' }) {
     return (
         <div className="flex items-start justify-between gap-3 border-b border-om-line2 pb-2 last:border-0">
             <div>
                 <div className={`text-sm font-medium ${danger ? 'text-om-blocked' : 'text-om-ink'}`}>{label}</div>
                 {by && <div className="mt-0.5 text-xs text-om-muted">{by}</div>}
             </div>
-            <div className="text-right font-mono text-xs text-om-muted">{value ? formatDateTime(value) : '未完成'}</div>
+            <div className="text-right font-mono text-xs text-om-muted">{value ? formatDateTime(value) : emptyLabel}</div>
         </div>
     );
 }

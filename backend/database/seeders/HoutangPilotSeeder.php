@@ -6,6 +6,7 @@ use App\Enums\CustomFieldType;
 use App\Enums\RevisionLifecycle;
 use App\Models\BomItem;
 use App\Models\Customer;
+use App\Models\CustomerFlavorStandard;
 use App\Models\CustomFieldDefinition;
 use App\Models\DowntimeReason;
 use App\Models\InspectionPlan;
@@ -417,6 +418,33 @@ class HoutangPilotSeeder extends Seeder
                 ]
             );
         }
+
+
+        // ── 14. 客户风味标准（COA 规格的真实来源） ───────────────────────────
+        CustomerFlavorStandard::updateOrCreate(
+            ['code' => 'HT-CFS-DEMO-A-JASMINE-V1', 'version' => 'V1'],
+            [
+                'customer_id' => $customer->id,
+                'product_type_id' => $productType->id,
+                'name' => '茉莉绿茶客户风味标准',
+                'status' => CustomerFlavorStandard::STATUS_ACTIVE,
+                'effective_from' => '2026-11-01',
+                'moisture_min' => 5.0,
+                'moisture_max' => 8.0,
+                'sensory_aroma' => '茉莉花香鲜灵、持久，无闷味',
+                'sensory_taste' => '鲜爽、回甘，无苦涩',
+                'sensory_liquor' => '黄绿明亮',
+                'blend_tolerance' => 0.5,
+                'foreign_matter_required' => true,
+                'net_weight_min' => 4950,
+                'net_weight_max' => 5050,
+                'packaging_requirement' => '5kg 铝箔内袋，热封平整；标签产品名、批次、净含量与实物一致。',
+                'notes' => '样板客户标准，正式试点前替换为客户签字确认版。',
+                'created_by_id' => $admin?->id,
+                'approved_by_id' => $admin?->id,
+                'approved_at' => now(),
+            ]
+        );
 
         $this->command?->info('Houtang pilot master data seeded: '.$productType->code.' / '.$line->code);
     }
