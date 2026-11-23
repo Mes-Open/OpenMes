@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Batch extends Model
 {
@@ -230,6 +231,21 @@ class Batch extends Model
     public function workstation(): BelongsTo
     {
         return $this->belongsTo(Workstation::class);
+    }
+
+    /**
+     * The controlled COA document for this finished batch, if one exists.
+     */
+    public function coaDocument(): HasOne
+    {
+        return $this->hasOne(CoaDocument::class);
+    }
+
+    public function electronicSignatures(): HasMany
+    {
+        return $this->hasMany(ElectronicSignature::class, 'signable_id')
+            ->where('signable_type', self::class)
+            ->orderByDesc('signed_at');
     }
 
     /**

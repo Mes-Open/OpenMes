@@ -377,12 +377,12 @@ function ProcessPhotosSection({ photos = [] }) {
                             <figcaption className="text-white/90 text-sm mt-3 text-center">{lightbox.caption}</figcaption>
                         )}
                     </figure>
-                    <Tooltip label="Close">
+                    <Tooltip label={__('Close')}>
                         <button
                             type="button"
                             onClick={() => setLightbox(null)}
                             className="absolute top-5 right-5 text-white/80 hover:text-white text-3xl leading-none cursor-pointer"
-                            aria-label="Close"
+                            aria-label={__('Close')}
                         >
                             ×
                         </button>
@@ -775,7 +775,7 @@ function BatchCard({ batch, defaultOpen, labelTemplates = [], stepPhotos = {}, s
                             kind="finished-goods"
                             id={batch.id}
                             templates={labelTemplates}
-                            label="FG Label"
+                            label={__('FG Label')}
                         />
                     </div>
                 )}
@@ -1822,12 +1822,12 @@ function LotPickModal({ step, materials, onClose }) {
                                                         onChange={(v) => setLineQty(m.material_id, idx, v)}
                                                         className="text-[12px] text-om-ink bg-om-bg border border-om-line rounded-om-sm px-2 py-1 outline-none w-20 text-right focus:border-om-accent transition-colors font-mono"
                                                     />
-                                                    <Tooltip label="Remove lot">
+                                                    <Tooltip label={__('Remove lot')}>
                                                         <button
                                                             type="button"
                                                             onClick={() => removeLine(m.material_id, idx)}
                                                             className="cursor-pointer p-1 text-[18px] leading-none text-om-faint hover:text-om-blocked"
-                                                            aria-label="Remove lot"
+                                                            aria-label={__('Remove lot')}
                                                         >
                                                             ×
                                                         </button>

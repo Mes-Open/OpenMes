@@ -195,7 +195,7 @@ export default function ApiTokens() {
             <div className="bg-om-card border border-om-line rounded-om p-6 mt-6">
                 <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-om-ink mb-3">{__('How to use')}</h2>
                 <p className="text-[12.5px] text-om-muted mb-3">
-                    {__('Include the token in the')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">Authorization</code> {__('header for all API requests:')}
+                    {__('Include the token in the')} <code className="bg-om-chip px-1 rounded font-mono text-[12px] text-om-ink">{__('Authorization')}</code> {__('header for all API requests:')}
                 </p>
                 <pre className="bg-om-chip text-om-ink font-mono text-[12px] rounded-om-sm p-4 overflow-x-auto">{`Authorization: Bearer <your-token>
 

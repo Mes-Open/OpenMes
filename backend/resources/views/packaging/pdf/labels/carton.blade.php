@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Carton Labels</title>
+    <title>纸箱标签</title>
     {{--
         The outer-box label: carton number big and as a barcode, what and how
         many, then every unit serial inside in a dense grid.

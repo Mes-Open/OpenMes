@@ -138,3 +138,6 @@ docs/cla/contributors-audit.md
 docs/cla/ai-commits.md
 docs/cla/license-scan.md
 backend/storage/e2e-instance/
+
+# Local-only COA test font (macOS system font, not redistributable).
+backend/public/fonts/ArialUnicode.ttf

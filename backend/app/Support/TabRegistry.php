@@ -71,9 +71,9 @@ class TabRegistry
         ]],
         // Customer/supplier companies (render under the Production nav group).
         'companies' => ['label' => 'Companies', 'prefixes' => ['/admin/companies']],
-        // Issues + quality reason codes (render under the Production nav group).
+        // Issues + quality reason codes + controlled COA release (render under the Production nav group).
         'quality' => ['label' => 'Issues & reasons', 'prefixes' => [
-            '/admin/issues', '/admin/scrap-reasons', '/admin/downtime-reasons',
+            '/admin/issues', '/admin/scrap-reasons', '/admin/downtime-reasons', '/admin/coa',
         ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',

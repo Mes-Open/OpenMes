@@ -61,7 +61,7 @@ export default function ModulesIndex() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <h3 className="text-[14px] font-semibold text-om-ink">
-                                                {module.display_name ?? module.name}
+                                                {__(module.display_name ?? module.name)}
                                             </h3>
                                             <span className="font-mono text-[11px] text-om-faint">
                                                 v{module.version ?? '?'}
@@ -80,16 +80,16 @@ export default function ModulesIndex() {
                                                 {__('by')}{' '}
                                                 {module.homepage ? (
                                                     <a href={module.homepage} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                                        {module.author}
+                                                        {__(module.author)}
                                                     </a>
-                                                ) : module.author}
+                                                ) : __(module.author)}
                                             </p>
                                         )}
                                     </div>
                                 </div>
 
                                 <p className="text-sm text-om-muted flex-1">
-                                    {module.description ?? __('No description.')}
+                                    {__(module.description ?? __('No description.'))}
                                 </p>
 
                                 {module.hooks && module.hooks.length > 0 && (

@@ -56,21 +56,21 @@ export default function OeeIndex() {
         {
             id: 'availability_pct',
             accessorKey: 'availability_pct',
-            header: 'A%',
+            header: () => __('Availability') + '%',
             meta: { align: 'right' },
             cell: ({ row }) => (row.original.availability_pct != null ? Number(row.original.availability_pct).toFixed(1) + '%' : '—'),
         },
         {
             id: 'performance_pct',
             accessorKey: 'performance_pct',
-            header: 'P%',
+            header: () => __('Performance') + '%',
             meta: { align: 'right' },
             cell: ({ row }) => (row.original.performance_pct != null ? Number(row.original.performance_pct).toFixed(1) + '%' : '—'),
         },
         {
             id: 'quality_pct',
             accessorKey: 'quality_pct',
-            header: 'Q%',
+            header: () => __('Quality') + '%',
             meta: { align: 'right' },
             cell: ({ row }) => (row.original.quality_pct != null ? Number(row.original.quality_pct).toFixed(1) + '%' : '—'),
         },
@@ -104,7 +104,7 @@ export default function OeeIndex() {
             accessorKey: 'downtime_minutes',
             header: __('Downtime'),
             meta: { align: 'right' },
-            cell: ({ row }) => <span className="font-mono">{row.original.downtime_minutes}min</span>,
+            cell: ({ row }) => <span className="font-mono">{row.original.downtime_minutes} {__('min')}</span>,
         },
     ], []);
 
@@ -144,7 +144,7 @@ export default function OeeIndex() {
 
                 {/* Filters */}
                 <div className="bg-om-card rounded-om-sm shadow-sm p-4 flex flex-wrap items-end gap-4">
-                    <Filter label="Line">
+                    <Filter label={__('Line')}>
                         <Dropdown
                             className="min-w-[160px]"
                             options={[{ value: '', label: __('All Lines') }, ...lines.map((l) => ({ value: String(l.id), label: l.name }))]}
@@ -152,14 +152,14 @@ export default function OeeIndex() {
                             onChange={(v) => apply({ line_id: v })}
                         />
                     </Filter>
-                    <Filter label="From">
+                    <Filter label={__('From date')}>
                         <AppDatePicker
                             value={dateFrom || null}
                             onChange={(iso) => apply({ date_from: iso ?? '' })}
                             className="w-44"
                         />
                     </Filter>
-                    <Filter label="To">
+                    <Filter label={__('To date')}>
                         <AppDatePicker
                             value={dateTo || null}
                             onChange={(iso) => apply({ date_to: iso ?? '' })}
@@ -184,14 +184,14 @@ export default function OeeIndex() {
                                     <h3 className="font-bold text-om-ink mb-3">{line.name}</h3>
                                     <OeeGauge value={oee != null ? Number(oee) : null} />
                                     <div className="w-full grid grid-cols-3 gap-2 mt-4">
-                                        <MetricMini label="Availability" value={fmt1(s.avg_availability)} />
-                                        <MetricMini label="Performance" value={s.avg_performance != null ? fmt1(s.avg_performance) : 'N/A'} />
-                                        <MetricMini label="Quality" value={fmt1(s.avg_quality)} />
+                                        <MetricMini label={__('Availability')} value={fmt1(s.avg_availability)} />
+                                        <MetricMini label={__('Performance')} value={s.avg_performance != null ? fmt1(s.avg_performance) : 'N/A'} />
+                                        <MetricMini label={__('Quality')} value={fmt1(s.avg_quality)} />
                                     </div>
                                     <div className="w-full mt-3 pt-3 border-t border-om-line2 flex justify-around text-xs text-om-muted">
                                         <span>{__('Produced')}: {formatNumber(Number(s.total_produced))}</span>
                                         <span>{__('Scrap')}: {formatNumber(Number(s.total_scrap))}</span>
-                                        <span>{__('Downtime')}: {s.total_downtime}min</span>
+                                        <span>{__('Downtime')}: {s.total_downtime} {__('min')}</span>
                                     </div>
                                 </a>
                             );

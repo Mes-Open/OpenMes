@@ -21,8 +21,8 @@ describe('lineCardFormat', () => {
 
     it('formats durations the mockup way', () => {
         expect(formatDuration(new Date(NOW - 34 * MIN).toISOString(), NOW)).toBe('34 min');
-        expect(formatDuration(new Date(NOW - 76 * MIN).toISOString(), NOW)).toBe('1h 16m');
-        expect(formatDuration(new Date(NOW - 180 * MIN).toISOString(), NOW)).toBe('3h');
+        expect(formatDuration(new Date(NOW - 76 * MIN).toISOString(), NOW)).toBe('1 h 16 min');
+        expect(formatDuration(new Date(NOW - 180 * MIN).toISOString(), NOW)).toBe('3 h');
         expect(formatDuration(null, NOW)).toBe('');
         expect(formatDuration('nope', NOW)).toBe('');
     });
@@ -46,7 +46,7 @@ describe('lineCardFormat', () => {
 
         expect(bottomRow({ state: 'running' }, withOrder(), NOW).text).toBe('On track · ETA 13:05');
         expect(bottomRow({ state: 'down', reason: 'Maintenance', since }, withOrder(), NOW))
-            .toEqual({ text: 'Maintenance · 1h 16m', tone: 'bad' });
+            .toEqual({ text: 'Maintenance · 1 h 16 min', tone: 'bad' });
         expect(bottomRow({ state: 'blocked', reason: 'Waiting for material', since: null }, withOrder(), NOW))
             .toEqual({ text: 'Waiting for material', tone: 'warn' });
         expect(bottomRow({ state: 'down', reason: null, since: null }, withOrder(), NOW).text).toBe('Down');

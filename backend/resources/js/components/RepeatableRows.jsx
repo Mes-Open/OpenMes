@@ -1,3 +1,4 @@
+import { __ } from '../lib/i18n';
 import { Button, Checkbox, Dropdown, Icon } from '@openmes/ui';
 import Tooltip from './Tooltip';
 
@@ -32,7 +33,7 @@ export default function RepeatableRows({ value, onChange, fields, addLabel = 'Ad
                 {fields.map((f) => <div key={f.name} className={f.width ?? 'flex-1'}>{f.label}</div>)}
                 <div className="w-8" />
             </div>
-            {rows.length === 0 && <p className="text-[13px] text-om-faint px-1">No rows yet.</p>}
+            {rows.length === 0 && <p className="text-[13px] text-om-faint px-1">{__('No rows yet.')}</p>}
             {rows.map((row, i) => (
                 <div key={i} className="flex items-center gap-2">
                     {fields.map((f) => (
@@ -61,12 +62,12 @@ export default function RepeatableRows({ value, onChange, fields, addLabel = 'Ad
                             )}
                         </div>
                     ))}
-                    <Tooltip label="Remove">
+                    <Tooltip label={__('Remove')}>
                         <button
                             type="button"
                             onClick={() => remove(i)}
                             className="w-8 h-8 shrink-0 rounded-om-sm text-lg leading-none text-om-blocked hover:bg-om-blocked-bg transition-colors"
-                            aria-label="Remove"
+                            aria-label={__('Remove')}
                         >
                             ×
                         </button>

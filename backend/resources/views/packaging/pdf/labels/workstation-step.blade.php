@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Workstation Step Labels</title>
+    <title>工位工序标签</title>
     @include('packaging.pdf.labels._styles', ['widthMm' => $widthMm, 'heightMm' => $heightMm])
 </head>
 <body>

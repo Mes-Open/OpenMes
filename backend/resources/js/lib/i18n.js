@@ -113,6 +113,7 @@ const BCP47 = {
     pl: 'pl-PL',
     tr: 'tr-TR',
     vi: 'vi-VN',
+    'zh-CN': 'zh-CN',
 };
 
 /** The active locale as a BCP-47 tag, for `Intl` and for locale-free packages. */
@@ -232,8 +233,8 @@ export function durationLabel(minutes) {
     const total = Math.max(0, Math.round(Number(minutes) || 0));
     const h = Math.floor(total / 60);
     const m = total % 60;
-    if (h === 0) return `${m}m`;
-    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+    if (h === 0) return __(':n min', { n: m });
+    return m === 0 ? __(':n h', { n: h }) : __(':h h :m min', { h, m });
 }
 
 /**
@@ -255,15 +256,15 @@ export function elapsed(from, now = Date.now()) {
     if (sec < 60) return __('just now');
 
     const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m`;
+    if (min < 60) return __(':n min', { n: min });
 
     const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}h`;
+    if (hr < 24) return __(':n h', { n: hr });
 
     const day = Math.floor(hr / 24);
-    if (day < 365) return `${day}d`;
+    if (day < 365) return __(':n d', { n: day });
 
-    return `${Math.floor(day / 365)}y`;
+    return __(':n y', { n: Math.floor(day / 365) });
 }
 
 /**

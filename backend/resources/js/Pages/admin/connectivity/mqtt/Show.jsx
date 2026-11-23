@@ -102,8 +102,8 @@ export default function MqttShow() {
 
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-4">
-                    <StatCard value={connection.topics.length} label="Topics" />
-                    <StatCard value={formatNumber(Number(connection.messages_received))} label="Messages received" />
+                    <StatCard value={connection.topics.length} label={__('Topics')} />
+                    <StatCard value={formatNumber(Number(connection.messages_received))} label={__('Messages received')} />
                     <StatCard value={statusLabel(connection.status)} label={connection.last_connected_at ?? __('Never')} />
                 </div>
 
@@ -428,7 +428,7 @@ function CountStepFields({ value, onChange }) {
 
     return (
         <div className="grid grid-cols-2 gap-2 rounded border border-om-line2 bg-om-card p-2">
-            <MiniField label="Line">
+            <MiniField label={__('Line')}>
                 <Dropdown
                     value={p.line_id != null ? String(p.line_id) : ''}
                     onChange={(v) => set({ line_id: v ? Number(v) : '', workstation_id: '' })}
@@ -439,7 +439,7 @@ function CountStepFields({ value, onChange }) {
                     className="w-full"
                 />
             </MiniField>
-            <MiniField label="Station (workstation)">
+            <MiniField label={__('Station (workstation)')}>
                 <Dropdown
                     value={p.workstation_id != null ? String(p.workstation_id) : ''}
                     onChange={(v) => set({ workstation_id: v ? Number(v) : '', step_number: '' })}
@@ -451,10 +451,10 @@ function CountStepFields({ value, onChange }) {
                     className="w-full"
                 />
             </MiniField>
-            <MiniField label="…or step number">
+            <MiniField label={__('…or step number')}>
                 <input type="number" min="1" value={p.step_number ?? ''} onChange={(e) => set({ step_number: e.target.value ? Number(e.target.value) : '', workstation_id: '' })} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
             </MiniField>
-            <MiniField label="Increment per pulse">
+            <MiniField label={__('Increment per pulse')}>
                 <input type="number" min="1" value={p.increment ?? 1} onChange={(e) => set({ increment: e.target.value ? Number(e.target.value) : 1 })} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
             </MiniField>
             <div className="col-span-2">
@@ -490,10 +490,10 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
         <div className="mt-2 pt-2 border-t border-om-line2">
             <form onSubmit={submit} className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                    <MiniField label="Field path">
+                    <MiniField label={__('Field path')}>
                         <input type="text" value={form.data.field_path} onChange={(e) => form.setData('field_path', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
-                    <MiniField label="Action type">
+                    <MiniField label={__('Action type')}>
                         <Dropdown
                             value={form.data.action_type}
                             onChange={(v) => form.setData('action_type', v)}
@@ -501,23 +501,23 @@ function EditMappingForm({ mapping, topic, connectionId, onClose }) {
                             className="w-full"
                         />
                     </MiniField>
-                    <MiniField label="Condition" error={form.errors.condition_expr}>
+                    <MiniField label={__('Condition')} error={form.errors.condition_expr}>
                         <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
-                    <MiniField label="Priority">
+                    <MiniField label={__('Priority')}>
                         <input type="number" value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)} min="1" max="9999" className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                 </div>
                 {form.data.action_type === 'count_step' ? (
-                    <MiniField label="Counting">
+                    <MiniField label={__('Counting')}>
                         <CountStepFields value={form.data.action_params} onChange={(s) => form.setData('action_params', s)} />
                     </MiniField>
                 ) : (
-                    <MiniField label="Action params (JSON)" error={form.errors.action_params}>
+                    <MiniField label={__('Action params (JSON)')} error={form.errors.action_params}>
                         <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={2} className="w-full px-2 py-1 text-xs font-mono border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                     </MiniField>
                 )}
-                <MiniField label="Description">
+                <MiniField label={__('Description')}>
                     <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} className="w-full px-2 py-1 text-xs border border-om-line rounded bg-om-card text-om-ink focus:ring-1 focus:ring-om-accent" />
                 </MiniField>
                 <div className="flex gap-2">
@@ -634,7 +634,7 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                 <MiniField label="Field path — e.g. $.qty or $.data.value">
                     <input type="text" value={form.data.field_path} onChange={(e) => form.setData('field_path', e.target.value)} placeholder="$.value" className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
-                <MiniField label="Action type *">
+                <MiniField label={__('Action type *')}>
                     <Dropdown
                         value={form.data.action_type}
                         onChange={(v) => form.setData('action_type', v)}
@@ -645,12 +645,12 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                 <MiniField label="Condition — e.g. value > 0" error={form.errors.condition_expr}>
                     <input type="text" value={form.data.condition_expr} onChange={(e) => form.setData('condition_expr', e.target.value)} placeholder="value > 0" className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
-                <MiniField label="Priority">
+                <MiniField label={__('Priority')}>
                     <input type="number" value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)} min="1" max="9999" className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
             </div>
             {form.data.action_type === 'count_step' ? (
-                <MiniField label="Counting — pick the line and station">
+                <MiniField label={__('Counting — pick the line and station')}>
                     <CountStepFields value={form.data.action_params} onChange={(s) => form.setData('action_params', s)} />
                 </MiniField>
             ) : (
@@ -658,7 +658,7 @@ function AddMappingForm({ connectionId, topicId, onClose }) {
                     <textarea value={form.data.action_params} onChange={(e) => form.setData('action_params', e.target.value)} rows={3} placeholder='{"order_no_path": "$.order_no", "qty_path": "$.qty"}' className="w-full px-2 py-1.5 text-xs font-mono border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
                 </MiniField>
             )}
-            <MiniField label="Description">
+            <MiniField label={__('Description')}>
                 <input type="text" value={form.data.description} onChange={(e) => form.setData('description', e.target.value)} placeholder={__('e.g. Update produced qty from machine counter')} className="w-full px-2 py-1.5 text-xs border border-om-line rounded-om-sm bg-om-card text-om-ink focus:ring-2 focus:ring-om-accent focus:border-transparent" />
             </MiniField>
             <div className="flex gap-2">

@@ -140,7 +140,7 @@ export const ADMIN_GROUPS = [
             '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
             '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
             '/admin/issues', '/admin/scrap-reasons', '/packaging/eans', '/packaging/station',
-            '/packaging/label-templates', '/admin/work-order-change-requests',
+            '/packaging/label-templates', '/admin/work-order-change-requests', '/admin/coa',
         ],
         children: [
             // Process templates, their BOMs and engineering documents all hang
@@ -175,6 +175,7 @@ export const ADMIN_GROUPS = [
             // What the shop floor reported, and what an operator picks from when
             // reporting it. Both governed by the quality tab, not Production.
             { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
+            { label: 'COA 与放行', href: '/admin/coa', match: ['/admin/coa'], tab: 'quality', lucide: 'file-check' },
             { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
             // What an operator picks from when a machine stops. Feeds OEE
             // availability, so it sits with the other shop-floor dictionaries.

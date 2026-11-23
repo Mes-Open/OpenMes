@@ -753,7 +753,7 @@ function Sidebar({
                                 {showLabels && (
                                     <div className="flex-1 min-w-0 text-left">
                                         <p className="text-[13px] font-medium text-om-ink truncate">{auth?.user?.name}</p>
-                                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{__(auth?.user?.roles?.[0] ?? 'User')}</p>
                                     </div>
                                 )}
                             </Link>

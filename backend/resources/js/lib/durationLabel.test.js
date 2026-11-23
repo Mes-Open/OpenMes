@@ -3,14 +3,14 @@ import { durationLabel } from './i18n';
 
 describe('durationLabel', () => {
     it('formats minutes as hours and minutes', () => {
-        expect(durationLabel(0)).toBe('0m');
-        expect(durationLabel(45)).toBe('45m');
-        expect(durationLabel(300)).toBe('5h');
-        expect(durationLabel(333)).toBe('5h 33m');
+        expect(durationLabel(0)).toBe('0 min');
+        expect(durationLabel(45)).toBe('45 min');
+        expect(durationLabel(300)).toBe('5 h');
+        expect(durationLabel(333)).toBe('5 h 33 min');
     });
 
     it('never prints NaN or negatives', () => {
-        expect(durationLabel(null)).toBe('0m');
-        expect(durationLabel(-5)).toBe('0m');
+        expect(durationLabel(null)).toBe('0 min');
+        expect(durationLabel(-5)).toBe('0 min');
     });
 });

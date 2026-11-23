@@ -65,40 +65,40 @@ export default function OeeShow() {
             accessorKey: 'planned_minutes',
             header: 'Planned',
             meta: { align: 'right' },
-            cell: ({ row }) => <span className="font-mono">{row.original.planned_minutes}min</span>,
+            cell: ({ row }) => <span className="font-mono">{row.original.planned_minutes} 分钟</span>,
         },
         {
             id: 'operating_minutes',
             accessorKey: 'operating_minutes',
-            header: 'Operating',
+            header: () => __('Operating'),
             meta: { align: 'right' },
-            cell: ({ row }) => <span className="font-mono">{row.original.operating_minutes}min</span>,
+            cell: ({ row }) => <span className="font-mono">{row.original.operating_minutes} 分钟</span>,
         },
         {
             id: 'downtime_minutes',
             accessorKey: 'downtime_minutes',
-            header: 'Downtime',
+            header: () => __('Downtime'),
             meta: { align: 'right' },
-            cell: ({ row }) => <span className="font-mono text-om-blocked">{row.original.downtime_minutes}min</span>,
+            cell: ({ row }) => <span className="font-mono text-om-blocked">{row.original.downtime_minutes} 分钟</span>,
         },
         {
             id: 'availability_pct',
             accessorKey: 'availability_pct',
-            header: 'A%',
+            header: () => __('Availability') + '%',
             meta: { align: 'right' },
             cell: ({ row }) => (row.original.availability_pct != null ? Number(row.original.availability_pct).toFixed(1) + '%' : '—'),
         },
         {
             id: 'performance_pct',
             accessorKey: 'performance_pct',
-            header: 'P%',
+            header: () => __('Performance') + '%',
             meta: { align: 'right' },
             cell: ({ row }) => (row.original.performance_pct != null ? Number(row.original.performance_pct).toFixed(1) + '%' : '—'),
         },
         {
             id: 'quality_pct',
             accessorKey: 'quality_pct',
-            header: 'Q%',
+            header: () => __('Quality') + '%',
             meta: { align: 'right' },
             cell: ({ row }) => (row.original.quality_pct != null ? Number(row.original.quality_pct).toFixed(1) + '%' : '—'),
         },
@@ -208,7 +208,7 @@ export default function OeeShow() {
                                             <div className={`h-full rounded-full ${bg}`} style={{ width: `${pct}%` }} />
                                         </div>
                                         <div className="w-28 text-right shrink-0">
-                                            <span className="text-sm font-mono font-bold text-om-muted">{item.total_minutes}min</span>
+                                            <span className="text-sm font-mono font-bold text-om-muted">{item.total_minutes} 分钟</span>
                                             <span className="text-xs text-om-faint ml-1">({item.count}×)</span>
                                         </div>
                                         <div className="w-16 text-right shrink-0" title={__('Cumulative share of downtime')}>

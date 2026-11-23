@@ -181,7 +181,7 @@ export default function MaterialLotShow({ lot }) {
                 <div className="card mb-6">
                     <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide mb-4">{__('Info')}</h2>
                     <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                        <InfoCell label="Material">
+                        <InfoCell label={__('Material')}>
                             {lot.material ? (
                                 <>
                                     <span className="font-medium">{lot.material.name}</span>
@@ -189,13 +189,13 @@ export default function MaterialLotShow({ lot }) {
                                 </>
                             ) : '—'}
                         </InfoCell>
-                        <InfoCell label="Quantity">
+                        <InfoCell label={__('Quantity')}>
                             <span className="font-mono">
                                 {trimQty(lot.quantity_available)} / {trimQty(lot.quantity_received)}{' '}
                                 <span className="text-xs text-om-muted">{lot.unit_of_measure}</span>
                             </span>
                         </InfoCell>
-                        <InfoCell label="Expiry">
+                        <InfoCell label={__('Expiry')}>
                             {lot.expiry_date ? (
                                 <span className={expiryPast ? 'text-om-blocked font-semibold' : 'text-om-ink'}>
                                     {fmtDate(lot.expiry_date)}
@@ -204,12 +204,12 @@ export default function MaterialLotShow({ lot }) {
                                 <span className="text-om-faint">—</span>
                             )}
                         </InfoCell>
-                        <InfoCell label="Manufacturing date">
+                        <InfoCell label={__('Manufacturing date')}>
                             {fmtDate(lot.manufacturing_date) ?? '—'}
                         </InfoCell>
-                        <InfoCell label="Supplier lot">{lot.supplier_lot_no ?? '—'}</InfoCell>
-                        <InfoCell label="Supplier reference">{lot.supplier_reference ?? '—'}</InfoCell>
-                        <InfoCell label="Inspection">
+                        <InfoCell label={__('Supplier lot')}>{lot.supplier_lot_no ?? '—'}</InfoCell>
+                        <InfoCell label={__('Supplier reference')}>{lot.supplier_reference ?? '—'}</InfoCell>
+                        <InfoCell label={__('Inspection')}>
                             {lot.inspection ? (
                                 <Link
                                     href={`/operator/inspections/${lot.inspection.id}`}
@@ -221,8 +221,8 @@ export default function MaterialLotShow({ lot }) {
                                  <span className="text-om-faint">{__('Not linked')}</span>
                             )}
                         </InfoCell>
-                        <InfoCell label="Source">{lot.source?.external_name ?? '—'}</InfoCell>
-                        <InfoCell label="Created by">{lot.created_by?.name ?? '—'}</InfoCell>
+                        <InfoCell label={__('Source')}>{lot.source?.external_name ?? '—'}</InfoCell>
+                        <InfoCell label={__('Created by')}>{lot.created_by?.name ?? '—'}</InfoCell>
                     </dl>
                 </div>
 

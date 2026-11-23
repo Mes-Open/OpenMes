@@ -104,11 +104,11 @@ function TimedCorrectLink({ entry, qtyEditPolicy, qtyEditWindowMinutes }) {
     if (!visible) return null;
 
     return (
-        <Tooltip label="Correct quantity">
+        <Tooltip label={__('Correct quantity')}>
             <Link
                 href={`/operator/shift-entry/${entry.id}/correct`}
                 className="w-6 h-6 flex items-center justify-center rounded-[6px] text-om-faint hover:text-om-accent hover:bg-om-selected transition-colors"
-                aria-label="Correct quantity"
+                aria-label={__('Correct quantity')}
                 onClick={(e) => e.stopPropagation()}
             >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -400,7 +400,7 @@ function InfoModal({ info, onClose }) {
                     </InfoRow>
                     {info.description && info.description !== '-' && (
                         <div>
-                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">Description</p>
+                            <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__('Description')}</p>
                             <p className="text-sm text-om-ink bg-om-panel border border-om-line2 rounded-om-sm p-2">{info.description}</p>
                         </div>
                     )}
@@ -458,7 +458,7 @@ function ReportModal({ report, issueTypes, onClose }) {
                 className="relative w-full max-w-lg overflow-hidden rounded-om border border-om-line bg-om-card shadow-[0_20px_50px_-20px_rgba(0,0,0,.35)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <ModalHeader title="Report Issue" subtitle={report.woNo} onClose={onClose} />
+                <ModalHeader title={__('Report Issue')} subtitle={report.woNo} onClose={onClose} />
 
                 <form onSubmit={handleSubmit}>
                     <div className="px-[18px] py-4 space-y-4">
@@ -499,7 +499,7 @@ function ReportModal({ report, issueTypes, onClose }) {
                                 Title <span className="text-om-blocked">*</span>
                             </div>
                             <input
-                                aria-label="Title"
+                                aria-label={__('Title')}
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
@@ -514,7 +514,7 @@ function ReportModal({ report, issueTypes, onClose }) {
                                 Details <span className="text-om-faint normal-case tracking-normal">(optional)</span>
                             </div>
                             <textarea
-                                aria-label="Details"
+                                aria-label={__('Details')}
                                 value={desc}
                                 onChange={(e) => setDesc(e.target.value)}
                                 rows={3}
@@ -619,23 +619,23 @@ function RowActions({ wo, labelTemplates, routingOpen, onToggleRouting, onComple
                 </Link>
             )}
             {!isDone && !wo.uses_step_ledger && (
-                <Tooltip label="Add produced quantity">
+                <Tooltip label={__('Add produced quantity')}>
                     <IconButton
                         variant="primary"
                         onClick={() => onComplete({ open: true, id: wo.id, orderNo: wo.order_no, product: wo.product_type?.name ?? wo.order_no, planned, produced })}
                         className="bg-om-accent hover:bg-om-accent hover:brightness-95"
-                        aria-label="Add produced quantity"
+                        aria-label={__('Add produced quantity')}
                     >
                         +
                     </IconButton>
                 </Tooltip>
             )}
-            <Tooltip label="Report problem">
-                <IconButton variant="danger" onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })} aria-label="Report problem">
+            <Tooltip label={__('Report problem')}>
+                <IconButton variant="danger" onClick={() => onReport({ woId: wo.id, woNo: wo.order_no })} aria-label={__('Report problem')}>
                     !
                 </IconButton>
             </Tooltip>
-            <Tooltip label="Details">
+            <Tooltip label={__('Details')}>
                 <IconButton
                     variant="default"
                     onClick={() =>
@@ -656,7 +656,7 @@ function RowActions({ wo, labelTemplates, routingOpen, onToggleRouting, onComple
                             description: wo.description ?? '-',
                         })
                     }
-                    aria-label="Details"
+                    aria-label={__('Details')}
                 >
                     ?
                 </IconButton>

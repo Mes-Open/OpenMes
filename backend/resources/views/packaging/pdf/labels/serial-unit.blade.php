@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Serial Unit Labels</title>
+    <title>序列单元标签</title>
     {{--
         A unit label has one job: the serial number, readable by eye and by
         scanner, on a small sticker. Every block sits at a fixed position, sized

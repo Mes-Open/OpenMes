@@ -5,7 +5,7 @@ import ResourceFormDrawer, { useResourceDrawer } from '../../../components/Resou
 import { TRACKING_LABELS, materialFields, materialInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
-const trackingLabel = (r) => TRACKING_LABELS[r.tracking_type] ?? r.tracking_type ?? '—';
+const trackingLabel = (r) => __(TRACKING_LABELS[r.tracking_type] ?? r.tracking_type ?? '—');
 
 export default function MaterialsIndex() {
     const { counts = {}, materialTypeNames = {}, materialTypes, customFields } = usePage().props;

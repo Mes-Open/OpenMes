@@ -175,6 +175,39 @@ $app = Application::configure(basePath: dirname(__DIR__))
             }
 
             if (in_array($response->getStatusCode(), [500, 503, 404, 403, 429], true)) {
+                // A routing-level 404 runs before StartSession and SetLocale.
+                // The locale cookie written by /locale/{locale} lets the Error
+                // page render in the viewer's chosen language instead of
+                // silently falling back to English.
+                $available = config('app.available_locales', []);
+                $rawLocale = $request->cookie('openmes_locale');
+                $locale = null;
+                if (is_string($rawLocale) && $rawLocale !== '') {
+                    // A bare routing error runs before EncryptCookies, so the
+                    // request exposes the raw (encrypted) cookie value. Try it
+                    // as-is first (legacy/plain values), then decrypt it.
+                    $candidates = [$rawLocale];
+                    try {
+                        $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($rawLocale);
+                        $candidates[] = \Illuminate\Cookie\CookieValuePrefix::remove($decrypted);
+                    } catch (\Throwable) {
+                        // Not an encrypted value — fall through with the raw one.
+                    }
+                    foreach ($candidates as $candidate) {
+                        if (is_string($candidate) && array_key_exists($candidate, $available)) {
+                            $locale = $candidate;
+                            break;
+                        }
+                    }
+                }
+                if ($locale !== null) {
+                    app()->setLocale($locale);
+                    \Inertia\Inertia::share([
+                        'locale' => $locale,
+                        'locales' => $available,
+                    ]);
+                }
+
                 // Pin the root view (a routing 404 fires before the Inertia
                 // middleware sets it) and (re)share auth/nav so the Error page
                 // keeps the user's sidebar. The share touches the session, which
@@ -187,7 +220,15 @@ $app = Application::configure(basePath: dirname(__DIR__))
                     );
                 }
 
-                return \Inertia\Inertia::render('Error', ['status' => $response->getStatusCode()])
+                return \Inertia\Inertia::render('Error', [
+                    'status' => $response->getStatusCode(),
+                    // Pass the locale as a page prop too: a bare routing error can
+                    // be rendered before Inertia's shared props are merged, and the
+                    // front-end bootstrap reads `initialPage.props.locale` to load
+                    // the right translation chunk.
+                    'locale' => $locale ?: config('app.locale', 'en'),
+                    'locales' => $available,
+                ])
                     ->toResponse($request)
                     ->setStatusCode($response->getStatusCode());
             }

@@ -151,6 +151,11 @@ Route::get('/offline', function () {
 Route::get('/locale/{locale}', function (string $locale) {
     if (array_key_exists($locale, config('app.available_locales', []))) {
         session(['locale' => $locale]);
+
+        // Also persist outside the session: routing-level errors (bare 404s)
+        // happen before StartSession, and the error page still needs the
+        // viewer's chosen locale to render translated copy.
+        return back()->withCookie(cookie()->forever('openmes_locale', $locale));
     }
 
     return back();
@@ -777,6 +782,19 @@ Route::middleware('auth')->group(function () {
         // Batch Reports
         Route::get('/batches/{batch}/report', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'show'])->name('batch-report');
         Route::get('/batches/{batch}/report/pdf', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'pdf'])->name('batch-report.pdf');
+        Route::get('/batches/{batch}/coa/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('batch-report.coa');
+
+        // COA & release workbench
+        Route::get('/coa', [\App\Http\Controllers\Web\Admin\CoaController::class, 'index'])->name('coa.index');
+        Route::get('/coa/{batch}/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('coa.pdf');
+        Route::get('/coa/{batch}', [\App\Http\Controllers\Web\Admin\CoaController::class, 'show'])->name('coa.show');
+        Route::post('/coa/{batch}/release', [\App\Http\Controllers\Web\Admin\CoaController::class, 'release'])->name('coa.release');
+        Route::post('/coa/{batch}/draft', [\App\Http\Controllers\Web\Admin\CoaController::class, 'draft'])->name('coa.draft');
+        Route::post('/coa/{batch}/submit', [\App\Http\Controllers\Web\Admin\CoaController::class, 'submit'])->name('coa.submit');
+        Route::post('/coa/{batch}/approve', [\App\Http\Controllers\Web\Admin\CoaController::class, 'approve'])->name('coa.approve');
+        Route::post('/coa/{batch}/issue', [\App\Http\Controllers\Web\Admin\CoaController::class, 'issue'])->name('coa.issue');
+        Route::post('/coa/{batch}/void', [\App\Http\Controllers\Web\Admin\CoaController::class, 'void'])->name('coa.void');
+        Route::post('/coa/{batch}/reissue', [\App\Http\Controllers\Web\Admin\CoaController::class, 'reissue'])->name('coa.reissue');
 
         // Materials Management
         Route::resource('material-types', \App\Http\Controllers\Web\Admin\MaterialTypeController::class)->except(['show']);

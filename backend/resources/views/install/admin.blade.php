@@ -1,46 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Admin Account - Install OpenMES</title>
+    <title>管理员账号 - 安装 OpenMES</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-2xl">
         <div class="text-center mb-8">
             <img src="/logo_open_mes.png" alt="OpenMES" class="h-16 md:h-20 mx-auto mb-2">
-            <h1 class="text-2xl font-bold text-gray-800">Installation Wizard</h1>
-            <p class="text-gray-600 mt-2">Step 3 of 3: Create Admin Account</p>
+            <h1 class="text-2xl font-bold text-gray-800">安装向导</h1>
+            <p class="text-gray-600 mt-2">第 3 步，共 3 步：创建管理员账号</p>
         </div>
 
         <!-- Progress Indicator -->
         <div class="mb-8">
             <div class="flex items-center justify-center space-x-2">
                 <div class="flex items-center">
-                    <a href="{{ route('install.environment') }}" class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold hover:bg-green-700 transition" title="Edit basic configuration">✓</a>
-                    <a href="{{ route('install.environment') }}" class="ml-2 text-sm font-medium text-green-700 hover:text-green-800">Basic</a>
+                    <a href="{{ route('install.environment') }}" class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold hover:bg-green-700 transition" title="编辑基础配置">✓</a>
+                    <a href="{{ route('install.environment') }}" class="ml-2 text-sm font-medium text-green-700 hover:text-green-800">基础配置</a>
                 </div>
                 <div class="w-8 h-1 bg-green-600"></div>
                 <div class="flex items-center">
-                    <a href="{{ route('install.database') }}" class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold hover:bg-green-700 transition" title="Edit database configuration">✓</a>
-                    <a href="{{ route('install.database') }}" class="ml-2 text-sm font-medium text-green-700 hover:text-green-800">Database</a>
+                    <a href="{{ route('install.database') }}" class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold hover:bg-green-700 transition" title="编辑数据库配置">✓</a>
+                    <a href="{{ route('install.database') }}" class="ml-2 text-sm font-medium text-green-700 hover:text-green-800">数据库配置</a>
                 </div>
                 <div class="w-8 h-1 bg-green-600"></div>
                 <div class="flex items-center">
                     <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">3</div>
-                    <span class="ml-2 text-sm font-medium text-gray-800">Admin</span>
+                    <span class="ml-2 text-sm font-medium text-gray-800">管理员</span>
                 </div>
             </div>
         </div>
 
         <div class="bg-white rounded-lg shadow-xl p-8">
             <div class="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-                ✓ Database configured successfully!
+                ✓ 数据库配置成功！
             </div>
 
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Create Administrator Account</h2>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">创建管理员账号</h2>
 
             @if($errors->any())
                 <div class="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
@@ -61,10 +61,10 @@
                 @csrf
 
                 @unless($preset ?? false)
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Site Information</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">站点信息</h3>
 
                 <div class="mb-4">
-                    <label for="site_name" class="form-label">Site Name</label>
+                    <label for="site_name" class="form-label">站点名称</label>
                     <input
                         type="text"
                         id="site_name"
@@ -73,11 +73,11 @@
                         class="form-input w-full"
                         required
                     >
-                    <p class="text-sm text-gray-500 mt-1">The name of your manufacturing site</p>
+                    <p class="text-sm text-gray-500 mt-1">制造站点的名称</p>
                 </div>
 
                 <div class="mb-6">
-                    <label for="site_url" class="form-label">Site URL</label>
+                    <label for="site_url" class="form-label">站点地址</label>
                     <input
                         type="url"
                         id="site_url"
@@ -86,14 +86,14 @@
                         class="form-input w-full"
                         required
                     >
-                    <p class="text-sm text-gray-500 mt-1">The URL where the application will be accessed</p>
+                    <p class="text-sm text-gray-500 mt-1">访问本应用的地址</p>
                 </div>
                 @endunless
 
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 mt-8">Administrator Account</h3>
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 mt-8">管理员账号</h3>
 
                 <div class="mb-4">
-                    <label for="admin_username" class="form-label">Username</label>
+                    <label for="admin_username" class="form-label">用户名</label>
                     <input
                         type="text"
                         id="admin_username"
@@ -102,11 +102,11 @@
                         class="form-input w-full"
                         required
                     >
-                    <p class="text-sm text-gray-500 mt-1">Your admin login username</p>
+                    <p class="text-sm text-gray-500 mt-1">管理员登录用户名</p>
                 </div>
 
                 <div class="mb-4">
-                    <label for="admin_email" class="form-label">Email Address</label>
+                    <label for="admin_email" class="form-label">邮箱地址</label>
                     <input
                         type="email"
                         id="admin_email"
@@ -118,7 +118,7 @@
                 </div>
 
                 <div class="mb-4">
-                    <label for="admin_password" class="form-label">Password</label>
+                    <label for="admin_password" class="form-label">密码</label>
                     <div class="relative">
                         <input
                             :type="showPassword ? 'text' : 'password'"
@@ -143,11 +143,11 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="text-sm text-gray-500 mt-1">Minimum 8 characters</p>
+                    <p class="text-sm text-gray-500 mt-1">至少 8 个字符</p>
                 </div>
 
                 <div class="mb-6">
-                    <label for="admin_password_confirmation" class="form-label">Confirm Password</label>
+                    <label for="admin_password_confirmation" class="form-label">确认密码</label>
                     <div class="relative">
                         <input
                             :type="showPasswordConfirmation ? 'text' : 'password'"
@@ -173,15 +173,15 @@
                         </button>
                     </div>
                     <p class="text-sm mt-1" :class="password && passwordConfirmation && password === passwordConfirmation ? 'text-green-600' : 'text-gray-500'">
-                        <span x-show="!passwordConfirmation">Re-enter your password</span>
-                        <span x-show="passwordConfirmation && password !== passwordConfirmation" class="text-red-600">Passwords do not match</span>
-                        <span x-show="password && passwordConfirmation && password === passwordConfirmation">✓ Passwords match</span>
+                        <span x-show="!passwordConfirmation">请再次输入密码</span>
+                        <span x-show="passwordConfirmation && password !== passwordConfirmation" class="text-red-600">两次输入的密码不一致</span>
+                        <span x-show="password && passwordConfirmation && password === passwordConfirmation">✓ 密码一致</span>
                     </p>
                 </div>
 
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                     <p class="text-blue-800 text-sm">
-                        <strong>Important:</strong> Save these credentials securely! You will need them to access the system.
+                        <strong>重要：</strong> 请妥善保存这些凭据，登录系统时需要使用。
                     </p>
                 </div>
 
@@ -210,13 +210,13 @@
                             class="mt-1"
                         >
                         <span class="text-sm text-gray-700">
-                            <strong class="text-gray-900">Send anonymous usage reports</strong><br>
-                            OpenMES sends information <strong>about the software</strong> — versions, which
-                            features are switched on, rough size bands, and where errors occur (class, file
-                            and line). It never sends anything you entered into OpenMES: no material or
-                            product codes, no lot numbers, no order data, no recipes, no personal data, and
-                            no error message text.<br>
-                            <span class="text-gray-500">You can change this at any time in Settings → System.</span>
+                            <strong class="text-gray-900">发送匿名使用报告</strong><br>
+                            OpenMES 会发送 <strong>有关软件本身的信息</strong> ，包括版本、已启用的
+                            功能、大致规模区间，以及错误发生位置（类、文件和
+                            行号）。绝不会发送你在 OpenMES 中输入的任何内容：不发送物料或
+                            产品编码、批号、订单数据、配方、个人数据，也
+                            不发送错误消息正文。<br>
+                            <span class="text-gray-500">你可以随时在“设置 → 系统”中修改。</span>
                         </span>
                     </label>
                 </div>
@@ -228,7 +228,7 @@
                         :disabled="!password || !passwordConfirmation || password !== passwordConfirmation"
                         :class="{ 'opacity-50 cursor-not-allowed': !password || !passwordConfirmation || password !== passwordConfirmation }"
                     >
-                        Complete Installation
+                        完成安装
                     </button>
                 </div>
             </form>

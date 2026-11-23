@@ -1,9 +1,9 @@
 import { __ } from '../../../lib/i18n';
 
 const TRACKING = [
-    { value: 'none', label: __('None') },
-    { value: 'batch', label: __('Batch') },
-    { value: 'serial', label: __('Serial') },
+    { value: 'none', label: 'None' },
+    { value: 'batch', label: 'Batch' },
+    { value: 'serial', label: 'Serial' },
 ];
 
 export function materialFields(materialTypes) {
@@ -21,7 +21,7 @@ export function materialFields(materialTypes) {
             ],
         },
         { name: 'unit_of_measure', label: __('Unit of Measure'), placeholder: __('pcs'), help: __('e.g. pcs, kg, l, m. Optional.') },
-        { name: 'tracking_type', label: __('Tracking'), type: 'select', options: TRACKING, help: __('Batch = grouped lots, Serial = individual items, None = untracked.') },
+        { name: 'tracking_type', label: __('Tracking'), type: 'select', options: TRACKING.map((t) => ({ ...t, label: __(t.label) })), help: __('Batch = grouped lots, Serial = individual items, None = untracked.') },
         { name: 'default_scrap_percentage', label: __('Default Scrap %'), type: 'number', help: __('Pre-fills the scrap % on BOM lines using this material; can be overridden.') },
         { name: 'description', label: __('Description'), type: 'textarea' },
         { name: 'external_code', label: __('External Code'), help: __('Only for ERP/integration sync — leave blank otherwise.') },

@@ -3,6 +3,7 @@ import { __ } from '../../../lib/i18n';
 /** Localized display label for a material-lot status enum value. */
 export function materialLotStatusLabel(status) {
     const labels = {
+        available: __('Available'),
         received: __('Received'),
         quarantine: __('Quarantine'),
         released: __('Released'),

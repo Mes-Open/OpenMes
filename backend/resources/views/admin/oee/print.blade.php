@@ -82,7 +82,7 @@
 
             {{-- Summary stats --}}
             <div class="avoid-break" style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
-                <x-oee-gauge :value="$s['avg_oee']" :size="160" label="AVG OEE" />
+                <x-oee-gauge :value="$s['avg_oee']" :size="160" label="平均 OEE" />
                 <div style="flex: 1;" class="grid-4">
                     <div class="stat">
                         <div class="stat-label">{{ __('Availability') }}</div>
@@ -110,7 +110,7 @@
                     </div>
                     <div class="stat">
                         <div class="stat-label">{{ __('Downtime') }}</div>
-                        <div class="stat-value">{{ $s['total_downtime'] }} min</div>
+                        <div class="stat-value">{{ $s['total_downtime'] }} 分钟</div>
                     </div>
                     <div class="stat">
                         <div class="stat-label">{{ __('Rating') }}</div>
@@ -145,7 +145,7 @@
                             <div class="pareto-bar" style="flex: 1;">
                                 <div class="pareto-fill" style="width: {{ ($item['total_minutes'] / $maxMinutes) * 100 }}%; background: {{ $fillColor }};"></div>
                             </div>
-                            <span style="width: 80px; text-align: right; font-family: monospace;">{{ $item['total_minutes'] }} min ({{ $item['count'] }}×)</span>
+                            <span style="width: 80px; text-align: right; font-family: monospace;">{{ $item['total_minutes'] }} 分钟 ({{ $item['count'] }}×)</span>
                         </div>
                     @endforeach
                 </div>
@@ -162,9 +162,9 @@
                             <th>{{ __('Planned') }}</th>
                             <th>{{ __('Operating') }}</th>
                             <th>{{ __('Downtime') }}</th>
-                            <th>A%</th>
-                            <th>P%</th>
-                            <th>Q%</th>
+                            <th>可用性%</th>
+                            <th>性能%</th>
+                            <th>质量%</th>
                             <th>OEE%</th>
                             <th>{{ __('Produced') }}</th>
                             <th>{{ __('Scrap') }}</th>
