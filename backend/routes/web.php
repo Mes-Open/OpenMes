@@ -803,6 +803,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/customer-flavor-standards/{customerFlavorStandard}', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'destroy'])->name('customer-flavor-standards.destroy');
         Route::post('/customer-flavor-standards/{customerFlavorStandard}/toggle-status', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'toggleStatus'])->name('customer-flavor-standards.toggle-status');
 
+        Route::get('/quality', [\App\Http\Controllers\Web\Admin\QualityConsoleController::class, 'index'])->name('quality.index');
         Route::get('/coa', [\App\Http\Controllers\Web\Admin\CoaController::class, 'index'])->name('coa.index');
         Route::get('/coa/{batch}/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('coa.pdf');
         Route::get('/coa/{batch}', [\App\Http\Controllers\Web\Admin\CoaController::class, 'show'])->name('coa.show');
