@@ -104,7 +104,7 @@ export default function CoaIndex() {
                                         <td className="px-3 py-4">
                                             <GateMini gate={row.release_gate} />
                                             <div className="mt-1 text-xs text-om-muted">
-                                                产出 {formatNumber(row.produced_qty)} kg
+                                                产出 {formatNumber(row.produced_qty)} {row.unit_of_measure || 'kg'}
                                             </div>
                                         </td>
                                         <td className="px-3 py-4">

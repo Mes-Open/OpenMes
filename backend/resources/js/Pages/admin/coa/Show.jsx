@@ -184,7 +184,7 @@ export default function CoaShow() {
                             ['生产工单', batch.order_no ?? '—'],
                             ['生产批次', batch.lot_number ?? `B${batch.batch_number}`],
                             ['产线', batch.line ?? '—'],
-                            ['成品数量', `${formatNumber(batch.produced_qty)} kg`],
+                            ['成品数量', `${formatNumber(batch.produced_qty)} ${batch.unit_of_measure || 'kg'}`],
                             ['生产完成', batch.completed_at ? formatDateTime(batch.completed_at) : '—'],
                             ['保质期至', batch.expiry_date ?? '—'],
                             ['放行', batch.released_at ? `${batch.released_by ?? '—'} · ${formatDateTime(batch.released_at)}` : '未放行'],
