@@ -15,7 +15,7 @@ const DISPOSITION_LABELS = {
     quarantine: '隔离', scrap: '报废', return_to_supplier: '退货', reject: '拒收',
 };
 const LOT_LABELS = {
-    received: '已收货', quarantine: '隔离', released: '已放行',
+    received: '已收货', quarantine: '质量冻结', released: '已放行',
     consumed: '已耗用', expired: '过期', rejected: '拒收',
 };
 
