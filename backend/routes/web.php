@@ -795,6 +795,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/coa', [\App\Http\Controllers\Web\Admin\CoaController::class, 'index'])->name('coa.index');
         Route::get('/coa/{batch}/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('coa.pdf');
         Route::get('/coa/{batch}', [\App\Http\Controllers\Web\Admin\CoaController::class, 'show'])->name('coa.show');
+        Route::post('/coa/{batch}/weighings', [\App\Http\Controllers\Web\Admin\CoaController::class, 'recordWeighing'])->name('coa.weighings.store');
         Route::post('/coa/{batch}/lab-tests', [\App\Http\Controllers\Web\Admin\CoaController::class, 'recordLabTest'])->name('coa.lab-tests.store');
         Route::post('/coa/{batch}/lab-tests/{labTest}/attachment', [\App\Http\Controllers\Web\Admin\CoaController::class, 'uploadLabAttachment'])->name('coa.lab-tests.attachment.store');
         Route::get('/coa/{batch}/lab-tests/{labTest}/attachment', [\App\Http\Controllers\Web\Admin\CoaController::class, 'downloadLabAttachment'])->name('coa.lab-tests.attachment');

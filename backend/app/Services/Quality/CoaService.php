@@ -5,6 +5,7 @@ namespace App\Services\Quality;
 use App\Models\Batch;
 use App\Models\BatchLabTest;
 use App\Models\BatchReleaseCheck;
+use App\Models\BatchWeighingRecord;
 use App\Models\CoaDocument;
 use App\Models\CoaDocumentVersion;
 use App\Models\ElectronicSignature;
@@ -113,6 +114,7 @@ class CoaService
             'packagingChecklist',
             'releaseChecks.checkedBy',
             'labTests',
+            'weighingRecords.weighedBy',
         ]);
 
         $latestCheck = $batch->qualityChecks->first();
@@ -136,6 +138,7 @@ class CoaService
                             ? '批次尚未完成，不能放行。'
                             : '批次状态为 DONE，但仍有未完成工序。'))
             ),
+            $this->weighingGate($batch),
             $this->check(
                 'quality_check',
                 '成品检验合格',
@@ -440,6 +443,7 @@ class CoaService
             'qualityChecks.checkedBy',
             'packagingChecklist',
             'labTests',
+            'weighingRecords.weighedBy',
         ]);
 
         $workOrder = $batch->workOrder;
@@ -523,6 +527,7 @@ class CoaService
                 'notes' => $batch->labTests->first()->notes,
             ] : null,
             'external_lab_required' => $this->requiresExternalLab($batch),
+            'weighing' => $this->weighingSummary($batch),
             'release_gate' => $this->releaseGate($batch),
         ];
     }
@@ -559,6 +564,112 @@ class CoaService
             '第三方检测报告：农残 / 重金属 / 微生物',
             $detail
         );
+    }
+
+    /**
+     * Raw-material BOM lines that must be weighed before release. Packaging is
+     * excluded: bag/carton/label counts are covered by label balance and the
+     * packaging checklist, not by gram-level blending tolerance.
+     *
+     * @return list<array{material_id:?int, material_code:?string, material_name:string, unit_of_measure:string, target_qty:float, tolerance_pct:float, step_number:?int}>
+     */
+    public function weighingRequirements(Batch $batch): array
+    {
+        $batch->loadMissing('workOrder');
+        $bom = $batch->workOrder?->process_snapshot['bom'] ?? [];
+        $targetQty = (float) $batch->target_qty;
+        $out = [];
+
+        foreach ($bom as $item) {
+            if (($item['component_kind'] ?? 'material') !== 'material') {
+                continue;
+            }
+            if (($item['material_type'] ?? null) === 'packaging') {
+                continue;
+            }
+
+            $base = (float) ($item['quantity_per_unit'] ?? 0) * $targetQty;
+            $target = round($base * (1 + ((float) ($item['scrap_percentage'] ?? 0) / 100)), 4);
+            if ($target <= 0) {
+                continue;
+            }
+
+            $key = ($item['material_id'] ?? 'x').'@'.($item['step_number'] ?? '-');
+            if (isset($out[$key])) {
+                continue;
+            }
+
+            $out[$key] = [
+                'material_id' => isset($item['material_id']) ? (int) $item['material_id'] : null,
+                'material_code' => $item['material_code'] ?? null,
+                'material_name' => $item['material_name'] ?? '未知原料',
+                'unit_of_measure' => $item['unit_of_measure'] ?? 'kg',
+                'target_qty' => $target,
+                'tolerance_pct' => BatchWeighingRecord::DEFAULT_TOLERANCE_PCT,
+                'step_number' => isset($item['step_number']) ? (int) $item['step_number'] : null,
+            ];
+        }
+
+        return array_values($out);
+    }
+
+    /** Latest record per required material/step. */
+    public function weighingSummary(Batch $batch): array
+    {
+        $batch->loadMissing('weighingRecords.weighedBy');
+        $records = $batch->weighingRecords;
+        $rows = [];
+
+        foreach ($this->weighingRequirements($batch) as $requirement) {
+            $record = $records->first(fn (BatchWeighingRecord $candidate) => (int) $candidate->material_id === (int) $requirement['material_id']
+                && (int) $candidate->step_number === (int) $requirement['step_number']);
+
+            $rows[] = $requirement + [
+                'record' => $record ? [
+                    'id' => $record->id,
+                    'actual_qty' => (float) $record->actual_qty,
+                    'tolerance_pct' => (float) $record->tolerance_pct,
+                    'variance_qty' => (float) $record->variance_qty,
+                    'variance_pct' => (float) $record->variance_pct,
+                    'status' => $record->status,
+                    'scale_code' => $record->scale_code,
+                    'weighed_by' => $record->weighedBy?->name,
+                    'weighed_at' => $record->weighed_at?->toIso8601String(),
+                    'notes' => $record->notes,
+                ] : null,
+            ];
+        }
+
+        $passed = collect($rows)->filter(fn ($row) => $row['record'] && $row['record']['status'] === BatchWeighingRecord::STATUS_PASS)->count();
+
+        return [
+            'passed' => $passed,
+            'total' => count($rows),
+            'all_passed' => count($rows) === $passed,
+            'rows' => $rows,
+        ];
+    }
+
+    private function weighingGate(Batch $batch): array
+    {
+        $summary = $this->weighingSummary($batch);
+
+        if ($summary['total'] === 0) {
+            return $this->check('weighing', '投料称重合格', true, 'BOM 原料与称重记录', 'BOM 无需要称重的原料，本项不适用。');
+        }
+
+        $missing = collect($summary['rows'])->filter(fn ($row) => $row['record'] === null)->pluck('material_name')->all();
+        $failed = collect($summary['rows'])->filter(fn ($row) => $row['record'] && $row['record']['status'] !== BatchWeighingRecord::STATUS_PASS)->pluck('material_name')->all();
+
+        $passed = $summary['all_passed'];
+        $detail = match (true) {
+            $passed => "共 {$summary['total']} 种原料，全部在公差内。",
+            $missing !== [] && $failed !== [] => '缺少称重记录：'.implode('、', $missing).'；超差：'.implode('、', $failed).'。',
+            $missing !== [] => '尚未登记的原料：'.implode('、', $missing).'。',
+            default => '超差原料：'.implode('、', $failed).'，需复称或走偏差处理。',
+        };
+
+        return $this->check('weighing', '投料称重合格', $passed, 'BOM 原料与称重记录', $detail);
     }
 
     private function latestReleaseCheck(Batch $batch, string $type): ?BatchReleaseCheck

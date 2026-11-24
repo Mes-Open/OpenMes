@@ -6,6 +6,7 @@ use App\Enums\CustomFieldType;
 use App\Enums\RevisionLifecycle;
 use App\Models\Batch;
 use App\Models\BatchLabTest;
+use App\Models\BatchWeighingRecord;
 use App\Models\BatchReleaseCheck;
 use App\Models\BomItem;
 use App\Models\Customer;
@@ -490,6 +491,36 @@ class HoutangPilotSeeder extends Seeder
                     'recorded_by_id' => $qa?->id,
                 ]
             );
+
+            foreach (app(\App\Services\Quality\CoaService::class)->weighingRequirements($acceptance) as $requirement) {
+                $target = (float) $requirement['target_qty'];
+                $actual = round($target + ($requirement['material_name'] === '贵州绿茶毛茶（一级）' ? 0.02 : -0.03), 4);
+                $variance = round($actual - $target, 4);
+                $variancePct = $target > 0 ? round($variance / $target * 100, 3) : 0;
+
+                BatchWeighingRecord::updateOrCreate(
+                    [
+                        'batch_id' => $acceptance->id,
+                        'material_id' => $requirement['material_id'],
+                        'step_number' => $requirement['step_number'],
+                    ],
+                    [
+                        'material_code' => $requirement['material_code'],
+                        'material_name' => $requirement['material_name'],
+                        'unit_of_measure' => $requirement['unit_of_measure'],
+                        'target_qty' => $target,
+                        'actual_qty' => $actual,
+                        'tolerance_pct' => $requirement['tolerance_pct'],
+                        'variance_qty' => $variance,
+                        'variance_pct' => $variancePct,
+                        'status' => BatchWeighingRecord::STATUS_PASS,
+                        'scale_code' => 'SCALE-BLEND-01',
+                        'weighed_by_id' => $admin?->id,
+                        'weighed_at' => now(),
+                        'notes' => '验收称重示例，实际投产以电子秤读数为准。',
+                    ]
+                );
+            }
 
             foreach ([
                 [BatchReleaseCheck::TYPE_RETENTION_SAMPLE, '验收：留样 2 袋，LY-2643-01，留样柜 A'],

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Batch;
 use App\Models\BatchLabTest;
 use App\Models\BatchReleaseCheck;
+use App\Models\BatchWeighingRecord;
 use App\Models\CoaDocument;
 use App\Services\Quality\CoaService;
 use App\Support\DownloadName;
@@ -190,6 +191,7 @@ class CoaController extends Controller
             'separation' => $this->separation($batch, $document),
             'labTest' => $batch->labTests->first() ? $this->labTestPayload($batch->labTests->first()) : null,
             'labTestRequired' => $this->coa->requiresExternalLab($batch),
+            'weighing' => $this->coa->weighingSummary($batch),
             'releaseChecks' => $batch->releaseChecks
                 ->groupBy('check_type')
                 ->map(fn ($items) => $items->first())
@@ -397,6 +399,61 @@ class CoaController extends Controller
         return back()->with('success', __('外检报告已登记：:no。', ['no' => $data['report_number']]));
     }
 
+    public function recordWeighing(Request $request, Batch $batch)
+    {
+        $data = $request->validate([
+            'material_id' => ['required', 'integer'],
+            'step_number' => ['nullable', 'integer'],
+            'actual_qty' => ['required', 'numeric', 'min:0', 'max:999999'],
+            'tolerance_pct' => ['nullable', 'numeric', 'min:0', 'max:20'],
+            'scale_code' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $requirement = collect($this->coa->weighingRequirements($batch))
+            ->first(fn ($row) => (int) $row['material_id'] === (int) $data['material_id']
+                && (int) $row['step_number'] === (int) ($data['step_number'] ?? 0));
+
+        if (! $requirement) {
+            throw ValidationException::withMessages([
+                'actual_qty' => '该原料不在本批 BOM 称重要求内，不能登记。',
+            ]);
+        }
+
+        $target = (float) $requirement['target_qty'];
+        $actual = (float) $data['actual_qty'];
+        $tolerance = (float) ($data['tolerance_pct'] ?? $requirement['tolerance_pct']);
+        $variance = round($actual - $target, 4);
+        $variancePct = $target > 0 ? round($variance / $target * 100, 3) : 0.0;
+        $passed = abs($variancePct) <= $tolerance + 0.000001;
+
+        BatchWeighingRecord::create([
+            'batch_id' => $batch->id,
+            'step_number' => $requirement['step_number'],
+            'material_id' => $requirement['material_id'],
+            'material_code' => $requirement['material_code'],
+            'material_name' => $requirement['material_name'],
+            'unit_of_measure' => $requirement['unit_of_measure'],
+            'target_qty' => $target,
+            'actual_qty' => $actual,
+            'tolerance_pct' => $tolerance,
+            'variance_qty' => $variance,
+            'variance_pct' => $variancePct,
+            'status' => $passed ? BatchWeighingRecord::STATUS_PASS : BatchWeighingRecord::STATUS_FAIL,
+            'scale_code' => $data['scale_code'] ?? null,
+            'weighed_by_id' => $request->user()?->id,
+            'weighed_at' => now(),
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        return back()->with(
+            'success',
+            $passed
+                ? __('称重已登记，公差内：:name。', ['name' => $requirement['material_name']])
+                : __('称重已登记但超差：:name，放行门将判失败。', ['name' => $requirement['material_name']])
+        );
+    }
+
     public function uploadLabAttachment(Request $request, Batch $batch, BatchLabTest $labTest)
     {
         abort_unless((int) $labTest->batch_id === (int) $batch->id, 404);
@@ -475,6 +532,7 @@ class CoaController extends Controller
         $specification = $snapshot['specification'] ?? $document->specification_snapshot;
         $labTest = $snapshot['external_lab'] ?? null;
         $externalLabRequired = (bool) ($snapshot['external_lab_required'] ?? false);
+        $weighing = $snapshot['weighing'] ?? $this->coa->weighingSummary($batch);
 
         $latestCheck = $batch->qualityChecks->first();
         $samples = collect($quality['samples'] ?? [])
@@ -505,6 +563,7 @@ class CoaController extends Controller
             'qualitySnapshot' => $quality,
             'labTest' => $labTest,
             'externalLabRequired' => $externalLabRequired,
+            'weighing' => $weighing,
             'generatedAt' => $generatedAt,
             'changeReason' => $changeReason,
         ])->setPaper('a4', 'portrait');

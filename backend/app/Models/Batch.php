@@ -248,6 +248,12 @@ class Batch extends Model
         return $this->hasMany(BatchReleaseCheck::class)->orderByDesc('checked_at')->orderByDesc('id');
     }
 
+    /** 投料称重记录，按事件追加；放行门取每种原料最新一条。 */
+    public function weighingRecords(): HasMany
+    {
+        return $this->hasMany(BatchWeighingRecord::class)->orderByDesc('weighed_at')->orderByDesc('id');
+    }
+
     public function coaDocument(): HasOne
     {
         return $this->hasOne(CoaDocument::class);

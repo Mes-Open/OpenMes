@@ -260,6 +260,22 @@
             </td>
         </tr>
         <tr>
+            <th>投料称重</th>
+            <td colspan="3">
+                @php
+                    $weighingPassed = (int) ($weighing['passed'] ?? 0);
+                    $weighingTotal = (int) ($weighing['total'] ?? 0);
+                @endphp
+                @if ($weighingTotal === 0)
+                    <span class="muted">本批 BOM 无称重原料</span>
+                @elseif ($weighingPassed === $weighingTotal)
+                    <span class="pass">{{ $weighingPassed.'/'.$weighingTotal }} 种原料在公差内</span>
+                @else
+                    <span class="fail">{{ $weighingPassed.'/'.$weighingTotal }} 种原料合格，存在超差或缺记录</span>
+                @endif
+            </td>
+        </tr>
+        <tr>
             <th>执行标准</th>
             <td colspan="3">{{ $specification['standard_reference'] ?? '客户标准 / 产品企业标准（以客户批准版本为准）' }}</td>
         </tr>

@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatDateTime, formatNumber } from '../../../lib/i18n';
 
@@ -19,13 +19,13 @@ const SIGNATURE_LABEL = {
 };
 
 export default function CoaShow() {
-    const { batch, document, versions = [], releaseGate, issueGate, separation, labTest, labTestRequired = false, releaseChecks = {}, batchSignatures = [], documentSignatures = [] } = usePage().props;
+    const { batch, document, versions = [], releaseGate, issueGate, separation, weighing, labTest, labTestRequired = false, releaseChecks = {}, batchSignatures = [], documentSignatures = [] } = usePage().props;
     const form = useForm({ notes: '', reason: '' });
 
     const post = (path) => form.post(path, { preserveScroll: true });
 
     if (!document) {
-        return <NoCoa batch={batch} releaseGate={releaseGate} labTest={labTest} labTestRequired={labTestRequired} releaseChecks={releaseChecks} form={form} post={post} />;
+        return <NoCoa batch={batch} releaseGate={releaseGate} weighing={weighing} labTest={labTest} labTestRequired={labTestRequired} releaseChecks={releaseChecks} form={form} post={post} />;
     }
 
     return (
@@ -110,6 +110,8 @@ export default function CoaShow() {
                 </div>
 
                 <SeparationPanel separation={separation} />
+
+                <WeighingPanel batch={batch} weighing={weighing} />
 
                 <LabTestPanel batch={batch} labTest={labTest} labTestRequired={labTestRequired} />
 
@@ -339,7 +341,7 @@ export default function CoaShow() {
     );
 }
 
-function NoCoa({ batch, releaseGate, labTest, labTestRequired = false, releaseChecks = {}, form, post }) {
+function NoCoa({ batch, releaseGate, weighing, labTest, labTestRequired = false, releaseChecks = {}, form, post }) {
     return (
         <>
             <Head title={`${batch.lot_number ?? `B${batch.batch_number}`} — COA 与放行`} />
@@ -378,6 +380,8 @@ function NoCoa({ batch, releaseGate, labTest, labTestRequired = false, releaseCh
                         </button>
                     </div>
                 </div>
+
+                <WeighingPanel batch={batch} weighing={weighing} />
 
                 <LabTestPanel batch={batch} labTest={labTest} labTestRequired={labTestRequired} />
 
@@ -420,6 +424,129 @@ const LAB_ITEM_EXAMPLE = `农残|草甘膦|0.08 mg/kg|≤ 1.0 mg/kg|合格
 微生物|菌落总数|120 CFU/g|≤ 1000 CFU/g|合格
 微生物|大肠菌群|< 10 MPN/100g|≤ 10 MPN/100g|合格
 微生物|霉菌|< 10 CFU/g|≤ 100 CFU/g|合格`;
+
+function WeighingPanel({ batch, weighing }) {
+    const { errors = {} } = usePage().props;
+    const [openKey, setOpenKey] = useState(null);
+    const [form, setForm] = useState({ actual_qty: '', tolerance_pct: '0.5', scale_code: '', notes: '' });
+    const rows = weighing?.rows ?? [];
+    const allPassed = Boolean(weighing?.all_passed);
+    const missing = rows.filter((row) => !row.record).length;
+    const failed = rows.filter((row) => row.record && row.record.status !== 'PASS').length;
+
+    const openForm = (row) => {
+        setOpenKey(`${row.material_id}-${row.step_number}`);
+        setForm({
+            actual_qty: row.record?.actual_qty ?? row.target_qty,
+            tolerance_pct: String(row.record?.tolerance_pct ?? row.tolerance_pct ?? 0.5),
+            scale_code: row.record?.scale_code ?? '',
+            notes: row.record?.notes ?? '',
+        });
+    };
+
+    const submit = (row) => {
+        router.post(`/admin/coa/${batch.id}/weighings`, {
+            material_id: row.material_id,
+            step_number: row.step_number,
+            actual_qty: form.actual_qty,
+            tolerance_pct: form.tolerance_pct,
+            scale_code: form.scale_code,
+            notes: form.notes,
+        }, { preserveScroll: true, onSuccess: () => setOpenKey(null) });
+    };
+
+    return (
+        <Section title="投料称重" subtitle="BOM 原料目标量 vs 电子秤实际读数；超差或缺失会卡住放行门">
+            <div className={`rounded border px-4 py-3 ${allPassed ? 'border-om-running/40 bg-om-running-bg' : 'border-om-blocked/40 bg-om-blocked-bg'}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-semibold text-om-ink">
+                        {weighing?.passed ?? 0}/{weighing?.total ?? 0} 种原料在公差内
+                    </div>
+                    <div className="text-xs text-om-muted">
+                        {missing > 0 ? `缺 ${missing} 项` : ''}{missing > 0 && failed > 0 ? ' · ' : ''}{failed > 0 ? `超差 ${failed} 项` : ''}
+                        {missing === 0 && failed === 0 ? '全部有称重记录' : ''}
+                    </div>
+                </div>
+
+                <div className="mt-3 overflow-x-auto">
+                    <table className="w-full min-w-[680px] text-xs">
+                        <thead>
+                            <tr className="border-b border-om-line2 text-left text-om-muted">
+                                <th className="py-1 pr-2 font-semibold">原料</th>
+                                <th className="py-1 pr-2 font-semibold">目标量</th>
+                                <th className="py-1 pr-2 font-semibold">实际量</th>
+                                <th className="py-1 pr-2 font-semibold">偏差</th>
+                                <th className="py-1 pr-2 font-semibold">公差</th>
+                                <th className="py-1 pr-2 font-semibold">秤 / 操作人</th>
+                                <th className="py-1 font-semibold">判定</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => {
+                                const key = `${row.material_id}-${row.step_number}`;
+                                const record = row.record;
+                                const isOpen = openKey === key;
+                                return (
+                                    <React.Fragment key={key}>
+                                        <tr className="border-b border-om-line2/60">
+                                            <td className="py-1 pr-2">
+                                                <div className="font-semibold text-om-ink">{row.material_name}</div>
+                                                <div className="text-[11px] text-om-muted">{row.material_code || '—'} · 工序 {row.step_number ?? '—'}</div>
+                                            </td>
+                                            <td className="py-1 pr-2 text-om-ink">{formatNumber(row.target_qty, 2)} {row.unit_of_measure}</td>
+                                            <td className="py-1 pr-2 text-om-ink">{record ? `${formatNumber(record.actual_qty, 2)} ${row.unit_of_measure}` : '—'}</td>
+                                            <td className="py-1 pr-2 text-om-muted">{record ? `${record.variance_qty > 0 ? '+' : ''}${formatNumber(record.variance_qty, 2)} / ${record.variance_pct > 0 ? '+' : ''}${formatNumber(record.variance_pct, 2)}%` : '—'}</td>
+                                            <td className="py-1 pr-2 text-om-muted">±{formatNumber(record?.tolerance_pct ?? row.tolerance_pct, 2)}%</td>
+                                            <td className="py-1 pr-2 text-om-muted">{record ? `${record.scale_code || '—'} · ${record.weighed_by || '—'}` : '—'}</td>
+                                            <td className="py-1">
+                                                {record ? (
+                                                    <span className={`font-semibold ${record.status === 'PASS' ? 'text-om-running' : 'text-om-blocked'}`}>
+                                                        {record.status === 'PASS' ? '合格' : '超差'}
+                                                    </span>
+                                                ) : (
+                                                    <span className="font-semibold text-om-blocked">未登记</span>
+                                                )}
+                                                <button type="button" onClick={() => openForm(row)} className="ml-2 text-[11px] font-bold text-om-accent hover:underline">
+                                                    {record ? '复称' : '登记'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {isOpen && (
+                                            <tr className="border-b border-om-line2/60 bg-om-card">
+                                                <td colSpan={7} className="p-2">
+                                                    <div className="grid gap-2 sm:grid-cols-5">
+                                                        <label className="text-[11px] text-om-muted">实际读数（{row.unit_of_measure}）
+                                                            <input type="number" step="0.001" value={form.actual_qty} onChange={(e) => setForm({ ...form, actual_qty: e.target.value })} className="mt-1 w-full rounded border border-om-line bg-om-card px-2 py-1 text-sm text-om-ink outline-none focus:border-om-accent" />
+                                                        </label>
+                                                        <label className="text-[11px] text-om-muted">公差（%）
+                                                            <input type="number" step="0.001" value={form.tolerance_pct} onChange={(e) => setForm({ ...form, tolerance_pct: e.target.value })} className="mt-1 w-full rounded border border-om-line bg-om-card px-2 py-1 text-sm text-om-ink outline-none focus:border-om-accent" />
+                                                        </label>
+                                                        <label className="text-[11px] text-om-muted">秤编号
+                                                            <input value={form.scale_code} onChange={(e) => setForm({ ...form, scale_code: e.target.value })} placeholder="SCALE-01" className="mt-1 w-full rounded border border-om-line bg-om-card px-2 py-1 text-sm text-om-ink outline-none focus:border-om-accent" />
+                                                        </label>
+                                                        <label className="text-[11px] text-om-muted sm:col-span-2">备注
+                                                            <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="复称原因 / 偏差处理" className="mt-1 w-full rounded border border-om-line bg-om-card px-2 py-1 text-sm text-om-ink outline-none focus:border-om-accent" />
+                                                        </label>
+                                                    </div>
+                                                    {errors.actual_qty && <p className="mt-1 text-xs font-semibold text-om-blocked">{errors.actual_qty}</p>}
+                                                    <div className="mt-2 flex justify-end gap-2">
+                                                        <button type="button" onClick={() => setOpenKey(null)} className="btn-touch btn-secondary text-xs">取消</button>
+                                                        <button type="button" onClick={() => submit(row)} className="btn-touch btn-primary text-xs">保存称重</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                {rows.length === 0 && <p className="mt-2 text-sm text-om-muted">当前 BOM 没有需要称重的原料。</p>}
+            </div>
+        </Section>
+    );
+}
 
 function LabTestPanel({ batch, labTest, labTestRequired = false }) {
     const { errors = {} } = usePage().props;
