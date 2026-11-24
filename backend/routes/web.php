@@ -808,6 +808,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/tea-bases/{teaBase}', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'show'])->name('tea-bases.show');
         Route::post('/tea-bases/{teaBase}/freeze', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'freeze'])->name('tea-bases.freeze');
         Route::post('/tea-bases/{teaBase}/unfreeze', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'unfreeze'])->name('tea-bases.unfreeze');
+        Route::get('/flower-lots', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'index'])->name('flower-lots.index');
+        Route::get('/flower-lots/{flowerLot}', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'show'])->name('flower-lots.show');
+        Route::post('/flower-lots/{flowerLot}/mark-available', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'markAvailable'])->name('flower-lots.mark-available');
+        Route::post('/flower-lots/{flowerLot}/allocate', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'allocate'])->name('flower-lots.allocate');
+        Route::post('/flower-lots/{flowerLot}/dispose', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'dispose'])->name('flower-lots.dispose');
         Route::get('/coa', [\App\Http\Controllers\Web\Admin\CoaController::class, 'index'])->name('coa.index');
         Route::get('/coa/{batch}/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('coa.pdf');
         Route::get('/coa/{batch}', [\App\Http\Controllers\Web\Admin\CoaController::class, 'show'])->name('coa.show');
