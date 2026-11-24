@@ -168,7 +168,7 @@ export default function InspectionPlansIndex() {
             </div>
 
             <ResourceFormDrawer
-                {...drawer}
+                {...drawer.props}
                 action={basePath}
                 fields={fields}
                 initial={criteriaInitial}
