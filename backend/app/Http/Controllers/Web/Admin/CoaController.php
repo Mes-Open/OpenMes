@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
+use App\Models\BatchLabTest;
 use App\Models\BatchReleaseCheck;
 use App\Models\CoaDocument;
 use App\Services\Quality\CoaService;
@@ -11,6 +12,7 @@ use App\Support\DownloadName;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
@@ -123,6 +125,7 @@ class CoaController extends Controller
             'releasedBy',
             'electronicSignatures.user',
             'releaseChecks.checkedBy',
+            'labTests.recordedBy',
         ]);
 
         if ($document) {
@@ -184,6 +187,8 @@ class CoaController extends Controller
             'releaseGate' => $this->coa->releaseGate($batch),
             'issueGate' => $this->coa->issueGate($batch, $document),
             'separation' => $this->separation($batch, $document),
+            'labTest' => $batch->labTests->first() ? $this->labTestPayload($batch->labTests->first()) : null,
+            'labTestRequired' => $this->coa->requiresExternalLab($batch),
             'releaseChecks' => $batch->releaseChecks
                 ->groupBy('check_type')
                 ->map(fn ($items) => $items->first())
@@ -214,6 +219,23 @@ class CoaController extends Controller
                 'verified' => $this->coa->verifySignature($signature),
             ])->values() : [],
         ]);
+    }
+
+    private function labTestPayload(BatchLabTest $labTest): array
+    {
+        return [
+            'id' => $labTest->id,
+            'lab_name' => $labTest->lab_name,
+            'report_number' => $labTest->report_number,
+            'sample_number' => $labTest->sample_number,
+            'sampled_at' => $labTest->sampled_at?->toDateString(),
+            'issued_at' => $labTest->issued_at?->toDateString(),
+            'overall_conclusion' => $labTest->overall_conclusion,
+            'items' => $labTest->items,
+            'notes' => $labTest->notes,
+            'recorded_by' => $labTest->recordedBy?->name,
+            'recorded_at' => $labTest->created_at?->toIso8601String(),
+        ];
     }
 
     private function separation(Batch $batch, ?CoaDocument $document): array
@@ -306,6 +328,70 @@ class CoaController extends Controller
         return back()->with('success', '已创建新版本 COA 草稿，原版本保留。');
     }
 
+    public function recordLabTest(Request $request, Batch $batch)
+    {
+        $data = $request->validate([
+            'lab_name' => ['required', 'string', 'max:255'],
+            'report_number' => ['required', 'string', 'max:100'],
+            'sample_number' => ['nullable', 'string', 'max:100'],
+            'sampled_at' => ['nullable', 'date'],
+            'issued_at' => ['required', 'date'],
+            'overall_conclusion' => ['required', Rule::in(BatchLabTest::CONCLUSIONS)],
+            'items_text' => ['required', 'string', 'max:6000'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $items = collect(preg_split('/\R/u', $data['items_text']))
+            ->map(function (string $line, int $index) use ($data) {
+                $line = trim($line);
+                if ($line === '') {
+                    return null;
+                }
+
+                $parts = array_map('trim', explode('|', $line));
+                if (count($parts) < 5 || $parts[0] === '' || $parts[1] === '') {
+                    throw ValidationException::withMessages([
+                        'items_text' => '第 '.($index + 1).' 行格式不正确，应为：类别|项目|结果|限值|判定。',
+                    ]);
+                }
+
+                $conclusion = in_array(strtoupper($parts[4]), ['PASS', '合格'], true) ? '合格' : '不合格';
+
+                return [
+                    'category' => $parts[0],
+                    'name' => $parts[1],
+                    'result' => $parts[2],
+                    'limit' => $parts[3],
+                    'conclusion' => $conclusion,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($items === []) {
+            throw ValidationException::withMessages([
+                'items_text' => '至少登记一条外检项目。',
+            ]);
+        }
+
+        BatchLabTest::updateOrCreate(
+            ['batch_id' => $batch->id, 'report_number' => $data['report_number']],
+            [
+                'lab_name' => $data['lab_name'],
+                'sample_number' => $data['sample_number'] ?? null,
+                'sampled_at' => $data['sampled_at'] ?? null,
+                'issued_at' => $data['issued_at'],
+                'overall_conclusion' => $data['overall_conclusion'],
+                'items' => $items,
+                'notes' => $data['notes'] ?? null,
+                'recorded_by_id' => $request->user()?->id,
+            ]
+        );
+
+        return back()->with('success', __('外检报告已登记：:no。', ['no' => $data['report_number']]));
+    }
+
     public function recordCheck(Request $request, Batch $batch)
     {
         $data = $request->validate([
@@ -352,6 +438,8 @@ class CoaController extends Controller
         $snapshot = $latestVersion?->snapshot ?? [];
         $quality = $snapshot['quality'] ?? $document->quality_snapshot;
         $specification = $snapshot['specification'] ?? $document->specification_snapshot;
+        $labTest = $snapshot['external_lab'] ?? null;
+        $externalLabRequired = (bool) ($snapshot['external_lab_required'] ?? false);
 
         $latestCheck = $batch->qualityChecks->first();
         $samples = collect($quality['samples'] ?? [])
@@ -380,6 +468,8 @@ class CoaController extends Controller
             'document' => $document,
             'specification' => $specification,
             'qualitySnapshot' => $quality,
+            'labTest' => $labTest,
+            'externalLabRequired' => $externalLabRequired,
             'generatedAt' => $generatedAt,
             'changeReason' => $changeReason,
         ])->setPaper('a4', 'portrait');

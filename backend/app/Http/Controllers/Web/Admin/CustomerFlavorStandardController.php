@@ -46,6 +46,7 @@ class CustomerFlavorStandardController extends Controller
                 'sensory_liquor' => $standard->sensory_liquor,
                 'blend_tolerance' => $standard->blend_tolerance !== null ? (float) $standard->blend_tolerance : null,
                 'foreign_matter_required' => $standard->foreign_matter_required,
+                'requires_external_lab' => (bool) $standard->requires_external_lab,
                 'net_weight_min' => $standard->net_weight_min !== null ? (float) $standard->net_weight_min : null,
                 'net_weight_max' => $standard->net_weight_max !== null ? (float) $standard->net_weight_max : null,
                 'packaging_requirement' => $standard->packaging_requirement,
@@ -82,6 +83,7 @@ class CustomerFlavorStandardController extends Controller
         $validated = $this->validated($request);
         $validated['status'] = $validated['status'] ?? CustomerFlavorStandard::STATUS_ACTIVE;
         $validated['foreign_matter_required'] = $request->boolean('foreign_matter_required', true);
+        $validated['requires_external_lab'] = $request->boolean('requires_external_lab');
         $validated['created_by_id'] = $request->user()?->id;
         $validated['approved_by_id'] = $request->user()?->id;
         $validated['approved_at'] = now();
@@ -98,6 +100,7 @@ class CustomerFlavorStandardController extends Controller
         $validated = $this->validated($request, $customerFlavorStandard);
         $validated['status'] = $validated['status'] ?? $customerFlavorStandard->status;
         $validated['foreign_matter_required'] = $request->boolean('foreign_matter_required');
+        $validated['requires_external_lab'] = $request->boolean('requires_external_lab');
 
         $customerFlavorStandard->update($validated);
 
@@ -152,6 +155,7 @@ class CustomerFlavorStandardController extends Controller
             'sensory_liquor' => ['nullable', 'string', 'max:255'],
             'blend_tolerance' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'foreign_matter_required' => ['nullable', 'boolean'],
+            'requires_external_lab' => ['nullable', 'boolean'],
             'net_weight_min' => ['nullable', 'numeric', 'min:0'],
             'net_weight_max' => ['nullable', 'numeric', 'min:0', 'gte:net_weight_min'],
             'packaging_requirement' => ['nullable', 'string', 'max:2000'],

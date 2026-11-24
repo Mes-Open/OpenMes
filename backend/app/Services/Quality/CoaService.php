@@ -3,6 +3,7 @@
 namespace App\Services\Quality;
 
 use App\Models\Batch;
+use App\Models\BatchLabTest;
 use App\Models\BatchReleaseCheck;
 use App\Models\CoaDocument;
 use App\Models\CoaDocumentVersion;
@@ -111,6 +112,7 @@ class CoaService
             'qualityChecks.checkedBy',
             'packagingChecklist',
             'releaseChecks.checkedBy',
+            'labTests',
         ]);
 
         $latestCheck = $batch->qualityChecks->first();
@@ -143,6 +145,7 @@ class CoaService
                     ? '尚未记录成品检验。'
                     : ($latestCheck->all_passed ? '最新一次检验全部合格。' : '最新一次检验存在不合格项。')
             ),
+            $this->externalLabGate($batch, $batch->labTests->first()),
             $this->check(
                 'packaging_check',
                 '包装检查合格',
@@ -436,6 +439,7 @@ class CoaService
             'qualityChecks.template',
             'qualityChecks.checkedBy',
             'packagingChecklist',
+            'labTests',
         ]);
 
         $workOrder = $batch->workOrder;
@@ -508,8 +512,53 @@ class CoaService
                 'checked_by' => $batch->packagingChecklist->checkedBy?->name,
                 'all_passed' => (bool) $batch->packagingChecklist->all_passed,
             ] : null,
+            'external_lab' => $batch->labTests->first() ? [
+                'lab_name' => $batch->labTests->first()->lab_name,
+                'report_number' => $batch->labTests->first()->report_number,
+                'sample_number' => $batch->labTests->first()->sample_number,
+                'sampled_at' => $batch->labTests->first()->sampled_at?->toDateString(),
+                'issued_at' => $batch->labTests->first()->issued_at?->toDateString(),
+                'overall_conclusion' => $batch->labTests->first()->overall_conclusion,
+                'items' => $batch->labTests->first()->items,
+                'notes' => $batch->labTests->first()->notes,
+            ] : null,
+            'external_lab_required' => $this->requiresExternalLab($batch),
             'release_gate' => $this->releaseGate($batch),
         ];
+    }
+
+    public function requiresExternalLab(Batch $batch): bool
+    {
+        $batch->loadMissing(['workOrder.customer', 'workOrder.productType']);
+        $workOrder = $batch->workOrder;
+        $standard = app(CustomerFlavorStandardResolver::class)->resolve(
+            $workOrder?->customer_id,
+            $workOrder?->product_type_id,
+            $batch->completed_at ?? now(),
+        );
+
+        return (bool) $standard?->requires_external_lab;
+    }
+
+    private function externalLabGate(Batch $batch, ?BatchLabTest $labTest): array
+    {
+        $required = $this->requiresExternalLab($batch);
+        $passed = ! $required || ($labTest !== null && $labTest->allPassed());
+        $detail = match (true) {
+            ! $required => '客户标准未要求外检，本项不适用。',
+            $labTest === null => '客户标准要求农残、重金属、微生物外检，尚未登记第三方报告。',
+            ! $labTest->allPassed() => "最新外检报告 {$labTest->report_number} 结论为不合格，不能放行。",
+            default => "外检报告 {$labTest->report_number}（{$labTest->lab_name}）结论合格，共 "
+                .count($labTest->items ?? []).' 项。',
+        };
+
+        return $this->check(
+            'external_lab',
+            '外检报告合格',
+            $passed,
+            '第三方检测报告：农残 / 重金属 / 微生物',
+            $detail
+        );
     }
 
     private function latestReleaseCheck(Batch $batch, string $type): ?BatchReleaseCheck

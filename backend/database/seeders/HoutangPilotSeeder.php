@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\CustomFieldType;
 use App\Enums\RevisionLifecycle;
 use App\Models\Batch;
+use App\Models\BatchLabTest;
 use App\Models\BatchReleaseCheck;
 use App\Models\BomItem;
 use App\Models\Customer;
@@ -451,6 +452,7 @@ class HoutangPilotSeeder extends Seeder
                 'sensory_liquor' => '黄绿明亮',
                 'blend_tolerance' => 0.5,
                 'foreign_matter_required' => true,
+                'requires_external_lab' => true,
                 'net_weight_min' => 4950,
                 'net_weight_max' => 5050,
                 'packaging_requirement' => '5kg 铝箔内袋，热封平整；标签产品名、批次、净含量与实物一致。',
@@ -465,6 +467,30 @@ class HoutangPilotSeeder extends Seeder
         // ── 15. 验收样批的留样/清线/标签平衡记录 ─────────────────────────────
         $acceptance = Batch::query()->where('lot_number', 'HT-COA-ACCEPT-20261123221254')->first();
         if ($acceptance) {
+            BatchLabTest::updateOrCreate(
+                ['batch_id' => $acceptance->id, 'report_number' => 'LAB-DEMO-20261123-001'],
+                [
+                    'lab_name' => '贵州省农产品质量安全检测中心（示例）',
+                    'sample_number' => 'S-2643-01',
+                    'sampled_at' => '2026-11-23',
+                    'issued_at' => '2026-11-23',
+                    'overall_conclusion' => BatchLabTest::CONCLUSION_PASS,
+                    'items' => [
+                        ['category' => '农残', 'name' => '草甘膦', 'result' => '0.08 mg/kg', 'limit' => '≤ 1.0 mg/kg', 'conclusion' => '合格'],
+                        ['category' => '农残', 'name' => '吡虫啉', 'result' => '0.12 mg/kg', 'limit' => '≤ 0.5 mg/kg', 'conclusion' => '合格'],
+                        ['category' => '农残', 'name' => '联苯菊酯', 'result' => '0.05 mg/kg', 'limit' => '≤ 0.5 mg/kg', 'conclusion' => '合格'],
+                        ['category' => '重金属', 'name' => '铅', 'result' => '0.32 mg/kg', 'limit' => '≤ 5.0 mg/kg', 'conclusion' => '合格'],
+                        ['category' => '重金属', 'name' => '镉', 'result' => '0.08 mg/kg', 'limit' => '≤ 1.0 mg/kg', 'conclusion' => '合格'],
+                        ['category' => '重金属', 'name' => '砷', 'result' => '0.15 mg/kg', 'limit' => '≤ 2.0 mg/kg', 'conclusion' => '合格'],
+                        ['category' => '微生物', 'name' => '菌落总数', 'result' => '120 CFU/g', 'limit' => '≤ 1000 CFU/g', 'conclusion' => '合格'],
+                        ['category' => '微生物', 'name' => '大肠菌群', 'result' => '< 10 MPN/100g', 'limit' => '≤ 10 MPN/100g', 'conclusion' => '合格'],
+                        ['category' => '微生物', 'name' => '霉菌', 'result' => '< 10 CFU/g', 'limit' => '≤ 100 CFU/g', 'conclusion' => '合格'],
+                    ],
+                    'notes' => '示例外检数据，正式上线替换为真实报告号和 PDF 附件。',
+                    'recorded_by_id' => $qa?->id,
+                ]
+            );
+
             foreach ([
                 [BatchReleaseCheck::TYPE_RETENTION_SAMPLE, '验收：留样 2 袋，LY-2643-01，留样柜 A'],
                 [BatchReleaseCheck::TYPE_LINE_CLEARANCE, '验收：拼配机、筛分机、包装台已清空，无上一批残留'],

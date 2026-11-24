@@ -4,19 +4,19 @@
     <meta charset="utf-8">
     <title>分析证书 {{ $coaNo }}</title>
     <style>
-        @page { margin: 10mm 13mm 8mm; }
-        body { font-family: "CoaNotoSans", "DejaVu Sans", sans-serif; font-size: 10px; color: #1f2937; }
+        @page { margin: 8mm 13mm 6mm; }
+        body { font-family: "CoaNotoSans", "DejaVu Sans", sans-serif; font-size: 9.6px; color: #1f2937; }
         strong { font-weight: bold; color: #111827; }
-        h1 { font-size: 19px; font-weight: bold; margin: 0 0 2px; letter-spacing: 1px; }
-        h2 { font-size: 12.5px; font-weight: bold; margin: 9px 0 3px; color: #0f766e; border-bottom: 1.5px solid #0f766e; padding-bottom: 3px; }
+        h1 { font-size: 18px; font-weight: bold; margin: 0 0 1px; letter-spacing: 1px; }
+        h2 { font-size: 12px; font-weight: bold; margin: 6px 0 2px; color: #0f766e; border-bottom: 1.5px solid #0f766e; padding-bottom: 2px; }
         .company { font-size: 13px; font-weight: bold; color: #111827; }
         .sub { font-size: 9px; color: #6b7280; }
         .head { display: table; width: 100%; }
         .head > div { display: table-cell; vertical-align: top; }
         .head .right { text-align: right; }
         .coa-no { font-family: monospace; font-size: 10.5px; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin: 2px 0 5px; }
-        th, td { border: 1px solid #d1d5db; padding: 2px 4px; font-size: 9px; vertical-align: top; }
+        table { width: 100%; border-collapse: collapse; margin: 1px 0 3px; }
+        th, td { border: 1px solid #d1d5db; padding: 1px 3px; font-size: 8.7px; vertical-align: top; }
         th { background: #f0fdfa; color: #134e4a; text-align: left; font-weight: bold; }
         .pass { color: #15803d; font-weight: bold; }
         .fail { color: #b91c1c; font-weight: bold; }
@@ -25,11 +25,11 @@
         .badge-green { background: #dcfce7; color: #166534; }
         .badge-red { background: #fee2e2; color: #991b1b; }
         .badge-amber { background: #fef3c7; color: #92400e; }
-        .box { border: 1px solid #d1d5db; padding: 6px 9px; margin: 6px 0; }
+        .box { border: 1px solid #d1d5db; padding: 4px 8px; margin: 4px 0; }
         .sign { width: 100%; margin-top: 5px; }
-        .sign td { border: none; padding: 6px 6px 2px; border-bottom: 1px solid #9ca3af; font-size: 8.5px; }
+        .sign td { border: none; padding: 4px 6px 1px; border-bottom: 1px solid #9ca3af; font-size: 8.3px; }
         .sign .label { border: none; color: #6b7280; padding-top: 2px; }
-        .foot { margin-top: 2px; font-size: 8px; color: #6b7280; line-height: 1.45; }
+        .foot { margin-top: 1px; font-size: 7.6px; color: #6b7280; line-height: 1.3; }
         .watermark { position: fixed; top: 40%; left: 12%; font-size: 46px; color: rgba(185, 28, 28, 0.12); transform: rotate(-18deg); font-weight: bold; }
     </style>
 </head>
@@ -189,7 +189,52 @@
     <div class="box muted">本批次尚未记录成品检验，暂不能出具正式 COA。请完成成品检验并放行后重新生成。</div>
 @endif
 
-<h2>四、综合结论</h2>
+<h2>四、外检报告</h2>
+@if ($labTest)
+    <div class="sub" style="margin-bottom:4px;">
+        {{ $labTest['lab_name'] ?? '—' }} ｜ 报告编号 {{ $labTest['report_number'] ?? '—' }}
+        ｜ 签发 {{ $labTest['issued_at'] ?? '—' }}
+        ｜ 结论
+        @if (($labTest['overall_conclusion'] ?? '') === 'PASS')
+            <span class="pass">合格</span>
+        @else
+            <span class="fail">不合格</span>
+        @endif
+    </div>
+    <table>
+        <thead>
+        <tr>
+            <th width="14%">类别</th>
+            <th width="70%">项目 / 实测 / 限值</th>
+            <th width="16%">判定</th>
+        </tr>
+        </thead>
+        <tbody>
+        @php $labGroups = collect($labTest['items'] ?? [])->groupBy('category'); @endphp
+        @forelse ($labGroups as $category => $items)
+            <tr>
+                <td>{{ $category }}</td>
+                <td>{{ $items->map(fn ($item) => ($item['name'] ?? '').' '.($item['result'] ?? '').'（限 '.($item['limit'] ?? '—').'）')->implode('；') }}</td>
+                <td>
+                    @if ($items->every(fn ($item) => ($item['conclusion'] ?? '') === '合格'))
+                        <span class="pass">合格</span>
+                    @else
+                        <span class="fail">不合格</span>
+                    @endif
+                </td>
+            </tr>
+        @empty
+            <tr><td colspan="3" class="muted">报告未登记检测项目。</td></tr>
+        @endforelse
+        </tbody>
+    </table>
+@elseif ($externalLabRequired ?? false)
+    <div class="box" style="border-color:#b23b3b;color:#8a2b2b;">客户标准要求农残、重金属、微生物外检，但尚未登记第三方报告；本 COA 不具备签发条件。</div>
+@else
+    <div class="box muted">客户标准未要求第三方外检，本项不适用。</div>
+@endif
+
+<h2>五、综合结论</h2>
 <div class="box">
     <table style="margin:0;">
         <tr>

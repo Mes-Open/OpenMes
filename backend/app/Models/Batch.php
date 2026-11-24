@@ -236,6 +236,12 @@ class Batch extends Model
     /**
      * The controlled COA document for this finished batch, if one exists.
      */
+    /** 第三方外检报告（农残、重金属、微生物）。 */
+    public function labTests(): HasMany
+    {
+        return $this->hasMany(BatchLabTest::class)->orderByDesc('issued_at')->orderByDesc('id');
+    }
+
     /** 留样/清线/标签平衡等现场确认，按事件追加。 */
     public function releaseChecks(): HasMany
     {

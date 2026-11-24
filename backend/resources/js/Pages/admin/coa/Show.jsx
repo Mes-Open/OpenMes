@@ -19,13 +19,13 @@ const SIGNATURE_LABEL = {
 };
 
 export default function CoaShow() {
-    const { batch, document, versions = [], releaseGate, issueGate, separation, releaseChecks = {}, batchSignatures = [], documentSignatures = [] } = usePage().props;
+    const { batch, document, versions = [], releaseGate, issueGate, separation, labTest, labTestRequired = false, releaseChecks = {}, batchSignatures = [], documentSignatures = [] } = usePage().props;
     const form = useForm({ notes: '', reason: '' });
 
     const post = (path) => form.post(path, { preserveScroll: true });
 
     if (!document) {
-        return <NoCoa batch={batch} releaseGate={releaseGate} releaseChecks={releaseChecks} form={form} post={post} />;
+        return <NoCoa batch={batch} releaseGate={releaseGate} labTest={labTest} labTestRequired={labTestRequired} releaseChecks={releaseChecks} form={form} post={post} />;
     }
 
     return (
@@ -110,6 +110,8 @@ export default function CoaShow() {
                 </div>
 
                 <SeparationPanel separation={separation} />
+
+                <LabTestPanel batch={batch} labTest={labTest} labTestRequired={labTestRequired} />
 
                 <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
 
@@ -337,7 +339,7 @@ export default function CoaShow() {
     );
 }
 
-function NoCoa({ batch, releaseGate, releaseChecks = {}, form, post }) {
+function NoCoa({ batch, releaseGate, labTest, labTestRequired = false, releaseChecks = {}, form, post }) {
     return (
         <>
             <Head title={`${batch.lot_number ?? `B${batch.batch_number}`} — COA 与放行`} />
@@ -377,6 +379,8 @@ function NoCoa({ batch, releaseGate, releaseChecks = {}, form, post }) {
                     </div>
                 </div>
 
+                <LabTestPanel batch={batch} labTest={labTest} labTestRequired={labTestRequired} />
+
                 <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
 
                 {!batch.released_at && (
@@ -404,6 +408,138 @@ function NoCoa({ batch, releaseGate, releaseChecks = {}, form, post }) {
                 )}
             </div>
         </>
+    );
+}
+
+const LAB_ITEM_EXAMPLE = `农残|草甘膦|0.08 mg/kg|≤ 1.0 mg/kg|合格
+农残|吡虫啉|0.12 mg/kg|≤ 0.5 mg/kg|合格
+农残|联苯菊酯|0.05 mg/kg|≤ 0.5 mg/kg|合格
+重金属|铅|0.32 mg/kg|≤ 5.0 mg/kg|合格
+重金属|镉|0.08 mg/kg|≤ 1.0 mg/kg|合格
+重金属|砷|0.15 mg/kg|≤ 2.0 mg/kg|合格
+微生物|菌落总数|120 CFU/g|≤ 1000 CFU/g|合格
+微生物|大肠菌群|< 10 MPN/100g|≤ 10 MPN/100g|合格
+微生物|霉菌|< 10 CFU/g|≤ 100 CFU/g|合格`;
+
+function LabTestPanel({ batch, labTest, labTestRequired = false }) {
+    const { errors = {} } = usePage().props;
+    const [open, setOpen] = useState(false);
+    const [form, setForm] = useState({
+        lab_name: '',
+        report_number: '',
+        sample_number: '',
+        sampled_at: '',
+        issued_at: new Date().toISOString().slice(0, 10),
+        overall_conclusion: 'PASS',
+        items_text: LAB_ITEM_EXAMPLE,
+        notes: '',
+    });
+
+    const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+    const submit = () => {
+        router.post(`/admin/coa/${batch.id}/lab-tests`, form, {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        });
+    };
+
+    const state = !labTest
+        ? (labTestRequired ? 'missing' : 'not-required')
+        : (labTest.overall_conclusion === 'PASS' ? 'pass' : 'fail');
+    const tone = state === 'pass'
+        ? 'border-om-running/40 bg-om-running-bg'
+        : state === 'fail' || state === 'missing'
+            ? 'border-om-blocked/40 bg-om-blocked-bg'
+            : 'border-om-line bg-om-card';
+
+    return (
+        <Section title="外检报告" subtitle="农残、重金属、微生物；客户标准要求外检时，报告合格才开放行门">
+            <div className={`rounded border px-4 py-3 ${tone}`}>
+                {labTest ? (
+                    <>
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                                <div className="text-sm font-bold text-om-ink">{labTest.report_number}</div>
+                                <div className="mt-0.5 text-xs text-om-muted">{labTest.lab_name}</div>
+                            </div>
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${labTest.overall_conclusion === 'PASS' ? 'bg-om-running-bg text-om-running' : 'bg-om-blocked-bg text-om-blocked'}`}>
+                                {labTest.overall_conclusion === 'PASS' ? '报告合格' : '报告不合格'}
+                            </span>
+                        </div>
+                        <div className="mt-2 text-xs text-om-muted">
+                            抽样 {labTest.sampled_at || '—'} ｜ 签发 {labTest.issued_at || '—'}
+                            {labTest.sample_number ? ` ｜ 样品编号 ${labTest.sample_number}` : ''}
+                            {labTest.recorded_by ? ` ｜ 登记人 ${labTest.recorded_by}` : ''}
+                        </div>
+                        <div className="mt-3 overflow-x-auto">
+                            <table className="w-full min-w-[560px] text-xs">
+                                <thead>
+                                    <tr className="border-b border-om-line2 text-left text-om-muted">
+                                        <th className="py-1 pr-2 font-semibold">类别</th>
+                                        <th className="py-1 pr-2 font-semibold">项目</th>
+                                        <th className="py-1 pr-2 font-semibold">实测</th>
+                                        <th className="py-1 pr-2 font-semibold">限值</th>
+                                        <th className="py-1 font-semibold">判定</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(labTest.items ?? []).map((item, index) => (
+                                        <tr key={`${item.category}-${item.name}-${index}`} className="border-b border-om-line2/60">
+                                            <td className="py-1 pr-2 text-om-muted">{item.category}</td>
+                                            <td className="py-1 pr-2 font-semibold text-om-ink">{item.name}</td>
+                                            <td className="py-1 pr-2 text-om-ink">{item.result}</td>
+                                            <td className="py-1 pr-2 text-om-muted">{item.limit}</td>
+                                            <td className={`py-1 font-semibold ${item.conclusion === '合格' ? 'text-om-running' : 'text-om-blocked'}`}>{item.conclusion}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {labTest.notes && <p className="mt-2 text-xs text-om-muted">{labTest.notes}</p>}
+                    </>
+                ) : (
+                    <p className="text-sm font-semibold text-om-ink">
+                        {labTestRequired
+                            ? '客户标准要求外检，尚未登记第三方报告；放行门会判失败。'
+                            : '客户标准未要求外检；如客户临时要求，可在这里补登。'}
+                    </p>
+                )}
+
+                <div className="mt-3 flex justify-end">
+                    <button type="button" onClick={() => setOpen((value) => !value)} className="btn-touch btn-secondary text-xs">
+                        {open ? '收起' : (labTest ? '重新登记报告' : '登记外检报告')}
+                    </button>
+                </div>
+
+                {open && (
+                    <div className="mt-3 space-y-2 border-t border-om-line2 pt-3">
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            <input value={form.lab_name} onChange={(e) => setField('lab_name', e.target.value)} placeholder="检测机构" className="rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent" />
+                            <input value={form.report_number} onChange={(e) => setField('report_number', e.target.value)} placeholder="报告编号" className="rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent" />
+                            <input value={form.sample_number} onChange={(e) => setField('sample_number', e.target.value)} placeholder="样品编号（可选）" className="rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent" />
+                            <select value={form.overall_conclusion} onChange={(e) => setField('overall_conclusion', e.target.value)} className="rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent">
+                                <option value="PASS">总体结论：合格</option>
+                                <option value="FAIL">总体结论：不合格</option>
+                            </select>
+                            <input type="date" value={form.sampled_at} onChange={(e) => setField('sampled_at', e.target.value)} className="rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent" />
+                            <input type="date" value={form.issued_at} onChange={(e) => setField('issued_at', e.target.value)} className="rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent" />
+                        </div>
+                        <textarea
+                            rows={7}
+                            value={form.items_text}
+                            onChange={(e) => setField('items_text', e.target.value)}
+                            className="w-full rounded border border-om-line bg-om-card px-3 py-2 font-mono text-xs text-om-ink outline-none focus:border-om-accent"
+                        />
+                        <p className="text-[11px] text-om-muted">每行一条，格式：类别|项目|结果|限值|判定。类别建议用“农残 / 重金属 / 微生物”。</p>
+                        {errors.items_text && <p className="text-xs font-semibold text-om-blocked">{errors.items_text}</p>}
+                        {errors.report_number && <p className="text-xs font-semibold text-om-blocked">{errors.report_number}</p>}
+                        <div className="flex justify-end">
+                            <button type="button" onClick={submit} className="btn-touch btn-primary text-xs">保存外检报告</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </Section>
     );
 }
 
