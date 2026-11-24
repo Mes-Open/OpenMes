@@ -44,7 +44,8 @@ test.describe.configure({ mode: 'serial' });
 async function rows(page: Page, collection: string): Promise<{ rows: Record<string, unknown>[]; channel: string }> {
   return page.evaluate(async (name) => {
     const r = await fetch(`/api/collections/${name}`, { headers: { Accept: 'application/json' } });
-    return r.json();
+    // An unknown collection (the module is not installed) reads as empty.
+    return r.ok ? r.json() : { rows: [], channel: '' };
   }, collection);
 }
 
@@ -65,6 +66,52 @@ async function asSupervisor(browser: Browser): Promise<Page> {
   await login(page, SUPERVISOR, SUPERVISOR_PASS);
   return page;
 }
+
+/**
+ * The other half of the promise: without the module (or without its licence)
+ * core looks and behaves exactly as a single-plant installation.
+ */
+test('without multi-site, core stays a single plant', async ({ page }) => {
+  await login(page, ADMIN, PASS);
+  const sites = await page.evaluate(async () => (await fetch('/api/collections/sites', { headers: { Accept: 'application/json' } })).status);
+  test.skip(sites === 200, 'The Enterprise module is installed; the multi-site flow below covers that case.');
+
+  await test.step('no site switcher, every line listed on the unpartitioned channel', async () => {
+    await page.goto('/admin/lines');
+    await expect(page.locator('[data-testid="scope-switcher"]')).toHaveCount(0);
+    const { rows: lines, channel } = await rows(page, 'lines_all');
+    expect(channel).toMatch(/^col\.[^@]+\.lines_all$/);
+    // Lines of every plant (and none) side by side, as before multi-site existed.
+    for (const code of [A_LINE, B_LINE, SHARED_LINE].filter((c) => lines.some((l) => l.code === c))) {
+      await expect(page.getByRole('cell', { name: code, exact: true })).toBeVisible();
+    }
+  });
+
+  await test.step('the line, user and ERP key forms carry no module fields', async () => {
+    await page.getByRole('button', { name: 'New Line' }).click();
+    const drawer = page.getByRole('dialog', { name: 'New Production Line' });
+    await expect(drawer.getByLabel('Code')).toBeVisible();
+    await expect(drawer.getByText('Site / area')).toHaveCount(0);
+
+    await page.goto('/admin/users/create');
+    const dialog = page.getByRole('dialog', { name: 'New Account' });
+    await expect(dialog.getByRole('textbox', { name: 'Username' })).toBeVisible();
+    await expect(dialog.getByRole('group', { name: 'Sites' })).toHaveCount(0);
+    await expect(dialog.getByText('Additional fields')).toHaveCount(0);
+
+    await page.goto('/settings/api-tokens');
+    await page.getByRole('button', { name: 'Create key' }).click();
+    const keyForm = page.locator('form').filter({ has: page.getByLabel('Key name') });
+    await expect(keyForm.getByRole('combobox', { name: 'Site', exact: true })).toHaveCount(0);
+  });
+
+  await test.step('multi-site screens and the site switch endpoint do not exist', async () => {
+    for (const url of ['/admin/site-comparison', '/admin/linked-instances']) {
+      const response = await page.goto(url);
+      expect(response?.status(), url).toBe(404);
+    }
+  });
+});
 
 test('multi-site: one installation, several plants', async ({ page, browser }) => {
   test.setTimeout(240_000);
