@@ -183,6 +183,7 @@ class CoaController extends Controller
             ])->values() : [],
             'releaseGate' => $this->coa->releaseGate($batch),
             'issueGate' => $this->coa->issueGate($batch, $document),
+            'separation' => $this->separation($batch, $document),
             'releaseChecks' => $batch->releaseChecks
                 ->groupBy('check_type')
                 ->map(fn ($items) => $items->first())
@@ -199,6 +200,7 @@ class CoaController extends Controller
                 'meaning' => $signature->meaning,
                 'signed_at' => $signature->signed_at?->toIso8601String(),
                 'user' => $signature->user?->name,
+                'roles' => $signature->user?->getRoleNames()->all() ?? [],
                 'record_hash' => $signature->record_hash,
                 'verified' => $this->coa->verifySignature($signature),
             ])->values(),
@@ -207,10 +209,35 @@ class CoaController extends Controller
                 'meaning' => $signature->meaning,
                 'signed_at' => $signature->signed_at?->toIso8601String(),
                 'user' => $signature->user?->name,
+                'roles' => $signature->user?->getRoleNames()->all() ?? [],
                 'record_hash' => $signature->record_hash,
                 'verified' => $this->coa->verifySignature($signature),
             ])->values() : [],
         ]);
+    }
+
+    private function separation(Batch $batch, ?CoaDocument $document): array
+    {
+        $releasedBy = $batch->releasedBy;
+        $approvedBy = $document?->approvedBy;
+        $passed = $releasedBy !== null
+            && $approvedBy !== null
+            && (int) $releasedBy->id !== (int) $approvedBy->id;
+
+        return [
+            'released_by' => $releasedBy?->name,
+            'released_roles' => $releasedBy?->getRoleNames()->all() ?? [],
+            'approved_by' => $approvedBy?->name,
+            'approved_roles' => $approvedBy?->getRoleNames()->all() ?? [],
+            'passed' => $passed,
+            'detail' => match (true) {
+                $releasedBy === null && $approvedBy === null => '尚未放行，也未批准 COA。',
+                $releasedBy === null => '尚未放行批次，不能批准 COA。',
+                $approvedBy === null => '批次已放行，等待 QA 复核批准。',
+                $passed => '放行人与批准人不同，双人复核成立。',
+                default => '放行人同时批准了 COA，双人复核不成立。',
+            },
+        ];
     }
 
     public function draft(Batch $batch)

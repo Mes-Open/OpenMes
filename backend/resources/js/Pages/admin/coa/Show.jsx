@@ -19,7 +19,7 @@ const SIGNATURE_LABEL = {
 };
 
 export default function CoaShow() {
-    const { batch, document, versions = [], releaseGate, issueGate, releaseChecks = {}, batchSignatures = [], documentSignatures = [] } = usePage().props;
+    const { batch, document, versions = [], releaseGate, issueGate, separation, releaseChecks = {}, batchSignatures = [], documentSignatures = [] } = usePage().props;
     const form = useForm({ notes: '', reason: '' });
 
     const post = (path) => form.post(path, { preserveScroll: true });
@@ -108,6 +108,8 @@ export default function CoaShow() {
                     <GatePanel title="放行门" subtitle="批次能否放行到销售" gate={releaseGate} />
                     <GatePanel title="签发门" subtitle="COA 能否对外签发" gate={issueGate} />
                 </div>
+
+                <SeparationPanel separation={separation} />
 
                 <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
 
@@ -316,7 +318,12 @@ export default function CoaShow() {
                                                     {signature.verified ? '哈希校验通过' : '哈希校验失败'}
                                                 </span>
                                             </span>
-                                            <span className="text-xs text-om-muted">{signature.user ?? '—'} · {signature.signed_at ? formatDateTime(signature.signed_at) : '—'}</span>
+                                            <span className="text-xs text-om-muted">
+                                                {signature.user ?? '—'}
+                                                {signature.roles?.length ? ` · ${signature.roles.join(' / ')}` : ''}
+                                                {' · '}
+                                                {signature.signed_at ? formatDateTime(signature.signed_at) : '—'}
+                                            </span>
                                         </div>
                                         <div className="mt-1 truncate font-mono text-[10px] text-om-faint">{signature.record_hash}</div>
                                     </div>
@@ -397,6 +404,38 @@ function NoCoa({ batch, releaseGate, releaseChecks = {}, form, post }) {
                 )}
             </div>
         </>
+    );
+}
+
+function SeparationPanel({ separation }) {
+    if (!separation) return null;
+
+    const approved = Boolean(separation.approved_by);
+    const passed = Boolean(separation.passed);
+    const tone = passed
+        ? 'border-om-running/40 bg-om-running-bg'
+        : approved
+            ? 'border-om-blocked/40 bg-om-blocked-bg'
+            : 'border-om-line bg-om-card';
+
+    return (
+        <Section title="双人复核" subtitle="放行人与 COA 批准人必须为不同人员，同一账号不能自己放行自己批准">
+            <div className={`rounded border px-4 py-3 ${tone}`}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-om-muted">放行人</div>
+                        <div className="mt-1 text-sm font-bold text-om-ink">{separation.released_by ?? '未放行'}</div>
+                        <div className="text-xs text-om-muted">{separation.released_roles?.join(' / ') || '无角色记录'}</div>
+                    </div>
+                    <div>
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-om-muted">COA 批准人</div>
+                        <div className="mt-1 text-sm font-bold text-om-ink">{separation.approved_by ?? '未批准'}</div>
+                        <div className="text-xs text-om-muted">{separation.approved_roles?.join(' / ') || '无角色记录'}</div>
+                    </div>
+                </div>
+                <p className="mt-3 text-xs font-semibold text-om-muted">{separation.detail}</p>
+            </div>
+        </Section>
     );
 }
 

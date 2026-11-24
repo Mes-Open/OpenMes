@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Models\Workstation;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -39,6 +40,18 @@ class HoutangPilotSeeder extends Seeder
     public function run(): void
     {
         $admin = User::query()->where('username', 'admin')->first();
+
+        // QA 复核人：与放行人分离，专门用于 COA 批准/签发（双人复核）。
+        $qa = User::firstOrCreate(
+            ['username' => 'qa.lead'],
+            [
+                'name' => 'QA 负责人',
+                'email' => 'qa.lead@houtang.local',
+                'password' => Hash::make('QA123456!'),
+                'account_type' => 'user',
+            ]
+        );
+        $qa->assignRole('QA');
 
         // ── 1. 客户/品牌（先用一个品牌级客户占位，后续按真实客户替换） ─────────
         $customer = Customer::updateOrCreate(

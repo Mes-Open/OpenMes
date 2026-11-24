@@ -150,6 +150,15 @@ class RolesAndPermissionsSeeder extends Seeder
             'view tools', 'view maintenance events',
         ], $firstInspectionSeed ? InspectionPermissions::ALL : []));
 
+        // QA — quality approver. Holds the quality tab (COA, customer standards,
+        // reason codes) so a QA lead can approve/issue COAs without full Admin.
+        $qaRole = Role::firstOrCreate(['name' => 'QA', 'guard_name' => 'web']);
+        $qaRole->syncPermissions(array_merge($keepGranted($qaRole), [
+            'tab:quality',
+            'view work orders', 'view products', 'view lines',
+            'view issues', 'create issues',
+        ]));
+
         // Operator — minimal: view queue + execute steps + report issues
         $operatorRole = Role::firstOrCreate(['name' => 'Operator', 'guard_name' => 'web']);
         $operatorRole->syncPermissions(array_merge($keepGranted($operatorRole), [

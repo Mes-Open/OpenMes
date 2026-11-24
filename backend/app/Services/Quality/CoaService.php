@@ -226,6 +226,8 @@ class CoaService
 
     public function release(Batch $batch, User $user, ?string $notes = null): CoaDocument
     {
+        $this->assertAnyRole($user, ['Admin', 'Supervisor'], '只有生产主管或管理员可以放行批次。');
+
         $gate = $this->releaseGate($batch);
 
         if (! $gate['passed']) {
@@ -271,11 +273,19 @@ class CoaService
 
     public function approve(CoaDocument $document, User $user): CoaDocument
     {
+        $this->assertAnyRole($user, ['Admin', 'QA'], '只有 QA 或管理员可以批准 COA。');
         $this->assertStatus($document, [CoaDocument::STATUS_QA_REVIEW], '只有待复核的 COA 可以批准。');
 
         if ($document->batch?->released_at === null) {
             throw ValidationException::withMessages([
                 'approve' => '批次尚未放行，不能批准 COA。',
+            ]);
+        }
+
+        $releasedBy = $document->batch?->released_by;
+        if ($releasedBy !== null && (int) $releasedBy === (int) $user->id) {
+            throw ValidationException::withMessages([
+                'approve' => '放行人与批准人不能为同一人，双人复核未通过。',
             ]);
         }
 
@@ -298,6 +308,7 @@ class CoaService
 
     public function issue(CoaDocument $document, User $user): CoaDocument
     {
+        $this->assertAnyRole($user, ['Admin', 'QA'], '只有 QA 或管理员可以签发 COA。');
         $this->assertStatus($document, [CoaDocument::STATUS_APPROVED], '只有已批准的 COA 可以签发。');
 
         $batch = $document->batch;
@@ -340,6 +351,7 @@ class CoaService
 
     public function void(CoaDocument $document, User $user, string $reason): CoaDocument
     {
+        $this->assertAnyRole($user, ['Admin', 'QA'], '只有 QA 或管理员可以作废 COA。');
         $this->assertStatus($document, [CoaDocument::STATUS_ISSUED], '只有已签发的 COA 可以作废。');
 
         if (trim($reason) === '') {
@@ -370,6 +382,7 @@ class CoaService
 
     public function reissue(CoaDocument $document, User $user, string $reason): CoaDocument
     {
+        $this->assertAnyRole($user, ['Admin', 'QA'], '只有 QA 或管理员可以重签 COA。');
         $this->assertStatus($document, [CoaDocument::STATUS_VOID], '只有已作废的 COA 可以重签。');
 
         if (trim($reason) === '') {
@@ -577,9 +590,17 @@ class CoaService
         }
     }
 
+    private function assertAnyRole(User $user, array $roles, string $message): void
+    {
+        if (! $user->hasAnyRole($roles)) {
+            throw ValidationException::withMessages(['role' => $message]);
+        }
+    }
+
     private function sign(Model $record, string $meaning, User $user, array $metadata = []): ElectronicSignature
     {
         $signedAt = now();
+        $metadata['signer_roles'] = $user->getRoleNames()->all();
         $payload = [
             'signable_type' => get_class($record),
             'signable_id' => $record->getKey(),
