@@ -84,6 +84,31 @@
         }
     }
 
+    /* Floating notice (Toast): drops in from just above its slot. */
+    --animate-om-toast-in: om-toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    @keyframes om-toast-in {
+        from {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    /* Toast countdown bar — its animationend dismisses the toast, so the
+       duration is set per toast inline. */
+    --animate-om-toast-timer: om-toast-timer 4s linear forwards;
+    @keyframes om-toast-timer {
+        from {
+            transform: scaleX(1);
+        }
+        to {
+            transform: scaleX(0);
+        }
+    }
+
     /* Pulsing live-status dot (StatusPill RUNNING, OnlineDot) */
     --animate-om-pulse: om-pulse 2s infinite;
     @keyframes om-pulse {

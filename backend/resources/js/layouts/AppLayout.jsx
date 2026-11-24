@@ -6,6 +6,7 @@ import { byOrder, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems }
 import { filterNavItems, flattenNavItems, groupVisible, searchResultKeys } from '../lib/navSearch';
 import LiveAlertCount from '../components/LiveAlertCount';
 import ViewAsBar from '../components/ViewAsBar';
+import FlashToasts from '../components/FlashToasts';
 import LatestAlerts from '../components/LatestAlerts';
 import Tooltip from '../components/Tooltip';
 import HoverPanel from '../components/HoverPanel';
@@ -382,7 +383,10 @@ export default function AppLayout({ children }) {
         <LiveShapesProvider>
         <PageTitleContext.Provider value={pageTitleCtx}>
         {/* App-wide toast stack — the replacement for window.alert(). */}
+        {/* Flash messages arrive through the same stack (FlashToasts), so a
+            redirect's "saved" floats instead of pushing the page down. */}
         <ToastProvider dismissLabel={__('Close')}>
+        <FlashToasts />
         <div className="flex h-screen overflow-hidden bg-om-bg">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
@@ -448,7 +452,6 @@ export default function AppLayout({ children }) {
                     {/* Whatever an installed module has to say on every admin
                         screen. Renders nothing when no module listens. */}
                     <Hook name="display.admin.layout" hooks={adminHooks} />
-                    <FlashMessages />
                     {children}
                 </main>
             </div>
@@ -458,54 +461,6 @@ export default function AppLayout({ children }) {
         </LiveShapesProvider>
     );
 }
-
-/**
- * The default "that worked" for a write that redirects: any controller ending in
- * `->with('success'|'error', …)` lands here, and the page itself needs no code.
- *
- * In the document flow on purpose — it should push the page down and be read,
- * having just arrived from somewhere else. That makes it the wrong choice under
- * a rapid in-place interaction (dragging rows, say), where the shift moves what
- * you were looking at; those use `useToast()` instead.
- */
-function FlashMessages() {
-    const { flash } = usePage().props;
-    // All four kinds the server shares. `warning` and `info` are the ones that
-    // explain a redirect ("you were sent here because…"), and dropping them
-    // left the user on a page they had not asked for with no word why.
-    const shown = FLASH_KINDS.filter(([kind]) => flash?.[kind]);
-    // A form saved at the bottom of a long page redirects back to the same,
-    // still scrolled, page: the message lands above the fold and the save
-    // looks like it did nothing. Bring a new message into view.
-    // Keyed on the flash object: every visit brings a new one, so saving twice
-    // with the same message still scrolls the second time.
-    const ref = useRef(null);
-    useEffect(() => {
-        const el = ref.current;
-        if (!el) return;
-        // Above the top of the scrolling <main> (under the header) counts as hidden.
-        const top = el.closest('main')?.getBoundingClientRect().top ?? 0;
-        if (el.getBoundingClientRect().top >= top) return;
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [flash]);
-    if (shown.length === 0) return null;
-    return (
-        <div ref={ref} className="mb-4 space-y-2 scroll-mt-4">
-            {shown.map(([kind, tone, role]) => (
-                <div key={kind} role={role} className={`p-3 rounded-om-sm border border-om-line text-[13px] ${tone}`}>
-                    {__(flash[kind])}
-                </div>
-            ))}
-        </div>
-    );
-}
-
-const FLASH_KINDS = [
-    ['success', 'bg-om-running-bg text-om-running', 'status'],
-    ['error', 'bg-om-blocked-bg text-om-blocked', 'alert'],
-    ['warning', 'bg-om-downtime-bg text-om-downtime', 'alert'],
-    ['info', 'bg-om-chip text-om-ink', 'status'],
-];
 
 /**
  * Desktop-only live clock shown top-right on every page (parity with the

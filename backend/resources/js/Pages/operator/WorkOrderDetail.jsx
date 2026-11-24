@@ -2548,7 +2548,7 @@ export default function WorkOrderDetail() {
                             <DetailRow label={__('Product type')}>{workOrder.product_type?.name ?? '—'}</DetailRow>
                             <DetailRow label={__('Line')}>{workOrder.line?.name ?? '—'}</DetailRow>
                             <DetailRow label={__('Planned')} mono>{qtyS(plannedQty)} {__('pcs')}</DetailRow>
-                            <DetailRow label={__('Created')} mono>{workOrder.created_at ? formatDate(new Date(workOrder.created_at), { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</DetailRow>
+                            <DetailRow label={__('Created')} mono>{workOrder.created_at ? formatDate(workOrder.created_at, { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</DetailRow>
                             <DetailRow label={__('Description')} last>
                                 {workOrder.description ? workOrder.description : <span className="text-om-faint">—</span>}
                             </DetailRow>

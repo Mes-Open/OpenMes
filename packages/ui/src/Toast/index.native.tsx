@@ -8,10 +8,11 @@ import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } fro
 
 import { colors, fonts, radius } from '../tokens';
 
-export type ToastSeverity = 'success' | 'warning' | 'error';
+export type ToastSeverity = 'success' | 'info' | 'warning' | 'error';
 
 const severityColor: Record<ToastSeverity, string> = {
     success: colors.running,
+    info: colors.accepted,
     warning: colors.downtime,
     error: colors.blocked,
 };

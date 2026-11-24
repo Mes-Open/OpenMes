@@ -152,6 +152,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Flash messages float instead of pushing the page down.** "Step completed.", "Saved." and
+  every other message after a redirect now appears as a floating notice, so nothing on the
+  screen jumps. On operator screens it is larger and centred just under the top bar; on
+  desk screens it sits top-right. Each kind has its own colour, icon and time on screen —
+  success 4 s, info 6 s, warning 8 s — and an **error stays until the operator closes it**.
+  A countdown bar shows the time left, and pointing at a notice pauses it. The same message
+  twice replaces the one on screen instead of stacking.
+
 - **A step waiting for an earlier one says why.** On *Scheduler → Automatic scheduling*, a
   step that cannot run because an earlier step of its order had too few people now reads
   *"Waits for step 10, which is short of operators (needs 3, 2 available)."* instead of *"An
