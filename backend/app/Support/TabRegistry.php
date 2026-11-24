@@ -75,6 +75,7 @@ class TabRegistry
         'quality' => ['label' => 'Issues & reasons', 'prefixes' => [
             '/admin/issues', '/admin/scrap-reasons', '/admin/downtime-reasons', '/admin/coa',
             '/admin/inspection-plans',
+            '/admin/supplier-quality',
             '/admin/customer-flavor-standards',
         ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [

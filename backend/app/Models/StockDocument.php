@@ -61,6 +61,7 @@ class StockDocument extends Model
         'type',
         'status',
         'warehouse_id',
+        'supplier_name',
         'work_order_id',
         'batch_id',
         'pallet_id',

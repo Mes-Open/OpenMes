@@ -786,6 +786,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/batches/{batch}/coa/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('batch-report.coa');
 
         // Incoming inspection plans (QA-configurable, versioned)
+        Route::get('/supplier-quality', [\App\Http\Controllers\Web\Admin\SupplierQualityController::class, 'index'])->name('supplier-quality.index');
+
         Route::get('/inspection-plans', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'index'])->name('inspection-plans.index');
         Route::post('/inspection-plans', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'store'])->name('inspection-plans.store');
         Route::post('/inspection-plans/dispatch', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'dispatch'])->name('inspection-plans.dispatch');
@@ -811,6 +813,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/coa/{batch}/checks', [\App\Http\Controllers\Web\Admin\CoaController::class, 'recordCheck'])->name('coa.checks.store');
         Route::post('/coa/{batch}/release', [\App\Http\Controllers\Web\Admin\CoaController::class, 'release'])->name('coa.release');
         Route::post('/coa/{batch}/draft', [\App\Http\Controllers\Web\Admin\CoaController::class, 'draft'])->name('coa.draft');
+        Route::post('/coa/{batch}/inspect-sign', [\App\Http\Controllers\Web\Admin\CoaController::class, 'inspectionSign'])->name('coa.inspect-sign');
         Route::post('/coa/{batch}/submit', [\App\Http\Controllers\Web\Admin\CoaController::class, 'submit'])->name('coa.submit');
         Route::post('/coa/{batch}/approve', [\App\Http\Controllers\Web\Admin\CoaController::class, 'approve'])->name('coa.approve');
         Route::post('/coa/{batch}/issue', [\App\Http\Controllers\Web\Admin\CoaController::class, 'issue'])->name('coa.issue');

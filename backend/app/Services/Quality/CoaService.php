@@ -127,7 +127,7 @@ class CoaService
         $checks = [
             $this->check(
                 'batch_complete',
-                '批次已完成',
+                'G01 批次已完成',
                 $batchComplete,
                 '批次状态与工序记录',
                 $batchComplete
@@ -141,7 +141,7 @@ class CoaService
             $this->weighingGate($batch),
             $this->check(
                 'quality_check',
-                '成品检验合格',
+                'G03 成品检验合格',
                 $latestCheck !== null && (bool) $latestCheck->all_passed,
                 '质量检查记录与检验明细',
                 $latestCheck === null
@@ -151,7 +151,7 @@ class CoaService
             $this->externalLabGate($batch, $batch->labTests->first()),
             $this->check(
                 'packaging_check',
-                '包装检查合格',
+                'G05 包装检查合格',
                 $batch->packagingChecklist !== null && (bool) $batch->packagingChecklist->all_passed,
                 '包装检查表',
                 $batch->packagingChecklist === null
@@ -160,7 +160,7 @@ class CoaService
             ),
             $this->check(
                 'no_open_blocking_issue',
-                '无未关闭阻断问题',
+                'G06 无未关闭阻断问题',
                 ! $this->hasOpenBlockingIssue($batch),
                 '工单关联问题单',
                 $this->hasOpenBlockingIssue($batch)
@@ -171,23 +171,23 @@ class CoaService
                 $this->latestReleaseCheck($batch, BatchReleaseCheck::TYPE_RETENTION_SAMPLE),
                 BatchReleaseCheck::TYPE_RETENTION_SAMPLE,
                 'retention_sample',
-                '留样已登记'
+                'G07 留样已登记'
             ),
             $this->releaseCheckGate(
                 $this->latestReleaseCheck($batch, BatchReleaseCheck::TYPE_LINE_CLEARANCE),
                 BatchReleaseCheck::TYPE_LINE_CLEARANCE,
                 'line_clearance',
-                '清线检查合格'
+                'G08 清线检查合格'
             ),
             $this->releaseCheckGate(
                 $this->latestReleaseCheck($batch, BatchReleaseCheck::TYPE_LABEL_BALANCE),
                 BatchReleaseCheck::TYPE_LABEL_BALANCE,
                 'label_balance',
-                '标签平衡'
+                'G09 标签平衡'
             ),
             $this->check(
                 'specification',
-                '规格与配方可追溯',
+                'G10 规格与配方可追溯',
                 $specificationReady,
                 '产品版本、产品类型与检验模板',
                 $specificationReady
@@ -209,7 +209,7 @@ class CoaService
 
         $checks[] = $this->check(
             'batch_released',
-            '批次已放行',
+            'G11 批次已放行',
             $batch->released_at !== null,
             '批次放行记录与签名',
             $batch->released_at === null ? '批次尚未由 QA 放行。' : '批次已放行。'
@@ -217,7 +217,7 @@ class CoaService
 
         $checks[] = $this->check(
             'coa_approved',
-            'COA 已批准',
+            'G12 COA 已批准',
             $document !== null && in_array($document->status, [CoaDocument::STATUS_APPROVED, CoaDocument::STATUS_ISSUED], true),
             'COA 审批记录',
             $document === null
@@ -260,9 +260,43 @@ class CoaService
         });
     }
 
+    /**
+     * Independent inspection attestation. The person who actually performed the
+     * finished-goods inspection signs the draft before it can go to QA review;
+     * this is separate from batch release and QA approval.
+     */
+    public function inspectionSign(CoaDocument $document, User $user): CoaDocument
+    {
+        $this->assertStatus($document, [CoaDocument::STATUS_DRAFT], '只有草稿可以由检验人签字。');
+
+        if ($document->inspector_id !== null) {
+            throw ValidationException::withMessages([
+                'inspect' => '该 COA 已由检验人签字，不能重复签字。',
+            ]);
+        }
+
+        return DB::transaction(function () use ($document, $user) {
+            $document->update([
+                'inspector_id' => $user->id,
+                'inspected_at' => now(),
+            ]);
+            $this->sign($document, ElectronicSignature::MEANING_COA_INSPECTION, $user, [
+                'quality_check_id' => $document->quality_snapshot['check_id'] ?? null,
+            ]);
+
+            return $document->refresh();
+        });
+    }
+
     public function submit(CoaDocument $document, User $user): CoaDocument
     {
         $this->assertStatus($document, [CoaDocument::STATUS_DRAFT], '只有草稿可以提交 QA 复核。');
+
+        if ($document->inspector_id === null) {
+            throw ValidationException::withMessages([
+                'submit' => '请先由检验人完成电子签名，再提交 QA 复核。',
+            ]);
+        }
 
         return DB::transaction(function () use ($document, $user) {
             $document->update([
@@ -292,6 +326,12 @@ class CoaService
         if ($releasedBy !== null && (int) $releasedBy === (int) $user->id) {
             throw ValidationException::withMessages([
                 'approve' => '放行人与批准人不能为同一人，双人复核未通过。',
+            ]);
+        }
+
+        if ($document->inspector_id !== null && (int) $document->inspector_id === (int) $user->id) {
+            throw ValidationException::withMessages([
+                'approve' => '检验人与批准人不能为同一人，质量复核未通过。',
             ]);
         }
 
@@ -494,6 +534,7 @@ class CoaService
                 'standard_reference' => $standardReference,
                 'sensory_profile' => $standard?->sensorySummary(),
                 'packaging_requirement' => $standard?->packaging_requirement,
+                'required_lab_items' => $standard?->requiredLabItems() ?? [],
                 'parameters' => $standard?->parameters() ?: ($latestCheck?->template?->parameters ?? []),
             ],
             'quality' => $latestCheck ? [
@@ -547,19 +588,37 @@ class CoaService
 
     private function externalLabGate(Batch $batch, ?BatchLabTest $labTest): array
     {
-        $required = $this->requiresExternalLab($batch);
-        $passed = ! $required || ($labTest !== null && $labTest->allPassed());
+        $batch->loadMissing(['workOrder.customer', 'workOrder.productType']);
+        $standard = app(CustomerFlavorStandardResolver::class)->resolve(
+            $batch->workOrder?->customer_id,
+            $batch->workOrder?->product_type_id,
+            $batch->completed_at ?? now(),
+        );
+        $required = (bool) $standard?->requires_external_lab;
+        $requiredItems = $standard?->requiredLabItems() ?? [];
+        $availableItems = collect($labTest?->items ?? [])
+            ->flatMap(fn ($item) => [$item['category'] ?? '', $item['name'] ?? ''])
+            ->filter()
+            ->values();
+        $missingItems = collect($requiredItems)
+            ->filter(fn ($requiredItem) => ! $availableItems->contains(
+                fn ($available) => mb_stripos((string) $available, (string) $requiredItem) !== false
+            ))
+            ->values()
+            ->all();
+        $passed = ! $required || ($labTest !== null && $labTest->allPassed() && $missingItems === []);
         $detail = match (true) {
             ! $required => '客户标准未要求外检，本项不适用。',
-            $labTest === null => '客户标准要求农残、重金属、微生物外检，尚未登记第三方报告。',
+            $labTest === null => '客户标准要求外检（'.($requiredItems ? implode('、', $requiredItems) : '农残 / 重金属 / 微生物').'），尚未登记第三方报告。',
             ! $labTest->allPassed() => "最新外检报告 {$labTest->report_number} 结论为不合格，不能放行。",
+            $missingItems !== [] => "最新外检报告 {$labTest->report_number} 缺少必检类别：".implode('、', $missingItems).'。',
             default => "外检报告 {$labTest->report_number}（{$labTest->lab_name}）结论合格，共 "
                 .count($labTest->items ?? []).' 项。',
         };
 
         return $this->check(
             'external_lab',
-            '外检报告合格',
+            'G04 外检报告合格',
             $passed,
             '第三方检测报告：农残 / 重金属 / 微生物',
             $detail
@@ -655,7 +714,7 @@ class CoaService
         $summary = $this->weighingSummary($batch);
 
         if ($summary['total'] === 0) {
-            return $this->check('weighing', '投料称重合格', true, 'BOM 原料与称重记录', 'BOM 无需要称重的原料，本项不适用。');
+            return $this->check('weighing', 'G02 投料称重合格', true, 'BOM 原料与称重记录', 'BOM 无需要称重的原料，本项不适用。');
         }
 
         $missing = collect($summary['rows'])->filter(fn ($row) => $row['record'] === null)->pluck('material_name')->all();
@@ -669,7 +728,7 @@ class CoaService
             default => '超差原料：'.implode('、', $failed).'，需复称或走偏差处理。',
         };
 
-        return $this->check('weighing', '投料称重合格', $passed, 'BOM 原料与称重记录', $detail);
+        return $this->check('weighing', 'G02 投料称重合格', $passed, 'BOM 原料与称重记录', $detail);
     }
 
     private function latestReleaseCheck(Batch $batch, string $type): ?BatchReleaseCheck

@@ -177,6 +177,7 @@ export const ADMIN_GROUPS = [
             // reporting it. Both governed by the quality tab, not Production.
             { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
             { label: '来料检验计划', href: '/admin/inspection-plans', match: ['/admin/inspection-plans'], tab: 'quality', lucide: 'clipboard-check' },
+            { label: '供应商质量', href: '/admin/supplier-quality', match: ['/admin/supplier-quality'], tab: 'quality', lucide: 'building-2' },
             { label: '客户风味标准', href: '/admin/customer-flavor-standards', match: ['/admin/customer-flavor-standards'], tab: 'quality', lucide: 'book-open' },
             { label: 'COA 与放行', href: '/admin/coa', match: ['/admin/coa'], tab: 'quality', lucide: 'file-check' },
             { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },

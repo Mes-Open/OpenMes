@@ -47,6 +47,7 @@ class CustomerFlavorStandardController extends Controller
                 'blend_tolerance' => $standard->blend_tolerance !== null ? (float) $standard->blend_tolerance : null,
                 'foreign_matter_required' => $standard->foreign_matter_required,
                 'requires_external_lab' => (bool) $standard->requires_external_lab,
+                'required_lab_items_text' => implode('、', $standard->requiredLabItems()),
                 'net_weight_min' => $standard->net_weight_min !== null ? (float) $standard->net_weight_min : null,
                 'net_weight_max' => $standard->net_weight_max !== null ? (float) $standard->net_weight_max : null,
                 'packaging_requirement' => $standard->packaging_requirement,
@@ -84,6 +85,7 @@ class CustomerFlavorStandardController extends Controller
         $validated['status'] = $validated['status'] ?? CustomerFlavorStandard::STATUS_ACTIVE;
         $validated['foreign_matter_required'] = $request->boolean('foreign_matter_required', true);
         $validated['requires_external_lab'] = $request->boolean('requires_external_lab');
+        $validated['required_lab_items'] = $this->parseLabItems($request->input('required_lab_items'));
         $validated['created_by_id'] = $request->user()?->id;
         $validated['approved_by_id'] = $request->user()?->id;
         $validated['approved_at'] = now();
@@ -101,6 +103,7 @@ class CustomerFlavorStandardController extends Controller
         $validated['status'] = $validated['status'] ?? $customerFlavorStandard->status;
         $validated['foreign_matter_required'] = $request->boolean('foreign_matter_required');
         $validated['requires_external_lab'] = $request->boolean('requires_external_lab');
+        $validated['required_lab_items'] = $this->parseLabItems($request->input('required_lab_items'));
 
         $customerFlavorStandard->update($validated);
 
@@ -156,10 +159,22 @@ class CustomerFlavorStandardController extends Controller
             'blend_tolerance' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'foreign_matter_required' => ['nullable', 'boolean'],
             'requires_external_lab' => ['nullable', 'boolean'],
+            'required_lab_items' => ['nullable', 'string', 'max:1000'],
             'net_weight_min' => ['nullable', 'numeric', 'min:0'],
             'net_weight_max' => ['nullable', 'numeric', 'min:0', 'gte:net_weight_min'],
             'packaging_requirement' => ['nullable', 'string', 'max:2000'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
+    }
+
+    /** @return list<string> */
+    private function parseLabItems(?string $text): array
+    {
+        return collect(preg_split('/\R|、|,|，/', (string) $text))
+            ->map(fn ($item) => trim($item))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 }

@@ -143,11 +143,11 @@ export default function InspectionPlansIndex() {
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-om-line px-4 py-3">
                     <div>
                         <h2 className="text-sm font-bold text-om-ink">到货批次待检</h2>
-                        <p className="mt-1 text-xs text-om-muted">取最近 30 天已过账的原料入库单；有已发布计划的行可一键派工，生成操作工端待检任务。</p>
+                        <p className="mt-1 text-xs text-om-muted">入库单过账时会自动按已发布计划生成待检任务；这里保留最近 30 天到货，用于补派历史单据和核对检验/处置/物料批。</p>
                     </div>
                     <div className="flex items-center gap-3">
                         {pendingArrivals > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">{pendingArrivals} 条待派工</span>}
-                        <button type="button" onClick={dispatchArrivals} className="btn-touch btn-secondary text-xs">同步到货批次</button>
+                        <button type="button" onClick={dispatchArrivals} className="btn-touch btn-secondary text-xs">补派历史到货</button>
                     </div>
                 </div>
                 {arrivals.length > 0 ? (
@@ -155,7 +155,7 @@ export default function InspectionPlansIndex() {
                         <table className="w-full min-w-[980px] text-sm">
                             <thead>
                                 <tr className="border-b border-om-line bg-om-bg text-left text-xs text-om-muted">
-                                    <th className="whitespace-nowrap px-4 py-2.5 font-semibold">到货单</th>
+                                    <th className="whitespace-nowrap px-4 py-2.5 font-semibold">到货单 / 供应商</th>
                                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">原料</th>
                                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">批号</th>
                                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">数量</th>
@@ -167,7 +167,10 @@ export default function InspectionPlansIndex() {
                             <tbody>
                                 {arrivals.map((arrival) => (
                                     <tr key={arrival.id} className="border-b border-om-line2/60">
-                                        <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-om-ink">{arrival.document_no ?? '—'}</td>
+                                        <td className="whitespace-nowrap px-4 py-2.5">
+                                            <div className="font-mono text-xs text-om-ink">{arrival.document_no ?? '—'}</div>
+                                            <div className="mt-1 text-[10px] text-om-muted">{arrival.supplier_name ?? '未指定供应商'}</div>
+                                        </td>
                                         <td className="px-3 py-2.5">
                                             <div className="font-semibold text-om-ink">{arrival.material_name ?? '—'}</div>
                                             {arrival.material_code && <div className="font-mono text-[10px] text-om-faint">{arrival.material_code}</div>}

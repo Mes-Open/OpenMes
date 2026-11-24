@@ -13,6 +13,7 @@ const STATUS_LABEL = {
 
 const SIGNATURE_LABEL = {
     BATCH_RELEASE: '批次放行',
+    COA_INSPECTION: '检验人确认',
     COA_APPROVAL: 'COA 批准',
     COA_ISSUE: 'COA 签发',
     COA_VOID: 'COA 作废',
@@ -60,8 +61,13 @@ export default function CoaShow() {
                                 确认放行
                             </button>
                         )}
+                        {document.status === 'DRAFT' && !document.inspector && (
+                            <button type="button" disabled={form.processing} onClick={() => post(`/admin/coa/${batch.id}/inspect-sign`)} className="btn-touch btn-secondary text-sm disabled:opacity-40">
+                                检验人签字
+                            </button>
+                        )}
                         {document.status === 'DRAFT' && (
-                            <button type="button" disabled={form.processing} onClick={() => post(`/admin/coa/${batch.id}/submit`)} className="btn-touch btn-primary text-sm disabled:opacity-40">
+                            <button type="button" disabled={!document.inspector || form.processing} onClick={() => post(`/admin/coa/${batch.id}/submit`)} className="btn-touch btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-40">
                                 提交 QA 复核
                             </button>
                         )}
@@ -188,6 +194,7 @@ export default function CoaShow() {
                     <Section title="文档状态" subtitle="受控 COA 生命周期">
                         <div className="space-y-3 text-sm">
                             <TimelineRow label="创建草稿" value={document.prepared_at} by={document.prepared_by} />
+                            <TimelineRow label="检验人确认" value={document.inspected_at} by={document.inspector} emptyLabel="未签字" />
                             <TimelineRow label="提交复核" value={document.submitted_at} />
                             <TimelineRow label="QA 批准" value={document.approved_at} by={document.approved_by} />
                             <TimelineRow label="签发" value={document.issued_at} by={document.issued_by} />

@@ -217,6 +217,7 @@ class InspectionPlanController extends Controller
             return [
                 'id' => $line->id,
                 'document_no' => $line->stockDocument?->document_no,
+                'supplier_name' => $line->stockDocument?->supplier_name,
                 'posted_at' => $line->stockDocument?->posted_at?->toIso8601String(),
                 'material_name' => $line->material?->name,
                 'material_code' => $line->material?->code,
@@ -243,7 +244,7 @@ class InspectionPlanController extends Controller
             ->with([
                 'material:id,name,code,unit_of_measure,material_type_id',
                 'materialLot:id,lot_number',
-                'stockDocument:id,document_no,type,status,posted_at',
+                'stockDocument:id,document_no,type,status,posted_at,supplier_name',
                 'inspection:id,stock_document_line_id,status,lot_number,disposition',
             ])
             ->whereNotNull('material_id')

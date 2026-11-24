@@ -2,6 +2,7 @@
 
 namespace App\Services\Warehouse;
 
+use App\Models\Inspection;
 use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\StockDocument;
@@ -9,8 +10,10 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\Material\StockMovementService;
+use App\Services\Quality\InboundInspectionService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -37,6 +40,7 @@ class StockDocumentService
     public function __construct(
         private StockMovementService $stockMovements,
         private WarehouseStockService $warehouseStock,
+        private InboundInspectionService $inboundInspections,
     ) {}
 
     /**
@@ -121,7 +125,7 @@ class StockDocumentService
             }
 
             $document = $locked;
-            $document->load('lines');
+            $document->load(['lines.material:id,name,code,unit_of_measure,material_type_id', 'lines.materialLot:id,lot_number']);
 
             if ($document->lines->isEmpty()) {
                 throw ValidationException::withMessages([
@@ -138,6 +142,10 @@ class StockDocumentService
                 'posted_at' => now(),
                 'posted_by_id' => $user?->id,
             ]);
+
+            if ($document->type === StockDocument::TYPE_MATERIAL_RECEIPT && $user !== null) {
+                $this->dispatchInboundInspections($document, $user);
+            }
 
             return $document->refresh();
         });
@@ -435,5 +443,53 @@ class StockDocumentService
         }
 
         return $warehouse;
+    }
+
+    /**
+     * A posted raw-material receipt is the trigger for incoming inspection:
+     * every line with a published plan gets one pending inspection, linked to
+     * the receipt line so the operator screen and quality scorecard can find
+     * it. Lines without a plan stay visible in the arrivals panel as "没有
+     * 适用计划"; they are not silently accepted.
+     */
+    private function dispatchInboundInspections(StockDocument $document, User $user): void
+    {
+        foreach ($document->lines as $line) {
+            if (! $line->material || ! $line->material_id) {
+                continue;
+            }
+
+            if (Inspection::where('stock_document_line_id', $line->id)->exists()) {
+                continue;
+            }
+
+            $plan = $this->inboundInspections->applicablePlan($line->material);
+            if (! $plan) {
+                continue;
+            }
+
+            try {
+                $this->inboundInspections->start(
+                    $line->material,
+                    $line->materialLot?->lot_number ?? $line->lot_number ?? $document->document_no,
+                    (float) $line->quantity,
+                    $plan,
+                    $user,
+                    $line->lot_number,
+                    null,
+                    $line->id,
+                );
+            } catch (UniqueConstraintViolationException) {
+                // A concurrent dispatch already linked this line.
+            } catch (\Throwable $e) {
+                // A broken inspection plan must not roll back the whole receipt.
+                Log::warning('Inbound inspection auto-dispatch failed', [
+                    'stock_document_id' => $document->id,
+                    'stock_document_line_id' => $line->id,
+                    'material_id' => $line->material_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 }

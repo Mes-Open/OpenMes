@@ -260,7 +260,7 @@ export default function MaterialLotShow({ lot }) {
 
     return (
         <>
-            <Head title={`Material Lot — ${lot.lot_number}`} />
+            <Head title={`物料批 — ${lot.lot_number}`} />
 
             {/* Breadcrumbs */}
             <PageTrail append={[{ label: lot.lot_number }]} />
@@ -332,6 +332,7 @@ export default function MaterialLotShow({ lot }) {
                         <InfoCell label={__('Manufacturing date')}>
                             {fmtDate(lot.manufacturing_date) ?? '—'}
                         </InfoCell>
+                        <InfoCell label={__('Supplier')}>{lot.supplier_name ?? '—'}</InfoCell>
                         <InfoCell label={__('Supplier lot')}>{lot.supplier_lot_no ?? '—'}</InfoCell>
                         <InfoCell label={__('Supplier reference')}>{lot.supplier_reference ?? '—'}</InfoCell>
                         <InfoCell label={__('Inspection')}>

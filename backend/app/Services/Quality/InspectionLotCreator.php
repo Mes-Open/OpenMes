@@ -50,6 +50,7 @@ class InspectionLotCreator
             'material_id' => $inspection->material_id,
             'lot_number' => $inspection->lot_number,
             'unit_of_measure' => $inspection->material?->unit_of_measure ?? 'pcs',
+            'supplier_name' => $inspection->stockDocumentLine?->stockDocument?->supplier_name,
             'supplier_lot_no' => $inspection->supplier_lot_ref,
             'source_container_no' => $inspection->source_container_no,
             'quantity_received' => $qty,

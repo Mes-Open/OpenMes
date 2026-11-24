@@ -51,6 +51,8 @@ class CoaDocument extends Model
         'gate_snapshot',
         'prepared_by_id',
         'prepared_at',
+        'inspector_id',
+        'inspected_at',
         'submitted_at',
         'approved_by_id',
         'approved_at',
@@ -69,6 +71,7 @@ class CoaDocument extends Model
             'quality_snapshot' => 'array',
             'gate_snapshot' => 'array',
             'prepared_at' => 'datetime',
+            'inspected_at' => 'datetime',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
             'issued_at' => 'datetime',
@@ -99,6 +102,11 @@ class CoaDocument extends Model
     public function preparedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'prepared_by_id');
+    }
+
+    public function inspector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'inspector_id');
     }
 
     public function approvedBy(): BelongsTo

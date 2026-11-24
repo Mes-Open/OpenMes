@@ -6820,7 +6820,7 @@
   "IQC: :status": "IQC：:status",
   "Supplier lot: :lot": "供应商批次：:lot",
   "Sample material": "样本材料",
-  "IQC label": "IQC 标签",
+  "IQC label": "物料批检验标签",
   "Material lot (IQC)": "材料批量(IQC)",
   "Inspection status": "检查状况",
   "missing :qty :unit": "缺少:qty:unit",
@@ -7537,5 +7537,10 @@
   ":n y": ":n 年",
   "Company Profile": "公司信息",
   "Grade": "等级",
-  "All Entities": "全部实体"
+  "All Entities": "全部实体",
+  "Finished Good": "成品",
+  "Material Lot Disposal": "物料批处置",
+  "Supplier Quality": "供应商质量",
+  "Disposals": "处置记录",
+  "Disposed": "已处置"
 }

@@ -14,6 +14,8 @@ class ElectronicSignature extends Model
 
     public const MEANING_BATCH_RELEASE = 'BATCH_RELEASE';
 
+    public const MEANING_COA_INSPECTION = 'COA_INSPECTION';
+
     public const MEANING_COA_APPROVAL = 'COA_APPROVAL';
 
     public const MEANING_COA_ISSUE = 'COA_ISSUE';

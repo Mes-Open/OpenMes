@@ -48,6 +48,7 @@ class MaterialLot extends Model
     protected $fillable = [
         'lot_number',
         'material_id',
+        'supplier_name',
         'source_id',
         'warehouse_id',
         'quantity_received',

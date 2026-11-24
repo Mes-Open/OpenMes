@@ -296,7 +296,7 @@
 
 <table class="sign">
     <tr>
-        <td width="33%">{{ $qualitySnapshot['checked_by'] ?? '—' }}</td>
+        <td width="33%">{{ $document?->inspector?->name ?? ($qualitySnapshot['checked_by'] ?? '—') }}</td>
         <td width="33%">{{ $document?->approvedBy?->name ?? '—' }}</td>
         <td width="33%">{{ $document?->issuedBy?->name ?? '—' }}</td>
     </tr>

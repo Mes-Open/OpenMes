@@ -37,6 +37,7 @@ class CustomerFlavorStandard extends Model
         'blend_tolerance',
         'foreign_matter_required',
         'requires_external_lab',
+        'required_lab_items',
         'net_weight_min',
         'net_weight_max',
         'packaging_requirement',
@@ -56,10 +57,22 @@ class CustomerFlavorStandard extends Model
             'blend_tolerance' => 'decimal:3',
             'foreign_matter_required' => 'boolean',
             'requires_external_lab' => 'boolean',
+            'required_lab_items' => 'array',
             'net_weight_min' => 'decimal:3',
             'net_weight_max' => 'decimal:3',
             'approved_at' => 'datetime',
         ];
+    }
+
+    /** 客户要求外检报告至少覆盖的类别/项目（例如 农残、重金属、微生物）。 */
+    public function requiredLabItems(): array
+    {
+        return collect($this->required_lab_items ?? [])
+            ->map(fn ($item) => is_string($item) ? trim($item) : '')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function customer(): BelongsTo

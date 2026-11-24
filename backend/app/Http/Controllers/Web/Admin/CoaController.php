@@ -8,6 +8,8 @@ use App\Models\BatchLabTest;
 use App\Models\BatchReleaseCheck;
 use App\Models\BatchWeighingRecord;
 use App\Models\CoaDocument;
+use App\Models\Issue;
+use App\Models\IssueType;
 use App\Services\Quality\CoaService;
 use App\Support\DownloadName;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -57,7 +59,12 @@ class CoaController extends Controller
             ->paginate(20)
             ->withQueryString()
             ->through(function (Batch $batch) {
-                $gate = $this->coa->releaseGate($batch);
+                $liveGate = $this->coa->releaseGate($batch);
+                $gate = $this->frozenGate(
+                    $batch->coaDocument?->issued_at ? $batch->coaDocument?->gate_snapshot : null,
+                    $liveGate,
+                    self::RELEASE_GATE_KEYS,
+                ) ?? $liveGate;
 
                 return [
                     'id' => $batch->id,
@@ -163,6 +170,8 @@ class CoaController extends Controller
                 'revision_code' => $document->revision_code,
                 'lot_number' => $document->lot_number,
                 'prepared_at' => $document->prepared_at?->toIso8601String(),
+                'inspector' => $document->inspector?->name,
+                'inspected_at' => $document->inspected_at?->toIso8601String(),
                 'prepared_by' => $document->preparedBy?->name,
                 'submitted_at' => $document->submitted_at?->toIso8601String(),
                 'approved_at' => $document->approved_at?->toIso8601String(),
@@ -186,8 +195,15 @@ class CoaController extends Controller
                 'voided_at' => $version->voided_at?->toIso8601String(),
                 'void_reason' => $version->void_reason,
             ])->values() : [],
-            'releaseGate' => $this->coa->releaseGate($batch),
-            'issueGate' => $this->coa->issueGate($batch, $document),
+            'releaseGate' => $this->frozenGate(
+                $document?->issued_at ? $document?->gate_snapshot : null,
+                $liveIssue = $this->coa->issueGate($batch, $document),
+                self::RELEASE_GATE_KEYS,
+            ) ?? $this->coa->releaseGate($batch),
+            'issueGate' => $this->frozenGate(
+                $document?->issued_at ? $document?->gate_snapshot : null,
+                $liveIssue,
+            ) ?? $liveIssue,
             'separation' => $this->separation($batch, $document),
             'labTest' => $batch->labTests->first() ? $this->labTestPayload($batch->labTests->first()) : null,
             'labTestRequired' => $this->coa->requiresExternalLab($batch),
@@ -245,6 +261,50 @@ class CoaController extends Controller
         ];
     }
 
+    private const RELEASE_GATE_KEYS = [
+        'batch_complete', 'weighing', 'quality_check', 'external_lab', 'packaging_check',
+        'no_open_blocking_issue', 'retention_sample', 'line_clearance', 'label_balance', 'specification',
+    ];
+
+    /**
+     * Once a COA is issued, its gate result must stay frozen for audit. Labels
+     * are normalised to the current G01-G12 wording, but pass/fail and details
+     * come from the signing snapshot, not from today's data.
+     *
+     * @param  array<string, mixed>|null  $snapshot
+     * @param  array<string, mixed>  $live
+     * @param  list<string>|null  $keys
+     * @return array<string, mixed>|null
+     */
+    private function frozenGate(?array $snapshot, array $live, ?array $keys = null): ?array
+    {
+        $snapshotChecks = $snapshot['checks'] ?? null;
+        if (! is_array($snapshotChecks)) {
+            return null;
+        }
+
+        $labels = collect($live['checks'] ?? [])->mapWithKeys(fn ($check) => [$check['key'] => $check['label']]);
+        $checks = collect($snapshotChecks)
+            ->when($keys !== null, fn ($collection) => $collection->whereIn('key', $keys))
+            ->map(fn ($check) => array_merge($check, [
+                'label' => $labels[$check['key']] ?? $check['label'],
+            ]))
+            ->values()
+            ->all();
+
+        $passed = collect($checks)->where('passed', true)->count();
+        $failed = collect($checks)->where('passed', false)->pluck('label')->all();
+
+        return [
+            'passed' => $passed === count($checks) && $checks !== [],
+            'passed_count' => $passed,
+            'total' => count($checks),
+            'failed_labels' => implode('、', $failed),
+            'checks' => $checks,
+            'snapshot' => true,
+        ];
+    }
+
     private function separation(Batch $batch, ?CoaDocument $document): array
     {
         $releasedBy = $batch->releasedBy;
@@ -273,7 +333,7 @@ class CoaController extends Controller
     {
         $this->coa->draft($batch);
 
-        return back()->with('success', 'COA 草稿已生成，可以提交 QA 复核。');
+        return back()->with('success', 'COA 草稿已生成，请检验人签字后提交 QA 复核。');
     }
 
     public function release(Request $request, Batch $batch)
@@ -427,7 +487,7 @@ class CoaController extends Controller
         $variancePct = $target > 0 ? round($variance / $target * 100, 3) : 0.0;
         $passed = abs($variancePct) <= $tolerance + 0.000001;
 
-        BatchWeighingRecord::create([
+        $record = BatchWeighingRecord::create([
             'batch_id' => $batch->id,
             'step_number' => $requirement['step_number'],
             'material_id' => $requirement['material_id'],
@@ -445,6 +505,8 @@ class CoaController extends Controller
             'weighed_at' => now(),
             'notes' => $data['notes'] ?? null,
         ]);
+
+        $this->syncWeighingIssue($batch, $requirement, $passed, $variancePct, $actual, $target, $request->user());
 
         return back()->with(
             'success',
@@ -506,13 +568,25 @@ class CoaController extends Controller
         ]));
     }
 
+    public function inspectionSign(Request $request, Batch $batch)
+    {
+        $document = $batch->coaDocument;
+        if (! $document) {
+            throw ValidationException::withMessages(['inspect' => '该批次尚未生成 COA 草稿。']);
+        }
+
+        $this->coa->inspectionSign($document, $request->user());
+
+        return back()->with('success', '检验人已签字，可以提交 QA 复核。');
+    }
+
     public function pdf(Batch $batch)
     {
         $document = $batch->coaDocument;
         if (! $document) {
             abort(404, '该批次尚未生成 COA，请先在 COA 工作台生成草稿。');
         }
-        $document->load(['versions', 'approvedBy', 'issuedBy', 'voidedBy']);
+        $document->load(['versions', 'inspector', 'approvedBy', 'issuedBy', 'voidedBy']);
 
         $batch->load([
             'workOrder.customer',
@@ -596,5 +670,64 @@ class CoaController extends Controller
         if (is_file($bold)) {
             $metrics->registerFont(['family' => 'CoaNotoSans', 'style' => 'normal', 'weight' => 'bold'], $bold);
         }
+    }
+
+    /**
+     * A failed weighing is a real non-conformance, not just a red gate row:
+     * it opens a blocking issue on the work order so production must weigh
+     * again and QA must resolve it. A later passing reweigh closes that issue
+     * automatically for the same batch/material.
+     */
+    private function syncWeighingIssue(
+        Batch $batch,
+        array $requirement,
+        bool $passed,
+        float $variancePct,
+        float $actual,
+        float $target,
+        ?\App\Models\User $user,
+    ): void {
+        $title = trim('称重超差：'.$batch->batch_number.' / '.$requirement['material_name']);
+        $open = Issue::query()
+            ->where('title', $title)
+            ->whereIn('status', [Issue::STATUS_OPEN, Issue::STATUS_ACKNOWLEDGED])
+            ->first();
+
+        if ($passed) {
+            if ($open) {
+                $open->update([
+                    'status' => Issue::STATUS_RESOLVED,
+                    'resolved_at' => now(),
+                    'resolution_notes' => '复称在公差内，自动关闭称重超差问题。',
+                ]);
+            }
+
+            return;
+        }
+
+        if ($open) {
+            return;
+        }
+
+        $issueTypeId = IssueType::where('code', 'HT-Q-WEIGHT')->value('id')
+            ?? IssueType::where('code', 'IN_PROCESS_QC_FAIL')->value('id')
+            ?? IssueType::where('code', 'OTHER')->value('id');
+
+        Issue::create([
+            'work_order_id' => $batch->work_order_id,
+            'material_id' => $requirement['material_id'],
+            'source' => Issue::SOURCE_IN_PROCESS,
+            'issue_type_id' => $issueTypeId,
+            'blocks_work_order' => true,
+            'title' => $title,
+            'description' => sprintf(
+                '投料称重超差：%s，目标 %s kg，实际 %s kg，偏差 %+.3f%%。登记人：%s。复称合格后系统自动关闭。',
+                $requirement['material_name'], $target, $actual, $variancePct, $user?->name ?? '系统'
+            ),
+            'status' => Issue::STATUS_OPEN,
+            'reported_by_id' => $user?->id,
+            'reported_at' => now(),
+            'non_conforming_qty' => round(abs($actual - $target), 2),
+        ]);
     }
 }
