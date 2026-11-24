@@ -165,16 +165,23 @@ export default function TeaBaseShow() {
                 <Panel
                     title="可用批次"
                     subtitle={`${available_lot_count} 个批次可进入拼配；冻结、待检或已耗尽批次只做追溯`}
-                    action={
+                    action={can_blend ? (
+                        <Link
+                            href={`/admin/blend-formulas?tea_base=${teaBase.id}`}
+                            className="btn-touch btn-secondary text-xs"
+                        >
+                            进入拼配
+                        </Link>
+                    ) : (
                         <button
                             type="button"
                             disabled
-                            title={can_blend ? '拼配版本工作台下一阶段上线' : '没有可进入拼配的批次'}
+                            title="没有可进入拼配的批次"
                             className="btn-touch btn-secondary text-xs disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            进入拼配（下一阶段）
+                            进入拼配
                         </button>
-                    }
+                    )}
                 >
                     {teaBase.status !== 'AVAILABLE' && (
                         <div className="border-b border-om-line2 bg-om-chip/30 px-4 py-2 text-xs text-om-muted">
@@ -229,7 +236,7 @@ export default function TeaBaseShow() {
                     )}
                     {can_blend && (
                         <p className="border-t border-om-line2 px-4 py-2 text-[11px] text-om-faint">
-                            拼配版本工作台下一阶段上线；当前先把可用批次跑通，进入拼配按钮暂锁。
+                            进入拼配会带上这支茶底，只显示使用它的版本；可用批次仍按原批次追溯。
                         </p>
                     )}
                 </Panel>

@@ -813,6 +813,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/flower-lots/{flowerLot}/mark-available', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'markAvailable'])->name('flower-lots.mark-available');
         Route::post('/flower-lots/{flowerLot}/allocate', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'allocate'])->name('flower-lots.allocate');
         Route::post('/flower-lots/{flowerLot}/dispose', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'dispose'])->name('flower-lots.dispose');
+        Route::get('/blend-formulas', [\App\Http\Controllers\Web\Admin\BlendFormulaController::class, 'index'])->name('blend-formulas.index');
+        Route::get('/blend-formulas/{blendFormula}', [\App\Http\Controllers\Web\Admin\BlendFormulaController::class, 'show'])->name('blend-formulas.show');
+        Route::post('/blend-formulas/{blendFormula}/duplicate', [\App\Http\Controllers\Web\Admin\BlendFormulaController::class, 'duplicate'])->name('blend-formulas.duplicate');
+        Route::post('/blend-formulas/{blendFormula}/freeze', [\App\Http\Controllers\Web\Admin\BlendFormulaController::class, 'freeze'])->name('blend-formulas.freeze');
         Route::get('/coa', [\App\Http\Controllers\Web\Admin\CoaController::class, 'index'])->name('coa.index');
         Route::get('/coa/{batch}/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('coa.pdf');
         Route::get('/coa/{batch}', [\App\Http\Controllers\Web\Admin\CoaController::class, 'show'])->name('coa.show');
