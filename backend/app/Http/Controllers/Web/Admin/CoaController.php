@@ -8,11 +8,15 @@ use App\Models\BatchLabTest;
 use App\Models\BatchReleaseCheck;
 use App\Models\BatchWeighingRecord;
 use App\Models\CoaDocument;
+use App\Models\CoaVerificationToken;
 use App\Models\Issue;
 use App\Models\IssueType;
 use App\Services\Quality\CoaService;
 use App\Support\DownloadName;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -142,6 +146,16 @@ class CoaController extends Controller
             $document->load(['versions', 'signatures.user', 'preparedBy', 'approvedBy', 'issuedBy', 'voidedBy']);
         }
 
+        $verification = null;
+        if ($document && $document->isIssued()) {
+            $token = CoaVerificationToken::ensureFor($document);
+            $verification = $token ? [
+                'url' => $token->publicUrl(),
+                'issued_at' => $token->issued_at?->toIso8601String(),
+                'short_hash' => $token->shortHash(),
+            ] : null;
+        }
+
         return Inertia::render('admin/coa/Show', [
             'batch' => [
                 'id' => $batch->id,
@@ -183,6 +197,7 @@ class CoaController extends Controller
                 'voided_at' => $document->voided_at?->toIso8601String(),
                 'voided_by' => $document->voidedBy?->name,
                 'void_reason' => $document->void_reason,
+                'verification' => $verification,
                 'specification' => $document->specification_snapshot,
                 'quality' => $document->quality_snapshot,
             ] : null,
@@ -623,6 +638,19 @@ class CoaController extends Controller
         $generatedAt = $document->issued_at ?? $document->approved_at ?? $document->prepared_at ?? now();
         $changeReason = $latestVersion?->change_reason;
 
+        $verification = $document->isIssued() ? CoaVerificationToken::ensureFor($document) : null;
+        $verificationUrl = $verification?->publicUrl();
+        $verificationHash = $verification?->shortHash();
+        $verificationQr = null;
+        if ($verificationUrl) {
+            $verificationQr = (new PngWriter())
+                ->write(QrCode::create($verificationUrl)
+                    ->setSize(112)
+                    ->setMargin(2)
+                    ->setErrorCorrectionLevel(ErrorCorrectionLevel::Medium))
+                ->getDataUri();
+        }
+
         $pdf = Pdf::loadView('admin.reports.coa-pdf', [
             'batch' => $batch,
             'workOrder' => $batch->workOrder,
@@ -642,6 +670,9 @@ class CoaController extends Controller
             'weighing' => $weighing,
             'generatedAt' => $generatedAt,
             'changeReason' => $changeReason,
+            'verificationUrl' => $verificationUrl,
+            'verificationHash' => $verificationHash,
+            'verificationQr' => $verificationQr,
         ])->setPaper('a4', 'portrait');
 
         // Embed only the glyphs actually used; the bundled CJK font is large.

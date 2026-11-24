@@ -64,6 +64,7 @@ class NewTeaDemoSeeder extends Seeder
             $this->call(FlowerLotDemoSeeder::class);
             $this->call(BlendFormulaDemoSeeder::class);
             $this->call(SensoryEvaluationDemoSeeder::class);
+            $this->call(CoaVerificationDemoSeeder::class);
 
             Auth::logout();
 

@@ -8,7 +8,7 @@
         body { font-family: "CoaNotoSans", "DejaVu Sans", sans-serif; font-size: 9.6px; color: #1f2937; }
         strong { font-weight: bold; color: #111827; }
         h1 { font-size: 18px; font-weight: bold; margin: 0 0 1px; letter-spacing: 1px; }
-        h2 { font-size: 12px; font-weight: bold; margin: 6px 0 2px; color: #0f766e; border-bottom: 1.5px solid #0f766e; padding-bottom: 2px; }
+        h2 { font-size: 12px; font-weight: bold; margin: 4px 0 2px; color: #0f766e; border-bottom: 1.5px solid #0f766e; padding-bottom: 2px; }
         .company { font-size: 13px; font-weight: bold; color: #111827; }
         .sub { font-size: 9px; color: #6b7280; }
         .head { display: table; width: 100%; }
@@ -26,8 +26,8 @@
         .badge-red { background: #fee2e2; color: #991b1b; }
         .badge-amber { background: #fef3c7; color: #92400e; }
         .box { border: 1px solid #d1d5db; padding: 4px 8px; margin: 4px 0; }
-        .sign { width: 100%; margin-top: 5px; }
-        .sign td { border: none; padding: 4px 6px 1px; border-bottom: 1px solid #9ca3af; font-size: 8.3px; }
+        .sign { width: 100%; margin-top: 3px; }
+        .sign td { border: none; padding: 3px 6px 0; border-bottom: 1px solid #9ca3af; font-size: 8.3px; }
         .sign .label { border: none; color: #6b7280; padding-top: 2px; }
         .foot { margin-top: 1px; font-size: 7.6px; color: #6b7280; line-height: 1.3; }
         .watermark { position: fixed; top: 40%; left: 12%; font-size: 46px; color: rgba(185, 28, 28, 0.12); transform: rotate(-18deg); font-weight: bold; }
@@ -307,9 +307,28 @@
     </tr>
 </table>
 
+@if (! empty($verificationUrl))
+<table style="width:100%; border-collapse:collapse; margin-top:1px; page-break-inside:avoid;">
+    <tr>
+        <td style="border:none; vertical-align:bottom; padding:0 6px 0 0; width:76%;">
+            <div style="font-size:7.6px; font-weight:bold; color:#374151; line-height:1.2;">扫码验真 / Verify</div>
+            <div style="font-size:6.1px; color:#6b7280; line-height:1.2; word-break:break-all;">{{ $verificationUrl }}</div>
+            <div style="font-size:6.1px; color:#6b7280; line-height:1.2;">短哈希 {{ $verificationHash }}｜仅以本页编号、批次与签名记录为准</div>
+            <div style="font-size:5.8px; color:#9ca3af; line-height:1.2;">地址：贵州省遵义市湄潭县｜编号：{{ $coaNo }}｜{{ $coaVersion }}｜{{ $isIssued ? '已签发' : ($isVoid ? '已作废' : '草案') }}｜生成：{{ $generatedAt->format('Y-m-d H:i') }}</div>
+            <div style="font-size:5.8px; color:#9ca3af; line-height:1.2;">本证书由 OpenMES 质量模块生成，以本版本及电子签名记录为准。</div>
+        </td>
+        <td style="border:none; width:18mm; text-align:right; padding:0;">
+            <img src="{{ $verificationQr }}" alt="验真二维码" style="width:17mm; height:17mm;">
+        </td>
+    </tr>
+</table>
+@endif
+
+@if (empty($verificationUrl))
 <div class="foot">
     地址：贵州省遵义市湄潭县｜文件编号：{{ $coaNo }}｜版本：{{ $coaVersion }}｜状态：{{ $isIssued ? '已签发' : ($isVoid ? '已作废' : '草案') }}｜生成时间：{{ $generatedAt->format('Y-m-d H:i:s') }}<br>
     本证书由 OpenMES 质量模块生成，检验结果来源于批次质量检查记录；正式对外文件以本版本及电子签名记录为准。
 </div>
+@endif
 </body>
 </html>

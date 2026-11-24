@@ -321,6 +321,11 @@ function ConsoleHeader({ batch, document, actions, form, post, hint, showPdf }) 
                         下载 PDF
                     </a>
                 )}
+                {document?.verification?.url && (
+                    <a href={document.verification.url} target="_blank" rel="noreferrer" className="btn-touch btn-secondary text-sm">
+                        验真链接
+                    </a>
+                )}
                 {actions.map((action) => (
                     <button
                         key={action.key}

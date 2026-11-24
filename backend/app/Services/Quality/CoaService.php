@@ -8,6 +8,7 @@ use App\Models\BatchReleaseCheck;
 use App\Models\BatchWeighingRecord;
 use App\Models\CoaDocument;
 use App\Models\CoaDocumentVersion;
+use App\Models\CoaVerificationToken;
 use App\Models\ElectronicSignature;
 use App\Models\Issue;
 use App\Models\User;
@@ -390,6 +391,7 @@ class CoaService
                 'gate' => $gate,
                 'version' => $document->current_version,
             ]);
+            CoaVerificationToken::ensureFor($document->refresh());
 
             return $document->refresh();
         });
@@ -421,6 +423,7 @@ class CoaService
                 'reason' => $reason,
                 'version' => $document->current_version,
             ]);
+            CoaVerificationToken::revokeForDocument($document, 'COA 已作废：'.$reason);
 
             return $document->refresh();
         });
@@ -436,6 +439,8 @@ class CoaService
         }
 
         return DB::transaction(function () use ($document, $user, $reason) {
+            CoaVerificationToken::revokeForDocument($document, 'COA 重签，旧验真链接已停用：'.$reason);
+
             $versionNumber = $document->current_version + 1;
             $snapshot = $this->snapshot($document->batch, $versionNumber);
             $snapshot['reissue_reason'] = $reason;

@@ -44,6 +44,7 @@ use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrd
 use App\Http\Controllers\Web\Admin\WorkstationTypeController;
 // Materials & BOM
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\CoaVerificationController;
 use App\Http\Controllers\Web\IssueManagementController;
 use App\Http\Controllers\Web\Logistics\PalletMovementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
@@ -173,6 +174,17 @@ Route::middleware('guest')->group(function () {
 // 2FA challenge routes (no auth middleware — user is mid-login)
 Route::get('/2fa/challenge', [\App\Http\Controllers\Web\TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
 Route::post('/2fa/challenge', [\App\Http\Controllers\Web\TwoFactorChallengeController::class, 'verify'])->name('two-factor.verify')->middleware('throttle:5,1');
+
+// Public COA verification: the token is the authorization. No admin navigation,
+// no internal IDs, and never cached as an internal document page.
+Route::get('/verify/coa/{token}', [CoaVerificationController::class, 'show'])
+    ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:60,1')
+    ->name('coa.verify');
+Route::get('/verify/coa/{token}/pdf', [CoaVerificationController::class, 'pdf'])
+    ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:30,1')
+    ->name('coa.verify.pdf');
 
 // Authenticated routes
 Route::middleware('auth')->group(function () {
