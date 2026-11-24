@@ -815,6 +815,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/customer-flavor-standards/{customerFlavorStandard}', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'destroy'])->name('customer-flavor-standards.destroy');
         Route::post('/customer-flavor-standards/{customerFlavorStandard}/toggle-status', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'toggleStatus'])->name('customer-flavor-standards.toggle-status');
 
+        Route::get('/calibrations', [\App\Http\Controllers\Web\Admin\CalibrationController::class, 'index'])->name('calibrations.index');
+
         Route::get('/quality', [\App\Http\Controllers\Web\Admin\QualityConsoleController::class, 'index'])->name('quality.index');
         Route::get('/tea-bases', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'index'])->name('tea-bases.index');
         Route::get('/tea-bases/{teaBase}', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'show'])->name('tea-bases.show');

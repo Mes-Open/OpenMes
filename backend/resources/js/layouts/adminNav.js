@@ -245,11 +245,12 @@ export const ADMIN_GROUPS = [
         label: 'Maintenance',
         icon: 'cog',
         lucide: 'wrench',
-        match: ['/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools'],
+        match: ['/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/calibrations'],
         children: [
             { label: 'Maintenance Events', href: '/admin/maintenance-events', match: ['/admin/maintenance-events'], lucide: 'calendar-clock' },
             { label: 'Maintenance Schedules', href: '/admin/maintenance-schedules', match: ['/admin/maintenance-schedules'], lucide: 'calendar-check' },
             { label: 'Tools', href: '/admin/tools', match: ['/admin/tools'], lucide: 'wrench' },
+            { label: '设备校准', href: '/admin/calibrations', match: ['/admin/calibrations'], lucide: 'gauge' },
         ],
     },
     {

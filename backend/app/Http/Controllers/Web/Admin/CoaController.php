@@ -7,6 +7,7 @@ use App\Models\Batch;
 use App\Models\BatchLabTest;
 use App\Models\BatchReleaseCheck;
 use App\Models\BatchWeighingRecord;
+use App\Models\CalibrationRecord;
 use App\Models\CoaDocument;
 use App\Models\CoaVerificationToken;
 use App\Models\Issue;
@@ -486,6 +487,16 @@ class CoaController extends Controller
             'scale_code' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        $scaleCode = trim((string) ($data['scale_code'] ?? ''));
+        if ($scaleCode !== '') {
+            $calibration = CalibrationRecord::query()->where('equipment_code', $scaleCode)->first();
+            if ($calibration?->isLocked()) {
+                throw ValidationException::withMessages([
+                    'scale_code' => "秤 {$scaleCode} 已锁定：{$calibration->lock_reason} 解锁条件：{$calibration->unlockText()}",
+                ]);
+            }
+        }
 
         $requirement = collect($this->coa->weighingRequirements($batch))
             ->first(fn ($row) => (int) $row['material_id'] === (int) $data['material_id']

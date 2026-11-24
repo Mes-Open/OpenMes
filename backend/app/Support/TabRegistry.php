@@ -91,7 +91,7 @@ class TabRegistry
             '/admin/schedule/employees',
         ]],
         'maintenance' => ['label' => 'Maintenance', 'prefixes' => [
-            '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
+            '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/calibrations', '/admin/cost-sources',
             '/admin/inspection-plans', '/admin/quality-control-triggers',
             '/admin/quality-tasks', '/admin/oee',
         ]],

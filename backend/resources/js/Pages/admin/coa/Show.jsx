@@ -1097,6 +1097,7 @@ function WeighingPanel({ batch, weighing }) {
                                                         </label>
                                                     </div>
                                                     {errors.actual_qty && <p className="mt-1 text-xs font-semibold text-om-blocked">{errors.actual_qty}</p>}
+                                                    {errors.scale_code && <p className="mt-1 text-xs font-semibold text-om-blocked">{errors.scale_code}</p>}
                                                     <div className="mt-2 flex justify-end gap-2">
                                                         <button type="button" onClick={() => setOpenKey(null)} className="btn-touch btn-secondary text-xs">取消</button>
                                                         <button type="button" onClick={() => submit(row)} className="btn-touch btn-primary text-xs">保存称重</button>
