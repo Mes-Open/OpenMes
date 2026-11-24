@@ -68,13 +68,44 @@ class Material extends Model
         ];
     }
 
+    /** Cached physical quantity sitting in quality-held lots for this instance. */
+    protected ?float $qualityHeldCache = null;
+
     /**
      * Material physically present minus what is currently reserved by
      * active allocations. The truthful "free to allocate" number.
+     *
+     * Lots held by quality (quarantine/rejected) are still physically in the
+     * warehouse but may not be issued. Subtracting their remaining quantity
+     * keeps the aggregate stock view aligned with what lot picking can use.
      */
     public function getAvailableQuantityAttribute(): float
     {
-        return (float) $this->stock_quantity - (float) $this->reserved_quantity;
+        return (float) $this->stock_quantity - (float) $this->reserved_quantity - $this->quality_held_quantity;
+    }
+
+    /**
+     * Remaining physical quantity in lots that quality has not released.
+     *
+     * A lot created while quarantined starts with quantity_available = 0, so
+     * quantity_available cannot be used here; remaining is received minus
+     * consumed. Only lot/serial tracked materials have meaningful held lots.
+     */
+    public function getQualityHeldQuantityAttribute(): float
+    {
+        if (! in_array($this->tracking_type, ['batch', 'serial'], true)) {
+            return 0.0;
+        }
+
+        if ($this->qualityHeldCache !== null) {
+            return $this->qualityHeldCache;
+        }
+
+        return $this->qualityHeldCache = (float) $this->lots()
+            ->whereIn('status', [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED])
+            ->withSum('consumptions as consumed_quantity', 'quantity_consumed')
+            ->get(['id', 'quantity_received'])
+            ->sum(fn ($lot) => max(0, (float) $lot->quantity_received - (float) ($lot->consumed_quantity ?? 0)));
     }
 
     public function materialType(): BelongsTo

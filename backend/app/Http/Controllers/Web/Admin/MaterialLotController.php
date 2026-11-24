@@ -37,6 +37,7 @@ class MaterialLotController extends Controller
             'material',
             'source',
             'inspection',
+            'warehouse',
             'createdBy',
             'sublots',
             // Consumption history with batch step + WO for forward genealogy
@@ -95,6 +96,12 @@ class MaterialLotController extends Controller
                 'inspection' => $materialLot->inspection ? [
                     'id' => $materialLot->inspection->id,
                     'status' => $materialLot->inspection->status,
+                    'disposition' => $materialLot->inspection->disposition,
+                ] : null,
+                'warehouse' => $materialLot->warehouse ? [
+                    'id' => $materialLot->warehouse->id,
+                    'name' => $materialLot->warehouse->name,
+                    'code' => $materialLot->warehouse->code,
                 ] : null,
                 'created_by' => $materialLot->createdBy ? [
                     'name' => $materialLot->createdBy->name,

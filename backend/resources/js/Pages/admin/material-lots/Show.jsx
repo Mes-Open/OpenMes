@@ -19,6 +19,11 @@ function ucFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function statusLabel(value) {
+    if (!value) return '—';
+    return __(value.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' '));
+}
+
 function trimQty(val) {
     if (val == null) return '—';
     return parseFloat(Number(val).toFixed(4)).toString();
@@ -71,7 +76,7 @@ export default function MaterialLotShow({ lot }) {
             accessorKey: 'status',
             header: 'Status',
             cell: ({ row }) => (
-                <span className="px-2 py-0.5 rounded text-xs bg-om-chip">{ucFirst(row.original.status)}</span>
+                <span className="px-2 py-0.5 rounded text-xs bg-om-chip">{statusLabel(row.original.status)}</span>
             ),
         },
         {
@@ -168,7 +173,7 @@ export default function MaterialLotShow({ lot }) {
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
-                            {ucFirst(lot.status)}
+                            {statusLabel(lot.status)}
                         </span>
                         {/* The incoming-inspection label: lot, material and the IQC verdict, for the warehouse shelf. */}
                         <a href={`/packaging/labels/material-lot/${lot.id}/pdf`} target="_blank" rel="noopener" className="btn-touch btn-secondary">{__('IQC label')}</a>
@@ -176,6 +181,12 @@ export default function MaterialLotShow({ lot }) {
                         <Link href="/admin/material-lots" className="btn-touch btn-ghost">&#8592; {__('Back')}</Link>
                     </div>
                 </div>
+
+                {lot.status === 'quarantine' && (
+                    <div className="mb-6 rounded-lg border border-om-downtime/30 bg-om-downtime-bg px-4 py-3 text-sm text-om-downtime">
+                        {__('This lot is on quality hold and is excluded from available stock.')}
+                    </div>
+                )}
 
                 {/* Info card */}
                 <div className="card mb-6">
@@ -188,6 +199,14 @@ export default function MaterialLotShow({ lot }) {
                                     <span className="text-xs text-om-muted block font-mono">{lot.material.code}</span>
                                 </>
                             ) : '—'}
+                        </InfoCell>
+                        <InfoCell label={__('Warehouse')}>
+                            {lot.warehouse ? (
+                                <>
+                                    <span className="font-medium">{lot.warehouse.name}</span>
+                                    <span className="text-xs text-om-muted block font-mono">{lot.warehouse.code}</span>
+                                </>
+                            ) : <span className="text-om-faint">—</span>}
                         </InfoCell>
                         <InfoCell label={__('Quantity')}>
                             <span className="font-mono">
@@ -215,7 +234,7 @@ export default function MaterialLotShow({ lot }) {
                                     href={`/operator/inspections/${lot.inspection.id}`}
                                     className="text-om-accent hover:underline"
                                 >
-                                    #{lot.inspection.id} ({lot.inspection.status})
+                                    #{lot.inspection.id} ({statusLabel(lot.inspection.status)}{lot.inspection.disposition ? ` / ${statusLabel(lot.inspection.disposition)}` : ''})
                                 </Link>
                             ) : (
                                  <span className="text-om-faint">{__('Not linked')}</span>
@@ -282,7 +301,7 @@ export default function MaterialLotShow({ lot }) {
                                             href={`/operator/inspections/${lot.inspection.id}`}
                                             className="text-om-accent hover:underline"
                                         >
-                                            #{lot.inspection.id} — {ucFirst(lot.inspection.status)}
+                                            #{lot.inspection.id} — {statusLabel(lot.inspection.status)}
                                         </Link>
                                     ) : (
                                         <span className="text-om-faint">{__('No inbound inspection')}</span>

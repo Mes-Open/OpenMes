@@ -72,6 +72,7 @@ class MaterialManagementController extends Controller
         $material->load(['materialType', 'sources.integrationConfig', 'bomItems.processTemplate.productType']);
 
         $lots = \App\Models\MaterialLot::where('material_id', $material->id)
+            ->with('warehouse')
             ->orderByRaw("CASE WHEN status = 'available' THEN 0 ELSE 1 END")
             ->orderByRaw('expiry_date IS NULL, expiry_date ASC')
             ->limit(20)
@@ -84,6 +85,7 @@ class MaterialManagementController extends Controller
                 'quantity_available' => $lot->quantity_available,
                 'expiry_date' => $lot->expiry_date?->toDateString(),
                 'status' => $lot->status,
+                'warehouse_name' => $lot->warehouse?->name,
                 'is_expired' => $lot->isExpired(),
             ]);
 
@@ -118,6 +120,7 @@ class MaterialManagementController extends Controller
                 'stock_quantity' => $material->stock_quantity,
                 'reserved_quantity' => $material->reserved_quantity ?? 0,
                 'available_quantity' => $material->available_quantity,
+                'quality_held_quantity' => $material->quality_held_quantity,
                 'min_stock_level' => $material->min_stock_level,
                 'unit_price' => $material->unit_price,
                 'price_currency' => $material->price_currency,
