@@ -784,6 +784,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/batches/{batch}/report/pdf', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'pdf'])->name('batch-report.pdf');
         Route::get('/batches/{batch}/coa/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('batch-report.coa');
 
+        // Incoming inspection plans (QA-configurable, versioned)
+        Route::get('/inspection-plans', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'index'])->name('inspection-plans.index');
+        Route::post('/inspection-plans', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'store'])->name('inspection-plans.store');
+        Route::put('/inspection-plans/{inspectionPlan}', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'update'])->name('inspection-plans.update');
+        Route::post('/inspection-plans/{inspectionPlan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
+        Route::delete('/inspection-plans/{inspectionPlan}', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'destroy'])->name('inspection-plans.destroy');
+
         // COA & release workbench
         // 客户风味标准：COA 规格的真正来源（检验模板只回答“怎么检”）。
         Route::get('/customer-flavor-standards', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'index'])->name('customer-flavor-standards.index');
