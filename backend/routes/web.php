@@ -804,6 +804,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/customer-flavor-standards/{customerFlavorStandard}/toggle-status', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'toggleStatus'])->name('customer-flavor-standards.toggle-status');
 
         Route::get('/quality', [\App\Http\Controllers\Web\Admin\QualityConsoleController::class, 'index'])->name('quality.index');
+        Route::get('/tea-bases', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'index'])->name('tea-bases.index');
+        Route::get('/tea-bases/{teaBase}', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'show'])->name('tea-bases.show');
+        Route::post('/tea-bases/{teaBase}/freeze', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'freeze'])->name('tea-bases.freeze');
+        Route::post('/tea-bases/{teaBase}/unfreeze', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'unfreeze'])->name('tea-bases.unfreeze');
         Route::get('/coa', [\App\Http\Controllers\Web\Admin\CoaController::class, 'index'])->name('coa.index');
         Route::get('/coa/{batch}/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('coa.pdf');
         Route::get('/coa/{batch}', [\App\Http\Controllers\Web\Admin\CoaController::class, 'show'])->name('coa.show');
