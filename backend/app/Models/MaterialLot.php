@@ -171,7 +171,22 @@ class MaterialLot extends Model
         return $this->hasMany(AllocationLotPick::class);
     }
 
+    /** Physical removals from a quality-held lot (scrap / return / reject). */
+    public function disposals(): HasMany
+    {
+        return $this->hasMany(MaterialLotDisposal::class);
+    }
+
     // ── State checks ────────────────────────────────────────────────────────
+
+    /** Physical quantity still on the shelf, after consumption and disposal. */
+    public function remainingPhysicalQuantity(): float
+    {
+        $consumed = (float) $this->consumptions()->sum('quantity_consumed');
+        $disposed = (float) $this->disposals()->sum('quantity');
+
+        return max(0, (float) $this->quantity_received - $consumed - $disposed);
+    }
 
     public function isAvailable(): bool
     {

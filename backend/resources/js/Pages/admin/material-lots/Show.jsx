@@ -1,5 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { useMemo } from 'react';
+import { Button, TextField } from '@openmes/ui';
 import { DataTable } from '@openmes/ui/table';
 import AppLayout from '../../../layouts/AppLayout';
 import PageTrail from '../../../components/PageTrail';
@@ -22,6 +23,111 @@ function ucFirst(str) {
 function statusLabel(value) {
     if (!value) return '—';
     return __(value.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' '));
+}
+
+function disposalLabel(value) {
+    const labels = {
+        return_to_supplier: __('Return to supplier'),
+        scrap: __('Scrap'),
+        reject: __('Reject'),
+    };
+    return labels[value] ?? statusLabel(value);
+}
+
+function DisposalPanel({ lot }) {
+    const form = useForm({
+        disposition: 'return_to_supplier',
+        quantity: String(lot.remaining_quantity ?? 0),
+        notes: '',
+    });
+
+    const submit = (event) => {
+        event.preventDefault();
+        form.post(`/admin/material-lots/${lot.id}/dispose`, {
+            preserveScroll: true,
+            onSuccess: () => form.reset('notes'),
+        });
+    };
+
+    return (
+        <div className="card mb-6 border border-om-blocked/20">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                <div>
+                    <h2 className="text-sm font-semibold text-om-muted uppercase tracking-wide">{__('Quality disposal')}</h2>
+                    <p className="text-sm text-om-muted mt-1">
+                        {__('Remaining frozen quantity')}: <span className="font-mono font-semibold">{trimQty(lot.remaining_quantity)}</span> {lot.unit_of_measure}
+                    </p>
+                </div>
+                <span className="text-xs text-om-muted">{__('A disposal records the decision and moves stock out of the warehouse.')}</span>
+            </div>
+
+            {lot.remaining_quantity > 0 && (
+            <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <label className="block">
+                    <span className="block text-sm font-medium text-om-muted mb-1">{__('Disposition')}</span>
+                    <select
+                        className="form-input w-full"
+                        value={form.data.disposition}
+                        onChange={e => form.setData('disposition', e.target.value)}
+                    >
+                        <option value="return_to_supplier">{__('Return to supplier')}</option>
+                        <option value="scrap">{__('Scrap')}</option>
+                        <option value="reject">{__('Reject')}</option>
+                    </select>
+                </label>
+                <TextField
+                    label={__('Quantity')}
+                    type="number"
+                    min="0.0001"
+                    step="0.0001"
+                    required
+                    value={form.data.quantity}
+                    onChange={value => form.setData('quantity', value)}
+                    error={form.errors.quantity}
+                />
+                <TextField
+                    label={__('Notes')}
+                    value={form.data.notes}
+                    onChange={value => form.setData('notes', value)}
+                    error={form.errors.notes}
+                />
+                <Button type="submit" variant="danger" disabled={form.processing}>
+                    {__('Record disposal and issue stock')}
+                </Button>
+            </form>
+            )}
+
+            {lot.disposals?.length > 0 && (
+                <div className="mt-5 border-t border-om-line2 pt-4">
+                    <h3 className="text-xs font-semibold text-om-muted uppercase tracking-wide mb-2">{__('Disposal history')}</h3>
+                    <table className="w-full text-xs">
+                        <thead>
+                            <tr className="text-left text-om-muted">
+                                <th className="py-1 pr-3 font-medium">{__('Disposed at')}</th>
+                                <th className="py-1 pr-3 font-medium">{__('Disposition')}</th>
+                                <th className="py-1 pr-3 font-medium text-right">{__('Quantity')}</th>
+                                <th className="py-1 pr-3 font-medium">{__('Stock document')}</th>
+                                <th className="py-1 pr-3 font-medium">{__('Disposed by')}</th>
+                                <th className="py-1 font-medium">{__('Notes')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {lot.disposals.map((d) => (
+                                <tr key={d.id} className="border-t border-om-line2">
+                                    <td className="py-1.5 pr-3 text-om-muted">{fmtDateTime(d.disposed_at)}</td>
+                                    <td className="py-1.5 pr-3">{disposalLabel(d.disposition)}</td>
+                                    <td className="py-1.5 pr-3 text-right font-mono">{trimQty(d.quantity)} {d.unit_of_measure}</td>
+                                    <td className="py-1.5 pr-3 font-mono">{d.stock_document_no ?? '—'}</td>
+                                    <td className="py-1.5 pr-3">{d.disposed_by ?? '—'}</td>
+                                    <td className="py-1.5 text-om-muted">{d.notes ?? '—'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
 }
 
 function trimQty(val) {
@@ -182,7 +288,7 @@ export default function MaterialLotShow({ lot }) {
                     </div>
                 </div>
 
-                {lot.status === 'quarantine' && (
+                {(lot.status === 'quarantine' || lot.status === 'rejected') && lot.remaining_quantity > 0 && (
                     <div className="mb-6 rounded-lg border border-om-downtime/30 bg-om-downtime-bg px-4 py-3 text-sm text-om-downtime">
                         {__('This lot is on quality hold and is excluded from available stock.')}
                     </div>
@@ -234,7 +340,7 @@ export default function MaterialLotShow({ lot }) {
                                     href={`/operator/inspections/${lot.inspection.id}`}
                                     className="text-om-accent hover:underline"
                                 >
-                                    #{lot.inspection.id} ({statusLabel(lot.inspection.status)}{lot.inspection.disposition ? ` / ${statusLabel(lot.inspection.disposition)}` : ''})
+                                    #{lot.inspection.id} ({statusLabel(lot.inspection.status)}{lot.inspection.disposition ? ` / ${disposalLabel(lot.inspection.disposition)}` : ''})
                                 </Link>
                             ) : (
                                  <span className="text-om-faint">{__('Not linked')}</span>
@@ -244,6 +350,10 @@ export default function MaterialLotShow({ lot }) {
                         <InfoCell label={__('Created by')}>{lot.created_by?.name ?? '—'}</InfoCell>
                     </dl>
                 </div>
+
+                {(lot.status === 'quarantine' || lot.status === 'rejected') && (lot.remaining_quantity > 0 || (lot.disposals?.length ?? 0) > 0) && (
+                    <DisposalPanel lot={lot} />
+                )}
 
                 {/* Sublots */}
                 {lot.sublots && lot.sublots.length > 0 && (

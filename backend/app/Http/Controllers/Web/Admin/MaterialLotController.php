@@ -9,7 +9,9 @@ use App\Models\Issue;
 use App\Models\Material;
 use App\Models\MaterialLot;
 use App\Models\MaterialSource;
+use App\Models\MaterialLotDisposal;
 use App\Services\Quality\MaterialHoldService;
+use App\Services\Quality\MaterialLotDisposalService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -38,6 +40,8 @@ class MaterialLotController extends Controller
             'source',
             'inspection',
             'warehouse',
+            'disposals.disposedBy',
+            'disposals.stockDocument',
             'createdBy',
             'sublots',
             // Consumption history with batch step + WO for forward genealogy
@@ -115,6 +119,17 @@ class MaterialLotController extends Controller
                     'notes' => $sub->notes,
                 ])->values(),
                 'consumptions' => $consumptions,
+                'remaining_quantity' => $materialLot->remainingPhysicalQuantity(),
+                'disposals' => $materialLot->disposals->map(fn ($d) => [
+                    'id' => $d->id,
+                    'disposition' => $d->disposition,
+                    'quantity' => $d->quantity,
+                    'unit_of_measure' => $materialLot->unit_of_measure,
+                    'stock_document_no' => $d->stockDocument?->document_no,
+                    'notes' => $d->notes,
+                    'disposed_by' => $d->disposedBy?->name,
+                    'disposed_at' => $d->disposed_at?->toIso8601String(),
+                ])->values(),
             ],
         ]);
     }
@@ -222,6 +237,32 @@ class MaterialLotController extends Controller
         }
 
         return redirect()->back()->with('success', __('Lot released.'));
+    }
+
+    /** Scrap / return a quality-held lot and move the stock out. */
+    public function dispose(Request $request, MaterialLot $materialLot, MaterialLotDisposalService $service)
+    {
+        $data = $request->validate([
+            'disposition' => ['required', Rule::in(MaterialLotDisposal::DISPOSITIONS)],
+            'quantity' => ['required', 'numeric', 'gt:0'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $service->dispose(
+                $materialLot,
+                $data['disposition'],
+                (float) $data['quantity'],
+                $data['notes'] ?? null,
+                $request->user(),
+            );
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors())->with('error', $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', __('Lot disposed and stock moved out.'));
     }
 
     /**

@@ -769,6 +769,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('material-lots', AdminMaterialLotController::class);
         Route::post('/material-lots/{materialLot}/hold', [AdminMaterialLotController::class, 'hold'])->name('material-lots.hold');
         Route::post('/material-lots/{materialLot}/release', [AdminMaterialLotController::class, 'release'])->name('material-lots.release');
+        Route::post('/material-lots/{materialLot}/dispose', [AdminMaterialLotController::class, 'dispose'])->name('material-lots.dispose');
 
         // ── Material Traceability / Genealogy (React/Inertia — ported from develop Blade) ──
         Route::get('/traceability', [\App\Http\Controllers\Web\Admin\TraceabilityController::class, 'index'])->name('traceability.index');

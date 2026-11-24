@@ -104,8 +104,13 @@ class Material extends Model
         return $this->qualityHeldCache = (float) $this->lots()
             ->whereIn('status', [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED])
             ->withSum('consumptions as consumed_quantity', 'quantity_consumed')
+            ->withSum('disposals as disposed_quantity', 'quantity')
             ->get(['id', 'quantity_received'])
-            ->sum(fn ($lot) => max(0, (float) $lot->quantity_received - (float) ($lot->consumed_quantity ?? 0)));
+            ->sum(fn ($lot) => max(0,
+                (float) $lot->quantity_received
+                - (float) ($lot->consumed_quantity ?? 0)
+                - (float) ($lot->disposed_quantity ?? 0)
+            ));
     }
 
     public function materialType(): BelongsTo
