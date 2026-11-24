@@ -46,6 +46,8 @@ class InspectionPlanController extends Controller
             ->orderByDesc('version')
             ->get();
 
+        $arrivals = $this->arrivals();
+
         return Inertia::render('admin/inspection-plans/Index', [
             'rows' => $plans->map(fn (InspectionPlan $plan) => [
                 'id' => $plan->id,
@@ -76,8 +78,8 @@ class InspectionPlanController extends Controller
                 'label' => $type->name,
             ])->values(),
             'basePath' => '/admin/inspection-plans',
-            'arrivals' => $this->arrivals(),
-            'pendingArrivals' => $this->arrivals()->where('can_dispatch', true)->count(),
+            'arrivals' => $arrivals,
+            'pendingArrivals' => $arrivals->where('can_dispatch', true)->count(),
             'filters' => ['q' => $search],
         ]);
     }
