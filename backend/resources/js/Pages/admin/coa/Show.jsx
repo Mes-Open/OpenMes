@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatDateTime, formatNumber } from '../../../lib/i18n';
 
@@ -19,9 +19,58 @@ const SIGNATURE_LABEL = {
     COA_VOID: 'COA 作废',
 };
 
+const BATCH_STATUS_LABEL = {
+    PENDING: '待开始',
+    IN_PROGRESS: '生产中',
+    DONE: '已完成',
+    CANCELLED: '已取消',
+};
+
+const GATE_HELP = {
+    batch_complete: '批次状态为 DONE，并且全部工序已经结束；没有工序记录的批次不能放行。',
+    weighing: 'BOM 原料的称重记录全部存在，实际重量在公差内；超差必须有处置和复核。',
+    quality_check: '最近一次成品检验全部合格；不合格项必须先关闭或走偏差。',
+    external_lab: '客户标准要求的外检报告已上传，项目覆盖完整，结论合格。',
+    packaging_check: '包装检查表全部通过；净含量、密封、标签等不能有未关闭项。',
+    no_open_blocking_issue: '工单没有未关闭且阻断放行的问题单；有阻断问题时先处置。',
+    retention_sample: '留样已登记，样品、数量、位置和保管人可追溯。',
+    line_clearance: '清线检查合格，上一批的物料、标签和半成品没有留在线上。',
+    label_balance: '标签领用、消耗和报废数量平衡；差异未查清不能放行。',
+    specification: '产品版本、产品类型和检验模板齐全，COA 才能冻结规格。',
+    batch_released: '批次已由 QA 放行并写入放行签名；放行人和 COA 批准人不能是同一人。',
+    coa_approved: 'COA 已完成 QA 复核并批准；未批准的文档不能签发。',
+};
+
+const GATE_TAB = {
+    weighing: 'evidence',
+    quality_check: 'inspection',
+    external_lab: 'inspection',
+    packaging_check: 'inspection',
+    retention_sample: 'record',
+    line_clearance: 'record',
+    label_balance: 'record',
+    specification: 'inspection',
+};
+
+const TABS = [
+    { key: 'evidence', label: '称重与证据' },
+    { key: 'inspection', label: '规格与检验' },
+    { key: 'record', label: '文档与签名' },
+];
+
+const gateCode = (check, index) => {
+    const match = String(check.label ?? '').match(/^G\d+/);
+    return match ? match[0] : `G${String(index + 1).padStart(2, '0')}`;
+};
+
+const gateName = (check) => String(check.label ?? '').replace(/^G\d+\s*/, '');
+
 export default function CoaShow() {
     const { batch, document, versions = [], releaseGate, issueGate, separation, weighing, labTest, labTestRequired = false, releaseChecks = {}, batchSignatures = [], documentSignatures = [] } = usePage().props;
     const form = useForm({ notes: '', reason: '' });
+    const [gateMode, setGateMode] = useState(batch.released_at ? 'issue' : 'release');
+    const [tab, setTab] = useState('evidence');
+    const [evidence, setEvidence] = useState(null);
 
     const post = (path) => form.post(path, { preserveScroll: true });
 
@@ -29,80 +78,82 @@ export default function CoaShow() {
         return <NoCoa batch={batch} releaseGate={releaseGate} weighing={weighing} labTest={labTest} labTestRequired={labTestRequired} releaseChecks={releaseChecks} form={form} post={post} />;
     }
 
+    const failedRelease = Math.max((releaseGate?.total ?? 0) - (releaseGate?.passed_count ?? 0), 0);
+    const failedIssue = Math.max((issueGate?.total ?? 0) - (issueGate?.passed_count ?? 0), 0);
+
+    const actions = [];
+    if (!batch.released_at) {
+        actions.push({
+            key: 'release',
+            label: '确认放行',
+            path: 'release',
+            tone: 'primary',
+            disabled: !releaseGate?.passed,
+        });
+    }
+    if (document.status === 'DRAFT') {
+        if (!document.inspector) {
+            actions.push({
+                key: 'inspect',
+                label: '检验人签字',
+                path: 'inspect-sign',
+                tone: batch.released_at ? 'primary' : 'secondary',
+                disabled: false,
+            });
+        } else {
+            actions.push({
+                key: 'submit',
+                label: '提交 QA 复核',
+                path: 'submit',
+                tone: 'primary',
+                disabled: false,
+            });
+        }
+    }
+    if (document.status === 'QA_REVIEW') {
+        actions.push({
+            key: 'approve',
+            label: '批准 COA',
+            path: 'approve',
+            tone: 'primary',
+            disabled: !batch.released_at,
+        });
+    }
+    if (document.status === 'APPROVED') {
+        actions.push({
+            key: 'issue',
+            label: '签发 COA',
+            path: 'issue',
+            tone: 'primary',
+            disabled: !issueGate?.passed,
+        });
+    }
+    // 作废 / 重签必须填写原因，统一放在 COA 面板的版本操作区，避免头部按钮无原因提交。
+
+    let primaryHint = '';
+    if (!batch.released_at) {
+        primaryHint = releaseGate?.passed
+            ? '放行门 10/10 已通过，确认后写入放行签名。'
+            : `放行门还差 ${failedRelease} 项：${releaseGate?.failed_labels ?? '—'}`;
+    } else if (document.status === 'DRAFT' && !document.inspector) {
+        primaryHint = '先由检验人完成电子签名，再提交 QA 复核。';
+    } else if (document.status === 'APPROVED' && !issueGate?.passed) {
+        primaryHint = `签发门还差 ${failedIssue} 项：${issueGate?.failed_labels ?? '—'}`;
+    }
+
     return (
         <>
-            <Head title={`${document.coa_number} — COA 与放行`} />
-            <div className="mx-auto max-w-[1180px] space-y-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <Link href="/admin/coa" className="text-xs font-bold text-om-accent hover:underline">← 返回 COA 工作台</Link>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <h1 className="font-mono text-2xl font-bold text-om-ink">{document.coa_number}</h1>
-                            <StatusBadge status={document.status} />
-                            <span className="rounded bg-om-chip px-2 py-0.5 text-xs font-bold text-om-muted">
-                                V{String(document.current_version).padStart(2, '0')}
-                            </span>
-                        </div>
-                        <p className="mt-1 text-sm text-om-muted">
-                            {batch.lot_number ?? `B${batch.batch_number}`} · {batch.product ?? '—'} · {batch.customer ?? '—'}
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <a href={`/admin/coa/${batch.id}/pdf`} className="btn-touch btn-secondary text-sm">
-                            下载 PDF
-                        </a>
-                        {!batch.released_at && (
-                            <button
-                                type="button"
-                                disabled={!releaseGate.passed || form.processing}
-                                onClick={() => post(`/admin/coa/${batch.id}/release`)}
-                                className="btn-touch btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                确认放行
-                            </button>
-                        )}
-                        {document.status === 'DRAFT' && !document.inspector && (
-                            <button type="button" disabled={form.processing} onClick={() => post(`/admin/coa/${batch.id}/inspect-sign`)} className="btn-touch btn-secondary text-sm disabled:opacity-40">
-                                检验人签字
-                            </button>
-                        )}
-                        {document.status === 'DRAFT' && (
-                            <button type="button" disabled={!document.inspector || form.processing} onClick={() => post(`/admin/coa/${batch.id}/submit`)} className="btn-touch btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-40">
-                                提交 QA 复核
-                            </button>
-                        )}
-                        {document.status === 'QA_REVIEW' && (
-                            <button
-                                type="button"
-                                disabled={!batch.released_at || form.processing}
-                                onClick={() => post(`/admin/coa/${batch.id}/approve`)}
-                                className="btn-touch btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                批准 COA
-                            </button>
-                        )}
-                        {document.status === 'APPROVED' && (
-                            <button
-                                type="button"
-                                disabled={!issueGate.passed || form.processing}
-                                onClick={() => post(`/admin/coa/${batch.id}/issue`)}
-                                className="btn-touch btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                签发 COA
-                            </button>
-                        )}
-                        {document.status === 'ISSUED' && (
-                            <button type="button" disabled={form.processing} onClick={() => post(`/admin/coa/${batch.id}/void`)} className="btn-touch btn-danger text-sm disabled:opacity-40">
-                                作废
-                            </button>
-                        )}
-                        {document.status === 'VOID' && (
-                            <button type="button" disabled={form.processing} onClick={() => post(`/admin/coa/${batch.id}/reissue`)} className="btn-touch btn-primary text-sm disabled:opacity-40">
-                                重签
-                            </button>
-                        )}
-                    </div>
-                </div>
+            <Head title={`${batch.lot_number ?? `B${batch.batch_number}`} — 批次控制台`} />
+            <div className="mx-auto w-full max-w-[1180px] space-y-4 px-4 pb-10 sm:px-6">
+                <ConsoleHeader
+                    batch={batch}
+                    document={document}
+                    actions={actions}
+                    form={form}
+                    post={post}
+                    hint={primaryHint}
+                    showPdf
+                />
 
                 {Object.keys(form.errors).length > 0 && (
                     <div className="rounded-om-sm border border-om-blocked/30 bg-om-blocked-bg px-4 py-3 text-sm text-om-blocked">
@@ -110,259 +161,91 @@ export default function CoaShow() {
                     </div>
                 )}
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                    <GatePanel title="放行门" subtitle="批次能否放行到销售" gate={releaseGate} />
-                    <GatePanel title="签发门" subtitle="COA 能否对外签发" gate={issueGate} />
+                <SummaryStrip batch={batch} document={document} />
+
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
+                    <GateRail
+                        releaseGate={releaseGate}
+                        issueGate={issueGate}
+                        mode={gateMode}
+                        onModeChange={setGateMode}
+                        onSelect={(check, mode) => setEvidence({ check, mode })}
+                    />
+
+                    <div className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:self-start">
+                        <CoaPanel
+                            batch={batch}
+                            document={document}
+                            issueGate={issueGate}
+                            signatures={[...batchSignatures, ...documentSignatures]}
+                            form={form}
+                            post={post}
+                            onShowIssueGate={() => setGateMode('issue')}
+                            onShowSignatures={() => setTab('record')}
+                        />
+                    </div>
                 </div>
 
-                <SeparationPanel separation={separation} />
+                <DetailTabs tab={tab} onChange={setTab} />
 
-                <WeighingPanel batch={batch} weighing={weighing} />
-
-                <LabTestPanel batch={batch} labTest={labTest} labTestRequired={labTestRequired} />
-
-                <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
-
-                {(document.status === 'ISSUED' || document.status === 'VOID') && (
-                    <div className="rounded-om-sm border border-om-line bg-om-card px-5 py-4 shadow-sm">
-                        <label className="text-sm font-bold text-om-ink" htmlFor="reason">
-                            {document.status === 'ISSUED' ? '作废原因' : '重签原因'}
-                        </label>
-                        <p className="mt-1 text-xs text-om-muted">写入版本记录并生成签名，旧版本不会被覆盖。</p>
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                            <input
-                                id="reason"
-                                value={form.data.reason}
-                                onChange={(event) => form.setData('reason', event.target.value)}
-                                placeholder="例如：客户规格变更 / 标签数量不符"
-                                className="min-w-0 flex-1 rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/15"
-                            />
-                            <button
-                                type="button"
-                                disabled={!form.data.reason.trim() || form.processing}
-                                onClick={() => post(`/admin/coa/${batch.id}/${document.status === 'ISSUED' ? 'void' : 'reissue'}`)}
-                                className="btn-touch btn-danger text-sm disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                {document.status === 'ISSUED' ? '确认作废' : '创建新版本'}
-                            </button>
-                        </div>
+                {tab === 'evidence' && (
+                    <div className="space-y-4">
+                        <WeighingPanel batch={batch} weighing={weighing} />
+                        <LabTestPanel batch={batch} labTest={labTest} labTestRequired={labTestRequired} />
+                        <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
                     </div>
                 )}
 
-                {!batch.released_at && (
-                    <div className="rounded-om-sm border border-om-line bg-om-card px-5 py-4 shadow-sm">
-                        <label className="text-sm font-bold text-om-ink" htmlFor="notes">放行备注</label>
-                        <p className="mt-1 text-xs text-om-muted">可选。写入批次备注，不影响放行门判定。</p>
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                            <input
-                                id="notes"
-                                value={form.data.notes}
-                                onChange={(event) => form.setData('notes', event.target.value)}
-                                placeholder="例如：首件确认通过，留样已入库"
-                                className="min-w-0 flex-1 rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/15"
-                            />
-                            <button
-                                type="button"
-                                disabled={!releaseGate.passed || form.processing}
-                                onClick={() => post(`/admin/coa/${batch.id}/release`)}
-                                className="btn-touch btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                {form.processing ? '处理中…' : '放行并签名'}
-                            </button>
-                        </div>
+                {tab === 'inspection' && (
+                    <div className="space-y-4">
+                        <SpecSnapshotSection document={document} />
+                        <QualitySnapshotSection document={document} />
                     </div>
                 )}
 
-                <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-                    <Section title="产品与批次" subtitle="COA 文档头的冻结字段">
-                        <InfoGrid rows={[
-                            ['客户', batch.customer ?? '—'],
-                            ['客户编码', document.customer_code ?? '—'],
-                            ['产品', batch.product ?? '—'],
-                            ['产品编码', batch.product_code ?? '—'],
-                            ['配方 / 版本', document.revision_code ?? '—'],
-                            ['生产工单', batch.order_no ?? '—'],
-                            ['生产批次', batch.lot_number ?? `B${batch.batch_number}`],
-                            ['产线', batch.line ?? '—'],
-                            ['成品数量', `${formatNumber(batch.produced_qty)} ${batch.unit_of_measure || 'kg'}`],
-                            ['生产完成', batch.completed_at ? formatDateTime(batch.completed_at) : '—'],
-                            ['保质期至', batch.expiry_date ?? '—'],
-                            ['放行', batch.released_at ? `${batch.released_by ?? '—'} · ${formatDateTime(batch.released_at)}` : '未放行'],
-                        ]} />
-                    </Section>
-
-                    <Section title="文档状态" subtitle="受控 COA 生命周期">
-                        <div className="space-y-3 text-sm">
-                            <TimelineRow label="创建草稿" value={document.prepared_at} by={document.prepared_by} />
-                            <TimelineRow label="检验人确认" value={document.inspected_at} by={document.inspector} emptyLabel="未签字" />
-                            <TimelineRow label="提交复核" value={document.submitted_at} />
-                            <TimelineRow label="QA 批准" value={document.approved_at} by={document.approved_by} />
-                            <TimelineRow label="签发" value={document.issued_at} by={document.issued_by} />
-                            <TimelineRow label="作废" value={document.voided_at} by={document.voided_by} danger emptyLabel="未作废" />
-                            {document.void_reason && (
-                                <div className="rounded bg-om-blocked-bg px-3 py-2 text-xs text-om-blocked">
-                                    {document.void_reason}
-                                </div>
-                            )}
-                        </div>
-                    </Section>
-                </div>
-
-                <Section title="COA 规格快照" subtitle="批准 / 签发时冻结，之后不随主数据变化">
-                    {(document.specification?.standard_code || document.specification?.sensory_profile) && (
-                        <div className="mb-3 rounded bg-om-chip px-3 py-2 text-xs text-om-muted">
-                            {document.specification?.standard_code && (
-                                <span className="font-medium text-om-ink">客户标准：{document.specification.standard_code} {document.specification.standard_version}</span>
-                            )}
-                            {document.specification?.sensory_profile && (
-                                <span className="ml-2">感官：{document.specification.sensory_profile}</span>
-                            )}
-                        </div>
-                    )}
-                    {document.specification?.parameters?.length ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[640px] text-sm">
-                                <thead>
-                                    <tr className="border-b border-om-line2 text-left text-xs font-bold text-om-muted">
-                                        <th className="py-2 pr-4">检验项目</th>
-                                        <th className="py-2 pr-4">类型</th>
-                                        <th className="py-2 pr-4">限值</th>
-                                        <th className="py-2">单位</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {document.specification.parameters.map((parameter, index) => (
-                                        <tr key={index} className="border-b border-om-line2 last:border-0">
-                                            <td className="py-2 pr-4 font-medium text-om-ink">{parameter.name ?? parameter['名称'] ?? `项目 ${index + 1}`}</td>
-                                            <td className="py-2 pr-4 text-om-muted">{parameter.type === 'measurement' ? '测量值' : '合格 / 不合格'}</td>
-                                            <td className="py-2 pr-4 font-mono text-om-ink">
-                                                {parameter.type === 'measurement'
-                                                    ? `${parameter.min ?? '—'} – ${parameter.max ?? '—'}`
-                                                    : '符合 / 不符合'}
-                                            </td>
-                                            <td className="py-2 text-om-muted">{parameter.unit ?? '—'}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-om-faint">尚未冻结检验规格。请先完成检验模板与成品检验。</p>
-                    )}
-                </Section>
-
-                <Section title="检验结果快照" subtitle="来自最近一次批次质量检查">
-                    {document.quality?.samples?.length ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[640px] text-sm">
-                                <thead>
-                                    <tr className="border-b border-om-line2 text-left text-xs font-bold text-om-muted">
-                                        <th className="py-2 pr-4">样品</th>
-                                        <th className="py-2 pr-4">项目</th>
-                                        <th className="py-2 pr-4">实测</th>
-                                        <th className="py-2">判定</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {document.quality.samples.map((sample, index) => (
-                                        <tr key={index} className="border-b border-om-line2 last:border-0">
-                                            <td className="py-2 pr-4 font-mono text-om-muted">{sample.sample_number}</td>
-                                            <td className="py-2 pr-4 font-medium text-om-ink">{sample.parameter_name}</td>
-                                            <td className="py-2 pr-4 font-mono text-om-ink">
-                                                {sample.parameter_type === 'measurement'
-                                                    ? sample.value_numeric ?? '—'
-                                                    : sample.value_boolean === null ? '—' : sample.value_boolean ? '是' : '否'}
-                                            </td>
-                                            <td className="py-2">
-                                                <PassBadge pass={sample.is_passed} />
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            <p className="mt-3 text-xs text-om-muted">
-                                检验时间 {document.quality.checked_at ? formatDateTime(document.quality.checked_at) : '—'} · 检验人 {document.quality.checked_by ?? '—'}
-                            </p>
-                        </div>
-                    ) : (
-                        <p className="text-sm text-om-faint">尚无检验结果快照。</p>
-                    )}
-                </Section>
-
-                <div className="grid gap-4 lg:grid-cols-2">
-                    <Section title="版本历史" subtitle="每次重签新增版本，旧版本保留">
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[520px] text-sm">
-                                <thead>
-                                    <tr className="border-b border-om-line2 text-left text-xs font-bold text-om-muted">
-                                        <th className="py-2 pr-3">版本</th>
-                                        <th className="py-2 pr-3">状态</th>
-                                        <th className="py-2 pr-3">原因</th>
-                                        <th className="py-2">签发时间</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {versions.map((version) => (
-                                        <tr key={version.id} className="border-b border-om-line2 last:border-0">
-                                            <td className="py-2 pr-3 font-mono font-bold text-om-ink">V{String(version.version).padStart(2, '0')}</td>
-                                            <td className="py-2 pr-3"><StatusBadge status={version.status} /></td>
-                                            <td className="py-2 pr-3 text-om-muted">{version.change_reason ?? '—'}</td>
-                                            <td className="py-2 font-mono text-xs text-om-muted">{version.issued_at ? formatDateTime(version.issued_at) : '—'}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Section>
-
-                    <Section title="电子签名" subtitle="姓名、时间、含义与记录哈希">
-                        {[...batchSignatures, ...documentSignatures].length === 0 ? (
-                            <p className="text-sm text-om-faint">还没有签名记录。</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {[...batchSignatures, ...documentSignatures].map((signature) => (
-                                    <div key={`${signature.meaning}-${signature.id}`} className="rounded border border-om-line2 px-3 py-2">
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <span className="text-sm font-bold text-om-ink">
-                                                {SIGNATURE_LABEL[signature.meaning] ?? signature.meaning}
-                                                <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-normal ${signature.verified ? 'bg-om-running/10 text-om-running' : 'bg-om-blocked/10 text-om-blocked'}`}>
-                                                    {signature.verified ? '哈希校验通过' : '哈希校验失败'}
-                                                </span>
-                                            </span>
-                                            <span className="text-xs text-om-muted">
-                                                {signature.user ?? '—'}
-                                                {signature.roles?.length ? ` · ${signature.roles.join(' / ')}` : ''}
-                                                {' · '}
-                                                {signature.signed_at ? formatDateTime(signature.signed_at) : '—'}
-                                            </span>
-                                        </div>
-                                        <div className="mt-1 truncate font-mono text-[10px] text-om-faint">{signature.record_hash}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </Section>
-                </div>
+                {tab === 'record' && (
+                    <RecordTab
+                        batch={batch}
+                        document={document}
+                        versions={versions}
+                        separation={separation}
+                        batchSignatures={batchSignatures}
+                        documentSignatures={documentSignatures}
+                    />
+                )}
             </div>
+
+            <EvidenceDrawer
+                evidence={evidence}
+                onClose={() => setEvidence(null)}
+                onGoFix={(target) => {
+                    setTab(target);
+                    setEvidence(null);
+                }}
+            />
         </>
     );
 }
 
 function NoCoa({ batch, releaseGate, weighing, labTest, labTestRequired = false, releaseChecks = {}, form, post }) {
+    const [tab, setTab] = useState('evidence');
+    const [evidence, setEvidence] = useState(null);
+    const missing = Math.max((releaseGate?.total ?? 0) - (releaseGate?.passed_count ?? 0), 0);
+    const tabs = TABS.filter((item) => item.key !== 'inspection');
+
+    const actions = [
+        { key: 'draft', label: '生成 COA 草稿', path: 'draft', tone: 'primary', disabled: false },
+    ];
+    if (!batch.released_at && releaseGate?.passed) {
+        actions.push({ key: 'release', label: '确认放行', path: 'release', tone: 'secondary', disabled: false });
+    }
+
     return (
         <>
-            <Head title={`${batch.lot_number ?? `B${batch.batch_number}`} — COA 与放行`} />
-            <div className="mx-auto max-w-[1180px] space-y-5">
-                <div>
-                    <Link href="/admin/coa" className="text-xs font-bold text-om-accent hover:underline">← 返回 COA 工作台</Link>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <h1 className="font-mono text-2xl font-bold text-om-ink">{batch.lot_number ?? `B${batch.batch_number}`}</h1>
-                        <span className="rounded bg-om-chip px-2 py-0.5 text-xs font-bold text-om-muted">COA 未生成</span>
-                    </div>
-                    <p className="mt-1 text-sm text-om-muted">
-                        {batch.product ?? '—'} · {batch.customer ?? '—'} · 尚未创建受控 COA 文档
-                    </p>
-                </div>
+            <Head title={`${batch.lot_number ?? `B${batch.batch_number}`} — 批次控制台`} />
+            <div className="mx-auto w-full max-w-[1180px] space-y-4 px-4 pb-10 sm:px-6">
+                <ConsoleHeader batch={batch} document={null} actions={actions} form={form} post={post} showPdf={false}
+                    hint={releaseGate?.passed ? '放行门 10/10 已通过。草稿会冻结规格，但只有批准后才能签发。' : `放行门还差 ${missing} 项：${releaseGate?.failed_labels ?? '—'}`} />
 
                 {Object.keys(form.errors).length > 0 && (
                     <div className="rounded-om-sm border border-om-blocked/30 bg-om-blocked-bg px-4 py-3 text-sm text-om-blocked">
@@ -370,55 +253,728 @@ function NoCoa({ batch, releaseGate, weighing, labTest, labTestRequired = false,
                     </div>
                 )}
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                    <GatePanel title="放行门" subtitle="批次能否放行到销售" gate={releaseGate} />
-                    <div className="rounded-om-sm border border-om-line bg-om-card p-5 shadow-sm">
-                        <h2 className="text-sm font-bold text-om-ink">COA 草稿</h2>
-                        <p className="mt-1 text-xs leading-5 text-om-muted">
-                            草稿会把客户/产品/配方/检验结果/包装检查冻结成快照；签发前仍可作废重签。
-                        </p>
-                        <button
-                            type="button"
-                            disabled={form.processing}
-                            onClick={() => post(`/admin/coa/${batch.id}/draft`)}
-                            className="btn-touch btn-primary mt-4 text-sm disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            {form.processing ? '处理中…' : '生成 COA 草稿'}
-                        </button>
-                    </div>
+                <SummaryStrip batch={batch} document={null} />
+
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
+                    <GateRail
+                        releaseGate={releaseGate}
+                        issueGate={null}
+                        mode="release"
+                        onModeChange={() => {}}
+                        onSelect={(check, mode) => setEvidence({ check, mode })}
+                    />
+                    <DraftPanel batch={batch} releaseGate={releaseGate} form={form} post={post} />
                 </div>
 
-                <WeighingPanel batch={batch} weighing={weighing} />
+                <DetailTabs tab={tab} onChange={setTab} tabs={tabs} />
 
-                <LabTestPanel batch={batch} labTest={labTest} labTestRequired={labTestRequired} />
-
-                <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
-
-                {!batch.released_at && (
-                    <div className="rounded-om-sm border border-om-line bg-om-card px-5 py-4 shadow-sm">
-                        <label className="text-sm font-bold text-om-ink" htmlFor="notes">放行备注</label>
-                        <p className="mt-1 text-xs text-om-muted">可选。写入批次备注，不影响放行门判定。</p>
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                            <input
-                                id="notes"
-                                value={form.data.notes}
-                                onChange={(event) => form.setData('notes', event.target.value)}
-                                placeholder="例如：首件确认通过，留样已入库"
-                                className="min-w-0 flex-1 rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/15"
-                            />
-                            <button
-                                type="button"
-                                disabled={!releaseGate.passed || form.processing}
-                                onClick={() => post(`/admin/coa/${batch.id}/release`)}
-                                className="btn-touch btn-primary text-sm disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                {form.processing ? '处理中…' : '放行并签名'}
-                            </button>
-                        </div>
+                {tab === 'evidence' && (
+                    <div className="space-y-4">
+                        <WeighingPanel batch={batch} weighing={weighing} />
+                        <LabTestPanel batch={batch} labTest={labTest} labTestRequired={labTestRequired} />
+                        <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
                     </div>
                 )}
+
+                {tab === 'record' && <ProductBatchSection batch={batch} document={null} />}
             </div>
+
+            <EvidenceDrawer
+                evidence={evidence}
+                onClose={() => setEvidence(null)}
+                onGoFix={(target) => {
+                    setTab(target);
+                    setEvidence(null);
+                }}
+            />
         </>
+    );
+}
+
+function ConsoleHeader({ batch, document, actions, form, post, hint, showPdf }) {
+    const lot = batch.lot_number ?? `B${batch.batch_number}`;
+    return (
+        <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+                <Link href="/admin/coa" className="inline-flex items-center gap-1 text-xs font-bold text-om-accent hover:underline">
+                    ← COA 工作台
+                </Link>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <h1 className="break-all font-mono text-[18px] font-bold tracking-tight text-om-ink sm:text-[22px]">{lot}</h1>
+                    <BatchStatusBadge status={batch.status} />
+                    {document && <StatusBadge status={document.status} />}
+                </div>
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-om-muted">
+                    <span className="max-w-[520px] truncate font-mono text-om-faint" title={document?.coa_number ?? 'COA 未生成'}>
+                        {document?.coa_number ?? 'COA 未生成'}
+                    </span>
+                    <span>·</span>
+                    <span>{batch.product ?? '—'}</span>
+                    <span>·</span>
+                    <span>{batch.customer ?? '—'}</span>
+                </div>
+                {hint && <p className={`mt-2 text-xs ${hint.includes('还差') ? 'text-om-downtime' : 'text-om-muted'}`}>{hint}</p>}
+            </div>
+            <div className="flex max-w-full flex-wrap items-center gap-2">
+                {showPdf && (
+                    <a href={`/admin/coa/${batch.id}/pdf`} className="btn-touch btn-secondary text-sm">
+                        下载 PDF
+                    </a>
+                )}
+                {actions.map((action) => (
+                    <button
+                        key={action.key}
+                        type="button"
+                        disabled={action.disabled || form.processing}
+                        onClick={() => post(`/admin/coa/${batch.id}/${action.path}`)}
+                        className={`btn-touch text-sm disabled:cursor-not-allowed disabled:opacity-40 ${action.tone === 'danger' ? 'btn-danger' : action.tone === 'secondary' ? 'btn-secondary' : 'btn-primary'}`}
+                    >
+                        {form.processing ? '处理中…' : action.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function SummaryStrip({ batch, document }) {
+    const metrics = [
+        { label: '成品数量', value: `${formatNumber(batch.produced_qty)} ${batch.unit_of_measure || 'kg'}`, sub: batch.order_no ?? '—' },
+        { label: '生产完成', value: batch.completed_at ? formatDateTime(batch.completed_at) : '未完成', sub: batch.expiry_date ? `保质期至 ${batch.expiry_date}` : '—' },
+        { label: '批次放行', value: batch.released_at ? '已放行' : '未放行', sub: batch.released_at ? `${batch.released_by ?? '—'} · ${formatDateTime(batch.released_at)}` : '等待放行门通过' },
+        { label: 'COA 版本', value: document ? `V${String(document.current_version).padStart(2, '0')}` : '未生成', sub: document ? STATUS_LABEL[document.status] : '先过放行门' },
+    ];
+
+    return (
+        <div className="grid overflow-hidden rounded-om-sm border border-om-line bg-om-card sm:grid-cols-2 xl:grid-cols-4">
+            {metrics.map((metric, index) => (
+                <div
+                    key={metric.label}
+                    className={`min-w-0 px-4 py-3 ${index < metrics.length - 1 ? 'border-b border-om-line2 sm:border-b-0 sm:border-r' : ''}`}
+                >
+                    <div className="text-[11px] font-bold tracking-wide text-om-faint">{metric.label}</div>
+                    <div className={`mt-1 truncate text-sm font-bold ${metric.label === '批次放行' && batch.released_at ? 'text-om-running' : 'text-om-ink'}`} title={metric.value}>
+                        {metric.value}
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-om-muted" title={metric.sub}>{metric.sub}</div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function GateRail({ releaseGate, issueGate, mode, onModeChange, onSelect }) {
+    const active = mode === 'issue' && issueGate ? issueGate : releaseGate;
+    const checks = active?.checks ?? [];
+    const passed = active?.passed_count ?? 0;
+    const total = active?.total ?? 0;
+
+    return (
+        <div className="min-w-0 overflow-hidden rounded-om-sm border border-om-line bg-om-card">
+            <div className="border-b border-om-line2 px-4 py-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 className="text-sm font-bold text-om-ink">放行脊柱</h2>
+                        <p className="mt-0.5 text-xs text-om-muted">点任一门查看证据、判定口径和责任人。</p>
+                    </div>
+                    {issueGate ? (
+                        <div className="inline-flex rounded-om-sm border border-om-line bg-om-bg p-0.5">
+                            <button
+                                type="button"
+                                onClick={() => onModeChange('release')}
+                                aria-pressed={mode === 'release'}
+                                className={`rounded-[6px] px-2.5 py-1 text-[11px] font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-om-accent/40 ${mode === 'release' ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'}`}
+                            >
+                                放行门 {releaseGate?.passed_count ?? 0}/{releaseGate?.total ?? 0}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onModeChange('issue')}
+                                aria-pressed={mode === 'issue'}
+                                className={`rounded-[6px] px-2.5 py-1 text-[11px] font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-om-accent/40 ${mode === 'issue' ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:text-om-ink'}`}
+                            >
+                                签发门 {issueGate.passed_count}/{issueGate.total}
+                            </button>
+                        </div>
+                    ) : (
+                        <span className="font-mono text-sm font-bold text-om-ink">{passed}/{total}</span>
+                    )}
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-om-chip">
+                    <div
+                        className={`h-full rounded-full transition-[width] duration-200 ${passed === total ? 'bg-om-running' : 'bg-om-downtime'}`}
+                        style={{ width: `${Math.round((passed / Math.max(total, 1)) * 100)}%` }}
+                    />
+                </div>
+            </div>
+
+            <div className="divide-y divide-om-line2">
+                {checks.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-om-faint">没有可显示的门禁记录。</p>
+                ) : checks.map((check, index) => (
+                    <button
+                        key={check.key}
+                        type="button"
+                        onClick={() => onSelect(check, mode)}
+                        className="group flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-om-chip/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-om-accent/40"
+                    >
+                        <GateIcon passed={check.passed} />
+                        <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                <span className="font-mono text-[10px] font-bold text-om-faint">{gateCode(check, index)}</span>
+                                <span className="text-sm font-semibold text-om-ink">{gateName(check)}</span>
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs text-om-muted" title={check.detail}>{check.detail}</span>
+                        </span>
+                        <span className="shrink-0 text-[11px] font-bold text-om-faint group-hover:text-om-accent">证据</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function GateIcon({ passed }) {
+    return (
+        <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${passed ? 'bg-om-running-bg text-om-running' : 'bg-om-blocked-bg text-om-blocked'}`}>
+            {passed ? (
+                <svg viewBox="0 0 20 20" aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 10.5 8 14.5 16 5.5" />
+                </svg>
+            ) : (
+                <svg viewBox="0 0 20 20" aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M10 4.5v7M10 15.5h.01" />
+                </svg>
+            )}
+        </span>
+    );
+}
+
+function EvidenceDrawer({ evidence, onClose, onGoFix }) {
+    useEffect(() => {
+        if (!evidence) return undefined;
+        const onKey = (event) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [evidence, onClose]);
+
+    if (!evidence) return null;
+
+    const { check, mode } = evidence;
+    const code = gateCode(check, 0);
+    const targetTab = GATE_TAB[check.key];
+
+    return (
+        <div className="fixed inset-0 z-50">
+            <div className="absolute inset-0 bg-om-ink/15" onClick={onClose} />
+            <aside
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="gate-evidence-title"
+                className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto border-l border-om-line bg-om-card shadow-2xl"
+            >
+                <div className="flex items-start justify-between gap-4 border-b border-om-line2 px-5 py-4">
+                    <div className="min-w-0">
+                        <div className="font-mono text-[11px] font-bold text-om-faint">{code} · {mode === 'issue' ? '签发门' : '放行门'}</div>
+                        <h2 id="gate-evidence-title" className="mt-1 text-base font-bold text-om-ink">{gateName(check)}</h2>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="关闭证据抽屉"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-om-muted transition-colors hover:bg-om-chip hover:text-om-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-om-accent/40"
+                    >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                            <path d="m5 5 10 10M15 5 5 15" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div className="space-y-4 px-5 py-5">
+                    <div className="flex items-center gap-2">
+                        <GateIcon passed={check.passed} />
+                        <span className={`text-sm font-bold ${check.passed ? 'text-om-running' : 'text-om-blocked'}`}>{check.passed ? '已通过' : '未通过'}</span>
+                    </div>
+
+                    <div>
+                        <div className="text-[11px] font-bold tracking-wide text-om-faint">当前说明</div>
+                        <p className="mt-1 text-sm leading-6 text-om-ink">{check.detail || '—'}</p>
+                    </div>
+
+                    <div>
+                        <div className="text-[11px] font-bold tracking-wide text-om-faint">判定依据</div>
+                        <p className="mt-1 text-sm leading-6 text-om-ink">{check.evidence || '—'}</p>
+                    </div>
+
+                    <div className="rounded-om-sm bg-om-chip px-3 py-3">
+                        <div className="text-[11px] font-bold tracking-wide text-om-faint">这条门要求什么</div>
+                        <p className="mt-1 text-xs leading-5 text-om-muted">{GATE_HELP[check.key] ?? '用于判断批次或 COA 是否满足放行、签发条件。'}</p>
+                    </div>
+
+                    {!check.passed && targetTab && (
+                        <button type="button" onClick={() => onGoFix(targetTab)} className="btn-touch btn-primary w-full text-sm">
+                            去补这项证据
+                        </button>
+                    )}
+                </div>
+            </aside>
+        </div>
+    );
+}
+
+function CoaPanel({ batch, document, issueGate, signatures = [], form, post, onShowIssueGate, onShowSignatures }) {
+    const signatureRows = [...signatures]
+        .sort((a, b) => String(a.signed_at ?? '').localeCompare(String(b.signed_at ?? '')))
+        .slice(-4)
+        .reverse();
+
+    return (
+        <div className="overflow-hidden rounded-om-sm border border-om-line bg-om-card">
+            <div className="flex items-start justify-between gap-3 border-b border-om-line2 px-4 py-3">
+                <div>
+                    <h2 className="text-sm font-bold text-om-ink">COA 文档</h2>
+                    <p className="mt-0.5 text-xs text-om-muted">受控版本、签名与签发门</p>
+                </div>
+                <StatusBadge status={document.status} />
+            </div>
+
+            <div className="space-y-4 p-4">
+                <LifecycleStepper document={document} />
+
+                <div className="rounded-om-sm bg-om-chip/60 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-[11px] font-bold text-om-muted">当前版本</span>
+                        <span className="font-mono text-xs font-bold text-om-ink">V{String(document.current_version).padStart(2, '0')}</span>
+                    </div>
+                    <div className="mt-1 break-all font-mono text-[10px] leading-4 text-om-faint">{document.coa_number}</div>
+                </div>
+
+                <div>
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-[11px] font-bold tracking-wide text-om-faint">对外签发门</span>
+                        <span className={`font-mono text-xs font-bold ${issueGate?.passed ? 'text-om-running' : 'text-om-blocked'}`}>
+                            {issueGate?.passed_count ?? 0}/{issueGate?.total ?? 0}
+                        </span>
+                    </div>
+                    {issueGate?.passed ? (
+                        <p className="mt-1 text-xs text-om-running">已满足签发条件。</p>
+                    ) : (
+                        <>
+                            <p className="mt-1 text-xs leading-5 text-om-muted">还差 {Math.max((issueGate?.total ?? 0) - (issueGate?.passed_count ?? 0), 0)} 项：{issueGate?.failed_labels ?? '—'}</p>
+                            <button type="button" onClick={onShowIssueGate} className="mt-2 text-[11px] font-bold text-om-accent hover:underline">
+                                查看签发门 →
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                <div className="border-t border-om-line2 pt-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-[11px] font-bold tracking-wide text-om-faint">最近签名</span>
+                        <button type="button" onClick={onShowSignatures} className="text-[11px] font-bold text-om-accent hover:underline">全部</button>
+                    </div>
+                    {signatureRows.length === 0 ? (
+                        <p className="mt-2 text-xs text-om-faint">还没有签名记录。</p>
+                    ) : (
+                        <div className="mt-1 divide-y divide-om-line2">
+                            {signatureRows.map((signature) => (
+                                <SignatureLine key={`${signature.meaning}-${signature.id}`} signature={signature} compact />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {!batch.released_at && (
+                    <div className="border-t border-om-line2 pt-3">
+                        <label className="text-[11px] font-bold tracking-wide text-om-faint" htmlFor="notes">放行备注（可选）</label>
+                        <input
+                            id="notes"
+                            value={form.data.notes}
+                            onChange={(event) => form.setData('notes', event.target.value)}
+                            placeholder="例如：首件确认通过，留样已入库"
+                            className="mt-1 w-full rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/15"
+                        />
+                        <p className="mt-1 text-[11px] text-om-muted">放行时一并写入批次备注，不影响门禁判定。</p>
+                    </div>
+                )}
+
+                {(document.status === 'ISSUED' || document.status === 'VOID') && (
+                    <VersionOperation
+                        document={document}
+                        form={form}
+                        post={post}
+                        batchId={batch.id}
+                    />
+                )}
+            </div>
+        </div>
+    );
+}
+
+function DraftPanel({ batch, releaseGate, form, post }) {
+    const missing = Math.max((releaseGate?.total ?? 0) - (releaseGate?.passed_count ?? 0), 0);
+    return (
+        <div className="overflow-hidden rounded-om-sm border border-om-line bg-om-card">
+            <div className="border-b border-om-line2 px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 className="text-sm font-bold text-om-ink">COA 尚未生成</h2>
+                        <p className="mt-0.5 text-xs text-om-muted">先冻结规格，再做 QA 复核</p>
+                    </div>
+                    <span className="rounded bg-om-chip px-2 py-0.5 text-[11px] font-bold text-om-muted">未生成</span>
+                </div>
+            </div>
+            <div className="space-y-4 p-4">
+                <p className="text-sm leading-6 text-om-muted">
+                    草稿会冻结客户、产品、配方、检验结果和包装检查的快照。草稿可以在放行前生成，但只有放行门 10/10 后才能放行，签发门 12/12 后才能签发。
+                </p>
+                <div>
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-[11px] font-bold tracking-wide text-om-faint">放行门</span>
+                        <span className={`font-mono text-xs font-bold ${releaseGate?.passed ? 'text-om-running' : 'text-om-downtime'}`}>
+                            {releaseGate?.passed_count ?? 0}/{releaseGate?.total ?? 0}
+                        </span>
+                    </div>
+                    {missing > 0 && <p className="mt-1 text-xs leading-5 text-om-muted">还差 {missing} 项：{releaseGate?.failed_labels ?? '—'}</p>}
+                </div>
+                {!batch.released_at && (
+                    <div>
+                        <label className="text-[11px] font-bold tracking-wide text-om-faint" htmlFor="notes">放行备注（可选）</label>
+                        <input
+                            id="notes"
+                            value={form.data.notes}
+                            onChange={(event) => form.setData('notes', event.target.value)}
+                            placeholder="例如：首件确认通过，留样已入库"
+                            className="mt-1 w-full rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/15"
+                        />
+                    </div>
+                )}
+                <button
+                    type="button"
+                    disabled={form.processing}
+                    onClick={() => post(`/admin/coa/${batch.id}/draft`)}
+                    className="btn-touch btn-primary w-full text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                    {form.processing ? '处理中…' : '生成 COA 草稿'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function LifecycleStepper({ document }) {
+    const steps = [
+        { key: 'DRAFT', label: '草稿', value: document.prepared_at },
+        { key: 'QA_REVIEW', label: 'QA 复核', value: document.submitted_at },
+        { key: 'APPROVED', label: '批准', value: document.approved_at },
+        { key: 'ISSUED', label: '签发', value: document.issued_at },
+    ];
+    const current = document.status === 'VOID' ? 4 : Math.max(steps.findIndex((step) => step.key === document.status), 0);
+
+    return (
+        <div>
+            <div className="grid grid-cols-4 gap-2">
+                {steps.map((step, index) => {
+                    const done = index < current;
+                    const active = index === current && document.status !== 'VOID';
+                    return (
+                        <div key={step.key} className="min-w-0">
+                            <div className="flex items-center">
+                                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${done ? 'bg-om-running' : active ? 'bg-om-accent' : 'bg-om-faintest'}`} />
+                                {index < steps.length - 1 && <span className={`ml-2 h-px flex-1 ${done ? 'bg-om-running/30' : 'bg-om-line2'}`} />}
+                            </div>
+                            <div className={`mt-2 truncate text-[11px] font-bold ${done ? 'text-om-running' : active ? 'text-om-accent' : 'text-om-faint'}`}>{step.label}</div>
+                            <div className="mt-0.5 truncate font-mono text-[10px] text-om-faint" title={step.value ? formatDateTime(step.value) : '—'}>
+                                {step.value ? formatDateTime(step.value) : active ? '进行中' : '—'}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            {document.status === 'VOID' && (
+                <div className="mt-3 rounded bg-om-blocked-bg px-3 py-2 text-xs text-om-blocked">
+                    已作废{document.voided_at ? ` · ${formatDateTime(document.voided_at)}` : ''}{document.void_reason ? ` · ${document.void_reason}` : ''}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function SignatureLine({ signature, compact = false }) {
+    return (
+        <div className={`flex items-start gap-3 ${compact ? 'py-2' : 'py-3'}`}>
+            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${signature.verified ? 'bg-om-running' : 'bg-om-blocked'}`} />
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                    <span className="text-sm font-semibold text-om-ink">{SIGNATURE_LABEL[signature.meaning] ?? signature.meaning}</span>
+                    <span className="font-mono text-[10px] text-om-faint">{signature.signed_at ? formatDateTime(signature.signed_at) : '—'}</span>
+                </div>
+                <div className="mt-0.5 truncate text-[11px] text-om-muted">
+                    {signature.user ?? '—'}
+                    {signature.roles?.length ? ` · ${signature.roles.join(' / ')}` : ''}
+                    {!signature.verified && <span className="ml-2 text-om-blocked">哈希校验失败</span>}
+                </div>
+                {!compact && <div className="mt-1 truncate font-mono text-[10px] text-om-faint">{signature.record_hash}</div>}
+            </div>
+        </div>
+    );
+}
+
+function VersionOperation({ document, form, post, batchId }) {
+    const isVoid = document.status === 'ISSUED';
+    return (
+        <div className="border-t border-om-line2 pt-3">
+            <label className="text-[11px] font-bold tracking-wide text-om-faint" htmlFor="reason">
+                {isVoid ? '作废原因' : '重签原因'}
+            </label>
+            <p className="mt-1 text-[11px] text-om-muted">写入版本记录并生成签名，旧版本不会被覆盖。</p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                    id="reason"
+                    value={form.data.reason}
+                    onChange={(event) => form.setData('reason', event.target.value)}
+                    placeholder="例如：客户规格变更 / 标签数量不符"
+                    className="min-w-0 flex-1 rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/15"
+                />
+                <button
+                    type="button"
+                    disabled={!form.data.reason.trim() || form.processing}
+                    onClick={() => post(`/admin/coa/${batchId}/${isVoid ? 'void' : 'reissue'}`)}
+                    className={`btn-touch text-sm disabled:cursor-not-allowed disabled:opacity-40 ${isVoid ? 'btn-danger' : 'btn-primary'}`}
+                >
+                    {isVoid ? '确认作废' : '创建新版本'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function DetailTabs({ tab, onChange, tabs = TABS }) {
+    return (
+        <div className="overflow-x-auto border-b border-om-line">
+            <div className="flex min-w-max items-center gap-4">
+                {tabs.map((item) => (
+                    <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => onChange(item.key)}
+                        aria-selected={tab === item.key}
+                        className={`whitespace-nowrap border-b-2 px-1 pb-2 pt-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-om-accent/40 ${tab === item.key ? 'border-om-ink text-om-ink' : 'border-transparent text-om-muted hover:text-om-ink'}`}
+                    >
+                        {item.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ProductBatchSection({ batch, document }) {
+    return (
+        <Section title="产品与批次" subtitle="COA 文档头的冻结字段">
+            <InfoGrid rows={[
+                ['客户', batch.customer ?? '—'],
+                ['客户编码', document?.customer_code ?? '—'],
+                ['产品', batch.product ?? '—'],
+                ['产品编码', batch.product_code ?? '—'],
+                ['配方 / 版本', document?.revision_code ?? '—'],
+                ['生产工单', batch.order_no ?? '—'],
+                ['生产批次', batch.lot_number ?? `B${batch.batch_number}`],
+                ['产线', batch.line ?? '—'],
+                ['成品数量', `${formatNumber(batch.produced_qty)} ${batch.unit_of_measure || 'kg'}`],
+                ['生产完成', batch.completed_at ? formatDateTime(batch.completed_at) : '—'],
+                ['保质期至', batch.expiry_date ?? '—'],
+                ['放行', batch.released_at ? `${batch.released_by ?? '—'} · ${formatDateTime(batch.released_at)}` : '未放行'],
+            ]} />
+        </Section>
+    );
+}
+
+function DocumentStatusSection({ document }) {
+    return (
+        <Section title="文档状态" subtitle="受控 COA 生命周期">
+            <div className="space-y-3 text-sm">
+                <TimelineRow label="创建草稿" value={document.prepared_at} by={document.prepared_by} />
+                <TimelineRow label="检验人确认" value={document.inspected_at} by={document.inspector} emptyLabel="未签字" />
+                <TimelineRow label="提交复核" value={document.submitted_at} />
+                <TimelineRow label="QA 批准" value={document.approved_at} by={document.approved_by} />
+                <TimelineRow label="签发" value={document.issued_at} by={document.issued_by} />
+                <TimelineRow label="作废" value={document.voided_at} by={document.voided_by} danger emptyLabel="未作废" />
+                {document.void_reason && (
+                    <div className="rounded bg-om-blocked-bg px-3 py-2 text-xs text-om-blocked">{document.void_reason}</div>
+                )}
+            </div>
+        </Section>
+    );
+}
+
+function VersionHistorySection({ versions }) {
+    return (
+        <Section title="版本历史" subtitle="每次重签新增版本，旧版本保留">
+            {versions.length === 0 ? (
+                <p className="text-sm text-om-faint">还没有版本记录。</p>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full table-fixed text-sm">
+                        <thead>
+                            <tr className="border-b border-om-line2 text-left text-xs font-bold text-om-muted">
+                                <th className="py-2 pr-3">版本</th>
+                                <th className="py-2 pr-3">状态</th>
+                                <th className="py-2 pr-3">原因</th>
+                                <th className="py-2">签发时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {versions.map((version) => (
+                                <tr key={version.id} className="border-b border-om-line2 last:border-0">
+                                    <td className="py-2 pr-3 font-mono font-bold text-om-ink">V{String(version.version).padStart(2, '0')}</td>
+                                    <td className="py-2 pr-3"><StatusBadge status={version.status} /></td>
+                                    <td className="py-2 pr-3 text-om-muted">{version.change_reason ?? '—'}</td>
+                                    <td className="py-2 font-mono text-xs text-om-muted">{version.issued_at ? formatDateTime(version.issued_at) : '—'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </Section>
+    );
+}
+
+function SignaturesSection({ signatures }) {
+    return (
+        <Section title="电子签名" subtitle="姓名、时间、含义与记录哈希">
+            {signatures.length === 0 ? (
+                <p className="text-sm text-om-faint">还没有签名记录。</p>
+            ) : (
+                <div className="divide-y divide-om-line2">
+                    {signatures.map((signature) => (
+                        <SignatureLine key={`${signature.meaning}-${signature.id}`} signature={signature} />
+                    ))}
+                </div>
+            )}
+        </Section>
+    );
+}
+
+function RecordTab({ batch, document, versions, separation, batchSignatures, documentSignatures }) {
+    if (!document) {
+        return <ProductBatchSection batch={batch} document={null} />;
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                <ProductBatchSection batch={batch} document={document} />
+                <DocumentStatusSection document={document} />
+            </div>
+            <VersionHistorySection versions={versions} />
+            <SignaturesSection signatures={[...batchSignatures, ...documentSignatures]} />
+            <SeparationPanel separation={separation} />
+        </div>
+    );
+}
+
+function SpecSnapshotSection({ document }) {
+    return (
+        <Section title="COA 规格快照" subtitle="批准 / 签发时冻结，之后不随主数据变化">
+            {(document.specification?.standard_code || document.specification?.sensory_profile) && (
+                <div className="mb-3 rounded bg-om-chip px-3 py-2 text-xs text-om-muted">
+                    {document.specification?.standard_code && (
+                        <span className="font-medium text-om-ink">客户标准：{document.specification.standard_code} {document.specification.standard_version}</span>
+                    )}
+                    {document.specification?.sensory_profile && (
+                        <span className="ml-2">感官：{document.specification.sensory_profile}</span>
+                    )}
+                </div>
+            )}
+            {document.specification?.parameters?.length ? (
+                <div className="overflow-x-auto">
+                    <table className="w-full table-fixed text-sm">
+                        <thead>
+                            <tr className="border-b border-om-line2 text-left text-xs font-bold text-om-muted">
+                                <th className="py-2 pr-4">检验项目</th>
+                                <th className="py-2 pr-4">类型</th>
+                                <th className="py-2 pr-4">限值</th>
+                                <th className="py-2">单位</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {document.specification.parameters.map((parameter, index) => (
+                                <tr key={index} className="border-b border-om-line2 last:border-0">
+                                    <td className="py-2 pr-4 font-medium text-om-ink">{parameter.name ?? parameter['名称'] ?? `项目 ${index + 1}`}</td>
+                                    <td className="py-2 pr-4 text-om-muted">{parameter.type === 'measurement' ? '测量值' : '合格 / 不合格'}</td>
+                                    <td className="py-2 pr-4 font-mono text-om-ink">
+                                        {parameter.type === 'measurement'
+                                            ? `${parameter.min ?? '—'} – ${parameter.max ?? '—'}`
+                                            : '符合 / 不符合'}
+                                    </td>
+                                    <td className="py-2 text-om-muted">{parameter.unit ?? '—'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <p className="text-sm text-om-faint">尚未冻结检验规格。请先完成检验模板与成品检验。</p>
+            )}
+        </Section>
+    );
+}
+
+function QualitySnapshotSection({ document }) {
+    return (
+        <Section title="检验结果快照" subtitle="来自最近一次批次质量检查">
+            {document.quality?.samples?.length ? (
+                <div className="overflow-x-auto">
+                    <table className="w-full table-fixed text-sm">
+                        <thead>
+                            <tr className="border-b border-om-line2 text-left text-xs font-bold text-om-muted">
+                                <th className="py-2 pr-4">样品</th>
+                                <th className="py-2 pr-4">项目</th>
+                                <th className="py-2 pr-4">实测</th>
+                                <th className="py-2">判定</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {document.quality.samples.map((sample, index) => (
+                                <tr key={index} className="border-b border-om-line2 last:border-0">
+                                    <td className="py-2 pr-4 font-mono text-om-muted">{sample.sample_number}</td>
+                                    <td className="py-2 pr-4 font-medium text-om-ink">{sample.parameter_name}</td>
+                                    <td className="py-2 pr-4 font-mono text-om-ink">
+                                        {sample.parameter_type === 'measurement'
+                                            ? sample.value_numeric ?? '—'
+                                            : sample.value_boolean === null ? '—' : sample.value_boolean ? '是' : '否'}
+                                    </td>
+                                    <td className="py-2"><PassBadge pass={sample.is_passed} /></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <p className="mt-3 text-xs text-om-muted">
+                        检验时间 {document.quality.checked_at ? formatDateTime(document.quality.checked_at) : '—'} · 检验人 {document.quality.checked_by ?? '—'}
+                    </p>
+                </div>
+            ) : (
+                <p className="text-sm text-om-faint">尚无检验结果快照。</p>
+            )}
+        </Section>
+    );
+}
+
+function BatchStatusBadge({ status }) {
+    const styles = {
+        PENDING: 'bg-om-chip text-om-muted',
+        IN_PROGRESS: 'bg-om-accepted-bg text-om-accepted',
+        DONE: 'bg-om-done-bg text-om-done',
+        CANCELLED: 'bg-om-blocked-bg text-om-blocked',
+    };
+    return (
+        <span className={`inline-block rounded px-2 py-0.5 text-xs font-bold ${styles[status] ?? styles.PENDING}`}>
+            {BATCH_STATUS_LABEL[status] ?? status}
+        </span>
     );
 }
 
@@ -476,16 +1032,16 @@ function WeighingPanel({ batch, weighing }) {
                 </div>
 
                 <div className="mt-3 overflow-x-auto">
-                    <table className="w-full min-w-[680px] text-xs">
+                    <table className="w-full table-fixed text-xs">
                         <thead>
                             <tr className="border-b border-om-line2 text-left text-om-muted">
-                                <th className="py-1 pr-2 font-semibold">原料</th>
-                                <th className="py-1 pr-2 font-semibold">目标量</th>
-                                <th className="py-1 pr-2 font-semibold">实际量</th>
-                                <th className="py-1 pr-2 font-semibold">偏差</th>
-                                <th className="py-1 pr-2 font-semibold">公差</th>
-                                <th className="py-1 pr-2 font-semibold">秤 / 操作人</th>
-                                <th className="py-1 font-semibold">判定</th>
+                                <th className="w-[34%] py-1 pr-2 font-semibold">原料</th>
+                                <th className="w-[17%] py-1 pr-2 font-semibold">目标量</th>
+                                <th className="w-[17%] py-1 pr-2 font-semibold">实际量</th>
+                                <th className="hidden w-[16%] py-1 pr-2 font-semibold lg:table-cell">偏差</th>
+                                <th className="hidden w-[12%] py-1 pr-2 font-semibold xl:table-cell">公差</th>
+                                <th className="hidden w-[18%] py-1 pr-2 font-semibold xl:table-cell">秤 / 操作人</th>
+                                <th className="w-[18%] py-1 font-semibold">判定</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -502,9 +1058,9 @@ function WeighingPanel({ batch, weighing }) {
                                             </td>
                                             <td className="py-1 pr-2 text-om-ink">{formatNumber(row.target_qty, 2)} {row.unit_of_measure}</td>
                                             <td className="py-1 pr-2 text-om-ink">{record ? `${formatNumber(record.actual_qty, 2)} ${row.unit_of_measure}` : '—'}</td>
-                                            <td className="py-1 pr-2 text-om-muted">{record ? `${record.variance_qty > 0 ? '+' : ''}${formatNumber(record.variance_qty, 2)} / ${record.variance_pct > 0 ? '+' : ''}${formatNumber(record.variance_pct, 2)}%` : '—'}</td>
-                                            <td className="py-1 pr-2 text-om-muted">±{formatNumber(record?.tolerance_pct ?? row.tolerance_pct, 2)}%</td>
-                                            <td className="py-1 pr-2 text-om-muted">{record ? `${record.scale_code || '—'} · ${record.weighed_by || '—'}` : '—'}</td>
+                                            <td className="hidden py-1 pr-2 text-om-muted lg:table-cell">{record ? `${record.variance_qty > 0 ? '+' : ''}${formatNumber(record.variance_qty, 2)} / ${record.variance_pct > 0 ? '+' : ''}${formatNumber(record.variance_pct, 2)}%` : '—'}</td>
+                                            <td className="hidden py-1 pr-2 text-om-muted xl:table-cell">±{formatNumber(record?.tolerance_pct ?? row.tolerance_pct, 2)}%</td>
+                                            <td className="hidden py-1 pr-2 text-om-muted xl:table-cell">{record ? `${record.scale_code || '—'} · ${record.weighed_by || '—'}` : '—'}</td>
                                             <td className="py-1">
                                                 {record ? (
                                                     <span className={`font-semibold ${record.status === 'PASS' ? 'text-om-running' : 'text-om-blocked'}`}>
@@ -613,23 +1169,24 @@ function LabTestPanel({ batch, labTest, labTestRequired = false }) {
                             </div>
                         )}
                         <div className="mt-3 overflow-x-auto">
-                            <table className="w-full min-w-[560px] text-xs">
+                            <table className="w-full table-fixed text-xs">
                                 <thead>
                                     <tr className="border-b border-om-line2 text-left text-om-muted">
-                                        <th className="py-1 pr-2 font-semibold">类别</th>
-                                        <th className="py-1 pr-2 font-semibold">项目</th>
-                                        <th className="py-1 pr-2 font-semibold">实测</th>
-                                        <th className="py-1 pr-2 font-semibold">限值</th>
-                                        <th className="py-1 font-semibold">判定</th>
+                                        <th className="w-[38%] py-1 pr-2 font-semibold">项目</th>
+                                        <th className="w-[24%] py-1 pr-2 font-semibold">实测</th>
+                                        <th className="w-[24%] py-1 pr-2 font-semibold">限值</th>
+                                        <th className="w-[14%] py-1 font-semibold">判定</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {(labTest.items ?? []).map((item, index) => (
                                         <tr key={`${item.category}-${item.name}-${index}`} className="border-b border-om-line2/60">
-                                            <td className="py-1 pr-2 text-om-muted">{item.category}</td>
-                                            <td className="py-1 pr-2 font-semibold text-om-ink">{item.name}</td>
-                                            <td className="py-1 pr-2 text-om-ink">{item.result}</td>
-                                            <td className="py-1 pr-2 text-om-muted">{item.limit}</td>
+                                            <td className="py-1 pr-2">
+                                                <div className="font-semibold text-om-ink">{item.name}</div>
+                                                <div className="text-[11px] text-om-muted">{item.category}</div>
+                                            </td>
+                                            <td className="py-1 pr-2 break-words text-om-ink">{item.result}</td>
+                                            <td className="py-1 pr-2 break-words text-om-muted">{item.limit}</td>
                                             <td className={`py-1 font-semibold ${item.conclusion === '合格' ? 'text-om-running' : 'text-om-blocked'}`}>{item.conclusion}</td>
                                         </tr>
                                     ))}
@@ -835,43 +1392,6 @@ function ReleaseCheckPanel({ batch, releaseChecks = {} }) {
                 })}
             </div>
         </Section>
-    );
-}
-
-function GatePanel({ title, subtitle, gate }) {
-    const tone = gate.passed ? 'border-om-running/30' : 'border-om-line';
-    return (
-        <div className={`rounded-om-sm border bg-om-card p-5 shadow-sm ${tone}`}>
-            <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <h2 className="text-base font-bold text-om-ink">{title}</h2>
-                    <p className="mt-0.5 text-xs text-om-muted">{subtitle}</p>
-                </div>
-                <div className={`font-mono text-lg font-bold ${gate.passed ? 'text-om-running' : 'text-om-blocked'}`}>
-                    {gate.passed_count}/{gate.total}
-                </div>
-            </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-om-chip">
-                <div
-                    className={`h-full rounded-full ${gate.passed ? 'bg-om-running' : 'bg-om-blocked'}`}
-                    style={{ width: `${Math.round((gate.passed_count / Math.max(gate.total, 1)) * 100)}%` }}
-                />
-            </div>
-            <div className="mt-4 space-y-3">
-                {gate.checks.map((check) => (
-                    <div key={check.key} className="flex gap-3">
-                        <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${check.passed ? 'bg-om-running-bg text-om-running' : 'bg-om-blocked-bg text-om-blocked'}`}>
-                            {check.passed ? '✓' : '!'}
-                        </span>
-                        <div className="min-w-0">
-                            <div className="text-sm font-medium text-om-ink">{check.label}</div>
-                            <div className="mt-0.5 text-xs text-om-muted">{check.detail}</div>
-                            <div className="mt-0.5 text-[11px] text-om-faint">依据：{check.evidence}</div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
     );
 }
 
