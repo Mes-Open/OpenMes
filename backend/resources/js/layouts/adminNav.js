@@ -183,6 +183,7 @@ export const ADMIN_GROUPS = [
             { label: '茶底档案', href: '/admin/tea-bases', match: ['/admin/tea-bases'], tab: 'quality', lucide: 'archive' },
             { label: '鲜花批次', href: '/admin/flower-lots', match: ['/admin/flower-lots'], tab: 'quality', lucide: 'timer' },
             { label: '拼配版本', href: '/admin/blend-formulas', match: ['/admin/blend-formulas'], tab: 'quality', lucide: 'layers' },
+            { label: '感官盲评', href: '/admin/sensory', match: ['/admin/sensory'], tab: 'quality', lucide: 'eye' },
             { label: 'COA 与放行', href: '/admin/coa', match: ['/admin/coa'], tab: 'quality', lucide: 'file-check' },
             { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
             // What an operator picks from when a machine stops. Feeds OEE

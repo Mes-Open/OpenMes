@@ -294,7 +294,11 @@ function ComponentCard({ component }) {
 
 function StandardSamplePanel({ formula }) {
     return (
-        <Panel title="标准样" subtitle="批准前必须有一支已批准的标准样。">
+        <Panel
+            title="标准样"
+            subtitle="批准前必须有一支已批准的标准样。"
+            action={<Link href="/admin/sensory" className="text-[11px] font-bold text-om-accent hover:underline">去盲评 →</Link>}
+        >
             {formula.has_standard_sample ? (
                 <div className="p-4">
                     <div className="flex items-start justify-between gap-2">

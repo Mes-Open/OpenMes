@@ -63,6 +63,7 @@ class NewTeaDemoSeeder extends Seeder
             $this->seedBatchesAndQuality($data, $admin, $qa);
             $this->call(FlowerLotDemoSeeder::class);
             $this->call(BlendFormulaDemoSeeder::class);
+            $this->call(SensoryEvaluationDemoSeeder::class);
 
             Auth::logout();
 
