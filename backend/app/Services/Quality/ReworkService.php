@@ -126,6 +126,7 @@ class ReworkService
             if ($rework->status !== ReworkOperation::STATUS_OPEN) {
                 throw new \DomainException(__('Only an open rework can be started.'));
             }
+            $this->assertProductionRunning($rework);
 
             $rework->update([
                 'status' => ReworkOperation::STATUS_IN_PROGRESS,
@@ -150,6 +151,7 @@ class ReworkService
             if ($rework->status !== ReworkOperation::STATUS_IN_PROGRESS) {
                 throw new \DomainException(__('Start the rework before completing it.'));
             }
+            $this->assertProductionRunning($rework);
 
             $accepted = round($accepted, 2);
             $scrapped = round($scrapped, 2);
@@ -226,6 +228,22 @@ class ReworkService
 
             return $rework->fresh();
         });
+    }
+
+    /**
+     * Rework cannot be started or completed once its batch or work order has
+     * stopped (cancelling it, which only releases the pieces, stays possible).
+     *
+     * @throws \DomainException
+     */
+    private function assertProductionRunning(ReworkOperation $rework): void
+    {
+        $batch = $rework->batch;
+        $workOrder = $rework->workOrder;
+        if (in_array($batch?->status, [Batch::STATUS_DONE, Batch::STATUS_CANCELLED], true)
+            || in_array($workOrder?->status, WorkOrder::TERMINAL_STATUSES, true)) {
+            throw new \DomainException(__('Production is stopped for this work order.'));
+        }
     }
 
     /**

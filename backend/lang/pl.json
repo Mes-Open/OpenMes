@@ -8041,5 +8041,8 @@
     "Cancel rework": "Anuluj poprawkę",
     "No rework yet. Pieces sent to rework are held at their step until the operator completes the rework.": "Brak poprawek. Sztuki skierowane do poprawki są wstrzymane na swoim kroku, dopóki operator nie zakończy poprawki.",
     ":accepted accepted, :scrapped scrapped": "przyjęte: :accepted, złomowane: :scrapped",
-    "Send to rework": "Skieruj do poprawki"
+    "Send to rework": "Skieruj do poprawki",
+    "Found at": "Wykryto na kroku",
+    "Send back to": "Odeślij do kroku",
+    "Rework not sent": "Nie wysłano do poprawki"
 }

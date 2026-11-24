@@ -886,7 +886,7 @@ function ReworkModal({ issue, base, csrf, onClose }) {
             <Modal open onClose={onClose} title={__('Rework')} subtitle={issue.title} closeLabel={__('Close')} width={640}>
                 <div className="space-y-4">
                     {error && (
-                        <InlineAlert severity="error" title={__('Something went wrong')}>
+                        <InlineAlert severity="error" title={__('Rework not sent')}>
                             {error}
                         </InlineAlert>
                     )}
@@ -929,19 +929,25 @@ function ReworkModal({ issue, base, csrf, onClose }) {
 
                     {!loading && (
                         <form onSubmit={add} className="grid grid-cols-1 gap-2 border-t border-om-line2 pt-4 sm:grid-cols-2">
-                            <Dropdown options={sourceOptions} value={form.source} onChange={(v) => setForm({ ...form, source: v, target: '' })} />
-                            <Dropdown options={targetOptions} value={form.target} onChange={(v) => setForm({ ...form, target: v })} />
+                            <div>
+                                <span className="mb-[7px] block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Found at')}<span aria-hidden className="text-om-blocked"> *</span></span>
+                                <Dropdown aria-label={__('Found at')} options={sourceOptions} value={form.source} onChange={(v) => setForm({ ...form, source: v, target: '' })} />
+                            </div>
+                            <div>
+                                <span className="mb-[7px] block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('Send back to')}<span aria-hidden className="text-om-blocked"> *</span></span>
+                                <Dropdown aria-label={__('Send back to')} options={targetOptions} value={form.target} onChange={(v) => setForm({ ...form, target: v })} />
+                            </div>
                             <TextField
                                 type="number"
+                                label={__('Quantity')}
                                 value={form.quantity}
                                 onChange={(v) => setForm({ ...form, quantity: v })}
-                                placeholder={__('Quantity')}
                                 required
                             />
                             <TextField
+                                label={__('Reason')}
                                 value={form.reason}
                                 onChange={(v) => setForm({ ...form, reason: v })}
-                                placeholder={__('Reason')}
                                 maxLength={2000}
                                 required
                             />

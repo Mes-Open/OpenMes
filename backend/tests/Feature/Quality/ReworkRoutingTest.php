@@ -178,6 +178,19 @@ class ReworkRoutingTest extends TestCase
         $this->api($this->supervisor)->postJson("/api/v1/rework-operations/{$id}/cancel", ['reason' => 'again'])->assertStatus(422);
     }
 
+    public function test_rework_cannot_run_once_the_work_order_is_stopped(): void
+    {
+        $id = $this->send($this->issue())->json('data.id');
+        $this->workOrder->update(['status' => WorkOrder::STATUS_CANCELLED]);
+
+        $this->api($this->operator)->postJson("/api/v1/rework-operations/{$id}/start")
+            ->assertStatus(422)->assertJsonPath('errors.rework.0', 'Production is stopped for this work order.');
+
+        // Cancelling still releases the held pieces.
+        $this->api($this->supervisor)->postJson("/api/v1/rework-operations/{$id}/cancel", ['reason' => 'Order cancelled'])->assertOk();
+        $this->assertEquals(0, $this->step2->fresh()->rework_held_qty);
+    }
+
     public function test_rework_time_is_recorded_on_the_rework_not_on_the_original_operation(): void
     {
         $id = $this->send($this->issue())->json('data.id');
@@ -327,6 +340,48 @@ class ReworkRoutingTest extends TestCase
             app(ReworkService::class)->complete(ReworkOperation::find($id), 4, 0, $this->operator);
             $this->assertEquals(4, $this->step2->fresh()->availableQty());
         }
+    }
+
+    public function test_held_pieces_cannot_be_corrected_onwards(): void
+    {
+        ProductionFlow::set(ProductionFlow::TRANSFER);
+        \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(['key' => 'production_qty_edit_policy'], ['value' => json_encode('full')]);
+        $this->workOrder->update(['counting_source' => 'operator']);
+        $this->send($this->issue(), ['quantity' => 4])->assertCreated();
+        $batchService = app(BatchService::class);
+
+        try {
+            $batchService->correctGoodQuantity($this->step2->fresh(), $this->operator, 10, 0, 'Recount');
+            $this->fail('A correction passed held pieces on.');
+        } catch (\DomainException $e) {
+            $this->assertSame('The correction exceeds the incoming quantity.', $e->getMessage());
+        }
+
+        $batchService->correctGoodQuantity($this->step2->fresh(), $this->operator, 6, 0, 'Recount');
+        $this->assertEquals(6, $this->step2->fresh()->passed_qty);
+        $this->assertEquals(0, $this->step2->fresh()->availableQty());
+    }
+
+    public function test_a_step_holding_rework_cannot_be_skipped(): void
+    {
+        $this->step2->update(['is_optional' => true]);
+        $this->send($this->issue())->assertCreated();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('3 pieces are held in rework at this step — finish or cancel the rework first.');
+        app(BatchService::class)->skipStep($this->step2->fresh(), $this->operator);
+    }
+
+    public function test_rework_of_whole_pieces_rejects_fractions(): void
+    {
+        $this->workOrder->productType->update(['unit_of_measure' => 'pcs']);
+        $this->send($this->issue(), ['quantity' => 1.5])
+            ->assertStatus(422)->assertJsonValidationErrors(['quantity']);
+
+        $id = $this->send($this->issue())->json('data.id');
+        $this->api($this->operator)->postJson("/api/v1/rework-operations/{$id}/start")->assertOk();
+        $this->api($this->operator)->postJson("/api/v1/rework-operations/{$id}/complete", ['accepted_qty' => 1.5, 'scrapped_qty' => 1.5])
+            ->assertStatus(422)->assertJsonValidationErrors(['accepted_qty', 'scrapped_qty']);
     }
 
     public function test_deleting_the_step_soft_deletes_its_rework(): void

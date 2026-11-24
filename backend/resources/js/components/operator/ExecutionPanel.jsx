@@ -201,7 +201,7 @@ export default function ExecutionPanel({ workOrderId, fallback = null, labelTemp
                                 inflight={inflight}
                                 onStart={(r) => post(`/operator/rework/${r.id}/start`, {}, `rework:${r.id}`)}
                                 onTime={(r, kind, act) => post(`/operator/rework/${r.id}/time/${kind}/${act}`, {}, `rtime:${r.id}:${kind}`)}
-                                onComplete={(r) => setReworkModal(r)}
+                                onComplete={(r) => { setActionError(null); setReworkModal(r); }}
                             />
                         )}
                     </>
