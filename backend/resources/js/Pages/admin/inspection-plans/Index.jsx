@@ -7,6 +7,19 @@ import { formatDateTime } from '../../../lib/i18n';
 
 const CRITERIA_EXAMPLE = '水分|测量|%|5|8|必填\n感官-香气|感官|—|||必填\n无异物|合格|—|||必填';
 
+const INSPECTION_LABELS = {
+    pending: '待检验', pass: '合格', fail: '不合格', conditional_pass: '让步接收',
+};
+const DISPOSITION_LABELS = {
+    pending: '待处置', accept: '接收', accept_with_deviation: '让步接收', rework: '返工',
+    quarantine: '隔离', scrap: '报废', return_to_supplier: '退货', reject: '拒收',
+};
+const LOT_LABELS = {
+    received: '已收货', quarantine: '隔离', released: '已放行',
+    consumed: '已耗用', expired: '过期', rejected: '拒收',
+};
+
+
 function criteriaInitial(record) {
     return {
         name: record?.name ?? '',
@@ -139,7 +152,7 @@ export default function InspectionPlansIndex() {
                 </div>
                 {arrivals.length > 0 ? (
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[820px] text-sm">
+                        <table className="w-full min-w-[980px] text-sm">
                             <thead>
                                 <tr className="border-b border-om-line bg-om-bg text-left text-xs text-om-muted">
                                     <th className="whitespace-nowrap px-4 py-2.5 font-semibold">到货单</th>
@@ -147,7 +160,8 @@ export default function InspectionPlansIndex() {
                                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">批号</th>
                                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">数量</th>
                                     <th className="whitespace-nowrap px-3 py-2.5 font-semibold">适用计划</th>
-                                    <th className="whitespace-nowrap px-4 py-2.5 font-semibold">检验状态</th>
+                                    <th className="whitespace-nowrap px-4 py-2.5 font-semibold">检验 / 处置</th>
+                                    <th className="whitespace-nowrap px-4 py-2.5 font-semibold">物料批</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -163,11 +177,35 @@ export default function InspectionPlansIndex() {
                                         <td className="px-3 py-2.5 text-xs text-om-muted">{arrival.plan_label ?? <span className="text-om-blocked">无适用计划</span>}</td>
                                         <td className="whitespace-nowrap px-4 py-2.5 text-xs">
                                             {arrival.inspection_status ? (
-                                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">{arrival.inspection_status === 'pending' ? '待检验' : '已判定'}</span>
+                                                <div>
+                                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                                        arrival.inspection_status === 'pass' ? 'bg-emerald-100 text-emerald-800'
+                                                            : arrival.inspection_status === 'fail' ? 'bg-red-100 text-red-800'
+                                                                : 'bg-amber-100 text-amber-800'
+                                                    }`}>{INSPECTION_LABELS[arrival.inspection_status] ?? arrival.inspection_status}</span>
+                                                    {arrival.disposition && (
+                                                        <div className="mt-1 text-[10px] text-om-muted">处置：{DISPOSITION_LABELS[arrival.disposition] ?? arrival.disposition}</div>
+                                                    )}
+                                                </div>
                                             ) : arrival.can_dispatch ? (
                                                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">待派工</span>
                                             ) : (
                                                 <span className="rounded-full bg-om-chip px-2 py-0.5 text-[11px] font-semibold text-om-muted">跳过</span>
+                                            )}
+                                        </td>
+                                        <td className="whitespace-nowrap px-4 py-2.5 text-xs">
+                                            {arrival.lot_status ? (
+                                                <div>
+                                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                                        arrival.lot_status === 'released' ? 'bg-emerald-100 text-emerald-800'
+                                                            : arrival.lot_status === 'quarantine' ? 'bg-amber-100 text-amber-800'
+                                                                : arrival.lot_status === 'rejected' ? 'bg-red-100 text-red-800'
+                                                                    : 'bg-om-chip text-om-muted'
+                                                    }`}>{LOT_LABELS[arrival.lot_status] ?? arrival.lot_status}</span>
+                                                    <div className="mt-1 font-mono text-[10px] text-om-faint">{arrival.lot_number_actual}</div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-om-faint">未建物料批</span>
                                             )}
                                         </td>
                                     </tr>

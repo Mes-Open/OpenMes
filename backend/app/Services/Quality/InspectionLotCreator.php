@@ -39,8 +39,11 @@ class InspectionLotCreator
             return null;
         }
 
-        $inspection->loadMissing('material');
+        $inspection->loadMissing('material', 'stockDocumentLine.stockDocument');
         $qty = $inspection->quantity_received ?? 0;
+        // A lot created from a warehouse receipt belongs to that warehouse, so
+        // FEFO/FIFO picking sees it in the same location the stock landed in.
+        $warehouseId = $inspection->stockDocumentLine?->stockDocument?->warehouse_id;
 
         return MaterialLot::create([
             'tenant_id' => $inspection->tenant_id,
@@ -51,6 +54,7 @@ class InspectionLotCreator
             'source_container_no' => $inspection->source_container_no,
             'quantity_received' => $qty,
             'quantity_available' => $lotStatus === MaterialLot::STATUS_RELEASED ? $qty : 0,
+            'warehouse_id' => $warehouseId,
             'received_at' => $inspection->started_at ?? now(),
             'inspection_id' => $inspection->id,
             'created_by_id' => $createdBy?->id ?? $inspection->inspector_id,

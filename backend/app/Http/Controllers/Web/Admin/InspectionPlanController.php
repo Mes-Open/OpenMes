@@ -211,6 +211,7 @@ class InspectionPlanController extends Controller
     {
         return $this->receiptLines(100)->map(function (StockDocumentLine $line) {
             $inspection = $line->inspection;
+            $lot = $inspection?->lotsTested()->first();
             $plan = $line->material ? $this->inspections->applicablePlan($line->material) : null;
 
             return [
@@ -225,6 +226,9 @@ class InspectionPlanController extends Controller
                 'plan_label' => $plan ? $plan->name.' V'.$plan->version : null,
                 'inspection_id' => $inspection?->id,
                 'inspection_status' => $inspection?->status,
+                'disposition' => $inspection?->disposition,
+                'lot_number_actual' => $lot?->lot_number,
+                'lot_status' => $lot?->status,
                 'can_dispatch' => ! $inspection && $plan !== null,
             ];
         })->values();
@@ -240,7 +244,7 @@ class InspectionPlanController extends Controller
                 'material:id,name,code,unit_of_measure,material_type_id',
                 'materialLot:id,lot_number',
                 'stockDocument:id,document_no,type,status,posted_at',
-                'inspection:id,stock_document_line_id,status,lot_number',
+                'inspection:id,stock_document_line_id,status,lot_number,disposition',
             ])
             ->whereNotNull('material_id')
             ->whereHas('stockDocument', fn ($query) => $query

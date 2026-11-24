@@ -43,6 +43,12 @@ class HoutangPilotSeeder extends Seeder
     {
         $admin = User::query()->where('username', 'admin')->first();
 
+        // 茶行业试点必须按物料批追溯：到货检验通过后生成可被 FEFO/FIFO 领用的物料批。
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'lot_tracking_enabled'],
+            ['value' => json_encode(true), 'updated_at' => now()],
+        );
+
         // QA 复核人：与放行人分离，专门用于 COA 批准/签发（双人复核）。
         $qa = User::firstOrCreate(
             ['username' => 'qa.lead'],
