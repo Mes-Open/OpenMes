@@ -3,6 +3,7 @@
 // lines), drag the edges to stretch across shifts/days. Backlog cards drop onto
 // any cell via react-dnd; scheduled blocks move via pointer (hit-testing cells).
 import { useState, useRef, useEffect, memo } from 'react';
+import { Link } from '@inertiajs/react';
 import { Icon } from '@openmes/ui';
 import Tooltip from '../../../../components/Tooltip';
 import { __, formatDate } from '../../../../lib/i18n';
@@ -264,6 +265,261 @@ function WeekLineRow({ line, ctx, days, shiftsPerDay, today, gridMinW, preview, 
     );
 }
 
+
+// ── Flower window lanes ──────────────────────────────────────────────────────
+// Two extra rows sit above the line rows: arrivals with their usable window,
+// and the scenting occupancy created by an allocation. This keeps the flower
+// time window on the same board instead of inventing a second chart.
+const FLOWER_BLOCK_H = 31;
+const FLOWER_BLOCK_GAP = 4;
+const FLOWER_LANE_PAD = 5;
+
+const parseFlowerDate = (value) => (value ? new Date(value) : null);
+
+function flowerDayKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function shiftMinutes(value) {
+    if (!value) return 0;
+    const [h, m] = String(value).split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+}
+
+function shiftIndexAt(date, shifts) {
+    const minutes = date.getHours() * 60 + date.getMinutes();
+    for (let i = 0; i < shifts.length; i++) {
+        const start = shiftMinutes(shifts[i].start_time);
+        const rawEnd = shiftMinutes(shifts[i].end_time);
+        const end = rawEnd === 0 ? 1440 : rawEnd;
+        if (minutes >= start && minutes < end) return i;
+    }
+    return Math.max(0, shifts.length - 1);
+}
+
+function flowerColumnAt(value, days, shifts) {
+    const date = parseFlowerDate(value);
+    if (!date) return null;
+    let dayIndex = days.findIndex((d) => d.date === flowerDayKey(date));
+    if (dayIndex < 0) return null;
+    const shiftIdx = shiftIndexAt(date, shifts);
+    const shift = shifts[shiftIdx];
+    // The board orders shifts as early → middle → night, and the night column
+    // (00:00–08:00) sits after the previous day's middle shift. A timestamp at
+    // 03:30 therefore belongs to the prior calendar day's night column, not to
+    // the night column 21 hours later.
+    const startsAtMidnight = shift
+        && shiftMinutes(shift.start_time) === 0
+        && shiftMinutes(shift.end_time) > 0;
+    if (startsAtMidnight && dayIndex > 0) dayIndex -= 1;
+    return dayIndex * Math.max(1, shifts.length) + shiftIdx;
+}
+
+function packFlowerRows(rows, startKey, endKey) {
+    const sorted = (rows || [])
+        .filter((row) => row[startKey] && row[endKey])
+        .map((row) => ({ ...row }))
+        .sort((a, b) => new Date(a[startKey]) - new Date(b[startKey]));
+
+    const laneEnds = [];
+    sorted.forEach((row) => {
+        const start = new Date(row[startKey]).getTime();
+        const end = new Date(row[endKey]).getTime();
+        let lane = laneEnds.findIndex((lastEnd) => lastEnd <= start);
+        if (lane < 0) {
+            lane = laneEnds.length;
+            laneEnds.push(end);
+        } else {
+            laneEnds[lane] = end;
+        }
+        row.lane = lane;
+    });
+
+    return { rows: sorted, laneCount: Math.max(1, laneEnds.length) };
+}
+
+function flowerDuration(seconds) {
+    const abs = Math.abs(Math.round(seconds));
+    const h = Math.floor(abs / 3600);
+    const m = Math.round((abs % 3600) / 60);
+    if (h >= 24) {
+        const d = Math.floor(h / 24);
+        return `${d}d ${h % 24}h`;
+    }
+    return h > 0 ? `${h}h${String(m).padStart(2, '0')}m` : `${m}m`;
+}
+
+function flowerClock(value) {
+    const date = parseFlowerDate(value);
+    if (!date) return '—';
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function flowerBlockColumns(row, startKey, endKey, days, shifts, N) {
+    const startRaw = flowerColumnAt(row[startKey], days, shifts);
+    const endRaw = flowerColumnAt(row[endKey], days, shifts);
+    if (startRaw == null || endRaw == null) return null;
+    const start = Math.max(0, Math.min(N - 1, startRaw));
+    const end = Math.max(start, Math.min(N - 1, endRaw));
+    if (end < 0 || start > N - 1) return null;
+    return [start, end];
+}
+
+function FlowerGridCells({ N, shiftsPerDay }) {
+    return Array.from({ length: N }, (_, col) => (
+        <div
+            key={'fcell' + col}
+            style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: (col / N * 100) + '%',
+                width: (100 / N) + '%',
+                borderRight: '1px solid var(--om-line2)',
+                borderLeft: col % shiftsPerDay === 0 ? '1px solid var(--om-line2)' : 'none',
+                background: col % shiftsPerDay === 0 ? 'color-mix(in srgb, var(--om-chip) 46%, transparent)' : 'transparent',
+            }}
+        />
+    ));
+}
+
+function FlowerBlock({ row, kind, startCol, endCol, N, lane }) {
+    const isExpired = kind === 'arrival' && row.status === 'EXPIRED';
+    const isConflict = kind === 'arrival' ? row.has_conflict : row.conflict;
+    const isDanger = isExpired || isConflict;
+    const isWarning = kind === 'arrival' && !isDanger && row.urgency === 'warning';
+    const isCritical = kind === 'arrival' && !isDanger && row.urgency === 'critical';
+    const tone = isDanger || isCritical
+        ? { bg: 'var(--om-blocked-bg)', border: 'var(--om-blocked)', text: 'var(--om-blocked)' }
+        : isWarning
+            ? { bg: 'var(--om-downtime-bg)', border: 'var(--om-downtime)', text: 'var(--om-downtime)' }
+            : kind === 'occupancy'
+                ? { bg: 'var(--om-accepted-bg)', border: 'var(--om-accepted)', text: 'var(--om-accepted)' }
+                : { bg: 'var(--om-running-bg)', border: 'var(--om-running)', text: 'var(--om-running)' };
+
+    const flowerShort = String(row.code || row.flower_code || '').split('-').slice(-1)[0];
+    const remaining = Number(row.remaining_seconds ?? 0);
+    const arrivalMeta = row.status === 'EXPIRED'
+        ? `超窗 ${flowerDuration(remaining)}`
+        : `剩 ${flowerDuration(remaining)}`;
+    const href = kind === 'arrival'
+        ? `/admin/flower-lots/${row.id}`
+        : row.batch_id
+            ? `/admin/coa/${row.batch_id}`
+            : `/admin/flower-lots/${row.flower_lot_id}`;
+
+    return (
+        <Link
+            href={href}
+            title={kind === 'arrival'
+                ? `${row.code} · ${row.status_label} · ${row.weight_kg}kg`
+                : `${row.flower_code} → 批次 ${row.batch_number} · ${row.weight_kg}kg · ${row.seep_count} 窨${row.conflict_reason ? ' · ' + row.conflict_reason : ''}`}
+            style={{
+                position: 'absolute',
+                left: (startCol / N * 100) + '%',
+                width: ((endCol - startCol + 1) / N * 100) + '%',
+                top: FLOWER_LANE_PAD + lane * (FLOWER_BLOCK_H + FLOWER_BLOCK_GAP),
+                height: FLOWER_BLOCK_H,
+                padding: '3px 6px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: 1,
+                overflow: 'hidden',
+                borderRadius: 4,
+                border: `1px solid ${tone.border}`,
+                background: tone.bg,
+                boxShadow: isConflict ? 'inset -4px 0 0 var(--om-blocked)' : 'none',
+                textDecoration: 'none',
+                zIndex: 8,
+            }}
+        >
+            <div className="flex items-center gap-1.5" style={{ minWidth: 0 }}>
+                <span className="truncate" style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 700, color: tone.text }}>
+                    {kind === 'arrival' ? flowerShort : `#${row.batch_number}`}
+                </span>
+                {isConflict && <span style={{ fontFamily: MONO, fontSize: 8, fontWeight: 700, color: 'var(--om-blocked)' }}>冲突</span>}
+                <span className="truncate" style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: 8.5, color: 'var(--om-muted)' }}>
+                    {kind === 'arrival' ? `至 ${flowerClock(row.usable_until)}` : `${row.weight_kg}kg`}
+                </span>
+            </div>
+            <div className="truncate" style={{ fontFamily: MONO, fontSize: 8.5, color: kind === 'arrival' ? tone.text : 'var(--om-muted)' }}>
+                {kind === 'arrival' ? `${row.weight_kg}kg · ${arrivalMeta}` : `${flowerShort} · ${row.seep_count}窨`}
+            </div>
+        </Link>
+    );
+}
+
+function FlowerLaneRow({ label, hint, count, height, gridMinW, N, shiftsPerDay, children }) {
+    return (
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--om-line2)', background: 'var(--om-panel)' }}>
+            <div style={{ width: LINE_COL_W, flexShrink: 0, position: 'sticky', left: 0, zIndex: 7, background: 'var(--om-panel)', borderRight: '1px solid var(--om-line2)', padding: '7px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--om-ink)' }}>{label}</div>
+                <div style={{ fontSize: 10, color: 'var(--om-muted)', marginTop: 1 }}>{hint}</div>
+                <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--om-faint)', marginTop: 3 }}>{count}</div>
+            </div>
+            <div style={{ position: 'relative', flex: 1, minWidth: gridMinW, height }}>
+                <FlowerGridCells N={N} shiftsPerDay={shiftsPerDay} />
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function FlowerLanes({ ctx, days, shiftsPerDay, gridMinW, N }) {
+    const flower = ctx.data.flower || {};
+    const shoots = packFlowerRows(flower.arrivals || [], 'arrived_at', 'usable_until');
+    const occupancy = packFlowerRows(flower.occupancies || [], 'start_at', 'end_at');
+    const summary = flower.summary || {};
+
+    const arrivalHeight = Math.max(42, FLOWER_LANE_PAD * 2 + shoots.laneCount * (FLOWER_BLOCK_H + FLOWER_BLOCK_GAP));
+    const occupancyHeight = Math.max(42, FLOWER_LANE_PAD * 2 + occupancy.laneCount * (FLOWER_BLOCK_H + FLOWER_BLOCK_GAP));
+
+    return (
+        <>
+            <FlowerLaneRow
+                label="鲜花到货"
+                hint="到厂 → 可用截止"
+                count={`${summary.arrivals ?? shoots.rows.length} 批 · 超窗 ${summary.expired ?? 0}`}
+                height={arrivalHeight}
+                gridMinW={gridMinW}
+                N={N}
+                shiftsPerDay={shiftsPerDay}
+            >
+                {shoots.rows.length === 0 && (
+                    <div style={{ position: 'absolute', left: 12, top: 12, fontSize: 10, color: 'var(--om-faint)' }}>本周没有鲜花到货</div>
+                )}
+                {shoots.rows.map((row) => {
+                    const cols = flowerBlockColumns(row, 'arrived_at', 'usable_until', days, ctx.data.shifts, N);
+                    if (!cols) return null;
+                    return <FlowerBlock key={'fa' + row.id} row={row} kind="arrival" startCol={cols[0]} endCol={cols[1]} N={N} lane={row.lane} />;
+                })}
+            </FlowerLaneRow>
+            <FlowerLaneRow
+                label="多日窨制占用"
+                hint="付窨 → 批次计划结束"
+                count={`${summary.occupancies ?? occupancy.rows.length} 段 · 冲突 ${summary.conflicts ?? 0}`}
+                height={occupancyHeight}
+                gridMinW={gridMinW}
+                N={N}
+                shiftsPerDay={shiftsPerDay}
+            >
+                {occupancy.rows.length === 0 && (
+                    <div style={{ position: 'absolute', left: 12, top: 12, fontSize: 10, color: 'var(--om-faint)' }}>本周没有付窨占用</div>
+                )}
+                {occupancy.rows.map((row) => {
+                    const cols = flowerBlockColumns(row, 'start_at', 'end_at', days, ctx.data.shifts, N);
+                    if (!cols) return null;
+                    return <FlowerBlock key={'fo' + row.id} row={row} kind="occupancy" startCol={cols[0]} endCol={cols[1]} N={N} lane={row.lane} />;
+                })}
+            </FlowerLaneRow>
+        </>
+    );
+}
+
 // Accent elbow(s) drawn between the two rendered segments of each two-line
 // order, so a staircase (or concurrent pair) reads as one connected order.
 function TwinConnectors({ links }) {
@@ -398,6 +654,9 @@ export function WeeklyView({ ctx }) {
                         </div>
                     </div>
                 </div>
+                {/* flower windows: arrivals and scenting occupancy share the board */}
+                <FlowerLanes ctx={ctx} days={days} shiftsPerDay={shiftsPerDay} gridMinW={gridMinW} N={N} />
+
                 {/* line rows + accent connectors joining a two-line order's segments */}
                 <div ref={rowsRef} style={{ position: 'relative' }}>
                     {data.lines.map((line) => <WeekLineRow key={line.id} line={line} ctx={ctx} days={days} shiftsPerDay={shiftsPerDay} today={today} gridMinW={gridMinW} preview={preview} setPreview={setPreview} />)}

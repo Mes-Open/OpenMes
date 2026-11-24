@@ -41,7 +41,7 @@ export default function Planner() {
         workOrders = [], lines = [], allLines = [], shifts = [],
         viewMode = 'weekly', shiftsPerDay = 1, slotMinutes = 15, showWeekends = true,
         startDate, rangeStart, rangeEnd, navPrev, navNext,
-        backlogOrders = [], maintenanceEvents = [], maintenanceSchedules = [], realtimeMode = 'polling',
+        backlogOrders = [], maintenanceEvents = [], maintenanceSchedules = [], flowerSchedule = { arrivals: [], occupancies: [], summary: {} }, realtimeMode = 'polling',
         overdueImportant = { count: 0, orders: [] },
     } = usePage().props;
 
@@ -85,6 +85,7 @@ export default function Planner() {
     const days = dayList(startDate, showWeekends ? 7 : 5, showWeekends);
     const data = {
         lines, allLines, shifts, workOrders, backlog: backlogOrders, maintenance: maintenanceEvents,
+        flower: flowerSchedule,
         range: { start: rangeStart, end: rangeEnd, today: todayKey(), startDate },
     };
     const config = { shiftsPerDay, slotMinutes, showWeekends };
