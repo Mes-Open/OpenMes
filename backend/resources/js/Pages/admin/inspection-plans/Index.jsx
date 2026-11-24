@@ -18,7 +18,7 @@ function criteriaInitial(record) {
 }
 
 export default function InspectionPlansIndex() {
-    const { rows = [], materials = [], materialTypes = [], basePath, filters = {} } = usePage().props;
+    const { rows = [], materials = [], materialTypes = [], arrivals = [], pendingArrivals = 0, basePath, filters = {} } = usePage().props;
     const drawer = useResourceDrawer();
     const { confirm, dialog } = useConfirm();
 
@@ -27,6 +27,7 @@ export default function InspectionPlansIndex() {
         active: rows.filter((row) => row.is_active).length,
         drafts: rows.filter((row) => row.is_draft).length,
         covered: new Set(rows.filter((row) => row.is_active).map((row) => row.scope)).size,
+        arrivals: pendingArrivals,
     }), [rows]);
 
     const fields = useMemo(() => [
@@ -79,16 +80,27 @@ export default function InspectionPlansIndex() {
 
     const search = (value) => router.get(basePath, { q: value }, { preserveState: true, replace: true });
 
+    const dispatchArrivals = () => confirm(
+        {
+            title: '同步已入库到货批次？',
+            body: '系统会为最近 30 天内已过账的原料到货生成待检任务；没有适用计划的原料不会派工，同一条到货不会重复生成。',
+            confirmLabel: '同步并派工',
+            destructive: false,
+        },
+        () => router.post(`${basePath}/dispatch`, {}, { preserveScroll: true }),
+    );
+
     return (
         <>
             <Head title="来料检验计划" />
             {dialog}
-            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-5">
                 {[
                     { label: '计划版本', value: stats.total, hint: '含草稿与历史版本' },
                     { label: '当前生效', value: stats.active, hint: '来料检验可直接选用' },
                     { label: '待发布草稿', value: stats.drafts, hint: '编辑后需发布才生效' },
                     { label: '覆盖范围', value: stats.covered, hint: '生效计划覆盖的原料/类别' },
+                    { label: '待派工到货', value: stats.arrivals, hint: '已入库、有计划、尚未建检验' },
                 ].map((card) => (
                     <div key={card.label} className="rounded-om-md border border-om-line bg-om-bg px-4 py-3">
                         <div className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{card.label}</div>
@@ -114,6 +126,60 @@ export default function InspectionPlansIndex() {
                 </div>
             </div>
 
+            <div className="mb-5 rounded-om-md border border-om-line bg-om-card">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-om-line px-4 py-3">
+                    <div>
+                        <h2 className="text-sm font-bold text-om-ink">到货批次待检</h2>
+                        <p className="mt-1 text-xs text-om-muted">取最近 30 天已过账的原料入库单；有已发布计划的行可一键派工，生成操作工端待检任务。</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {pendingArrivals > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">{pendingArrivals} 条待派工</span>}
+                        <button type="button" onClick={dispatchArrivals} className="btn-touch btn-secondary text-xs">同步到货批次</button>
+                    </div>
+                </div>
+                {arrivals.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[820px] text-sm">
+                            <thead>
+                                <tr className="border-b border-om-line bg-om-bg text-left text-xs text-om-muted">
+                                    <th className="whitespace-nowrap px-4 py-2.5 font-semibold">到货单</th>
+                                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">原料</th>
+                                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">批号</th>
+                                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">数量</th>
+                                    <th className="whitespace-nowrap px-3 py-2.5 font-semibold">适用计划</th>
+                                    <th className="whitespace-nowrap px-4 py-2.5 font-semibold">检验状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {arrivals.map((arrival) => (
+                                    <tr key={arrival.id} className="border-b border-om-line2/60">
+                                        <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-om-ink">{arrival.document_no ?? '—'}</td>
+                                        <td className="px-3 py-2.5">
+                                            <div className="font-semibold text-om-ink">{arrival.material_name ?? '—'}</div>
+                                            {arrival.material_code && <div className="font-mono text-[10px] text-om-faint">{arrival.material_code}</div>}
+                                        </td>
+                                        <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-om-muted">{arrival.lot_number ?? '—'}</td>
+                                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-om-ink">{arrival.quantity} {arrival.unit ?? ''}</td>
+                                        <td className="px-3 py-2.5 text-xs text-om-muted">{arrival.plan_label ?? <span className="text-om-blocked">无适用计划</span>}</td>
+                                        <td className="whitespace-nowrap px-4 py-2.5 text-xs">
+                                            {arrival.inspection_status ? (
+                                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">{arrival.inspection_status === 'pending' ? '待检验' : '已判定'}</span>
+                                            ) : arrival.can_dispatch ? (
+                                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">待派工</span>
+                                            ) : (
+                                                <span className="rounded-full bg-om-chip px-2 py-0.5 text-[11px] font-semibold text-om-muted">跳过</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="px-4 py-6 text-sm text-om-muted">最近 30 天没有已过账的原料到货；入库单过账后这里会出现待检批次。</div>
+                )}
+            </div>
+
             <div className="overflow-hidden rounded-om-md border border-om-line bg-om-card">
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-[860px] text-sm">
@@ -121,11 +187,11 @@ export default function InspectionPlansIndex() {
                             <tr className="border-b border-om-line bg-om-bg text-left text-xs text-om-muted">
                                 <th className="px-4 py-3 font-semibold">计划名称</th>
                                 <th className="px-3 py-3 font-semibold">适用范围</th>
-                                <th className="px-3 py-3 font-semibold">版本</th>
-                                <th className="px-3 py-3 font-semibold">项目</th>
-                                <th className="px-3 py-3 font-semibold">状态</th>
-                                <th className="px-3 py-3 font-semibold">已检验</th>
-                                <th className="px-3 py-3 font-semibold">发布时间</th>
+                                <th className="whitespace-nowrap px-3 py-3 font-semibold">版本</th>
+                                <th className="whitespace-nowrap px-3 py-3 font-semibold">项目</th>
+                                <th className="whitespace-nowrap px-3 py-3 font-semibold">状态</th>
+                                <th className="whitespace-nowrap px-3 py-3 font-semibold">已检验</th>
+                                <th className="whitespace-nowrap px-3 py-3 font-semibold">发布时间</th>
                                 <th className="px-4 py-3 text-right font-semibold">操作</th>
                             </tr>
                         </thead>

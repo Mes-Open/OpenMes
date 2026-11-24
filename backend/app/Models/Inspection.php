@@ -50,6 +50,7 @@ class Inspection extends Model
 
     protected $fillable = [
         'inspection_plan_id',
+        'stock_document_line_id',
         'plan_version',
         'material_id',
         'lot_number',
@@ -82,6 +83,11 @@ class Inspection extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(InspectionPlan::class, 'inspection_plan_id');
+    }
+
+    public function stockDocumentLine(): BelongsTo
+    {
+        return $this->belongsTo(StockDocumentLine::class);
     }
 
     public function material(): BelongsTo

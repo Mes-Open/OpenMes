@@ -54,6 +54,12 @@ class StockDocumentLine extends Model
         return $this->belongsTo(ProductType::class);
     }
 
+    /** The inbound inspection dispatched for this receipt line, if any. */
+    public function inspection(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Inspection::class, 'stock_document_line_id');
+    }
+
     public function materialLot(): BelongsTo
     {
         return $this->belongsTo(MaterialLot::class);

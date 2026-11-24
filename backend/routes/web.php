@@ -787,6 +787,7 @@ Route::middleware('auth')->group(function () {
         // Incoming inspection plans (QA-configurable, versioned)
         Route::get('/inspection-plans', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'index'])->name('inspection-plans.index');
         Route::post('/inspection-plans', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'store'])->name('inspection-plans.store');
+        Route::post('/inspection-plans/dispatch', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'dispatch'])->name('inspection-plans.dispatch');
         Route::put('/inspection-plans/{inspectionPlan}', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'update'])->name('inspection-plans.update');
         Route::post('/inspection-plans/{inspectionPlan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
         Route::delete('/inspection-plans/{inspectionPlan}', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'destroy'])->name('inspection-plans.destroy');
