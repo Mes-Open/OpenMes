@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Enums\CustomFieldType;
 use App\Enums\RevisionLifecycle;
+use App\Models\Batch;
+use App\Models\BatchReleaseCheck;
 use App\Models\BomItem;
 use App\Models\Customer;
 use App\Models\CustomerFlavorStandard;
@@ -445,6 +447,30 @@ class HoutangPilotSeeder extends Seeder
                 'approved_at' => now(),
             ]
         );
+
+
+        // ── 15. 验收样批的留样/清线/标签平衡记录 ─────────────────────────────
+        $acceptance = Batch::query()->where('lot_number', 'HT-COA-ACCEPT-20261123221254')->first();
+        if ($acceptance) {
+            foreach ([
+                [BatchReleaseCheck::TYPE_RETENTION_SAMPLE, '验收：留样 2 袋，LY-2643-01，留样柜 A'],
+                [BatchReleaseCheck::TYPE_LINE_CLEARANCE, '验收：拼配机、筛分机、包装台已清空，无上一批残留'],
+                [BatchReleaseCheck::TYPE_LABEL_BALANCE, '验收：领用 500 / 使用 498 / 报废 2 / 退回 0'],
+            ] as [$type, $evidence]) {
+                BatchReleaseCheck::firstOrCreate(
+                    [
+                        'batch_id' => $acceptance->id,
+                        'check_type' => $type,
+                        'status' => BatchReleaseCheck::STATUS_PASS,
+                    ],
+                    [
+                        'checked_by_id' => $admin?->id,
+                        'checked_at' => now(),
+                        'evidence' => $evidence,
+                    ]
+                );
+            }
+        }
 
         $this->command?->info('Houtang pilot master data seeded: '.$productType->code.' / '.$line->code);
     }

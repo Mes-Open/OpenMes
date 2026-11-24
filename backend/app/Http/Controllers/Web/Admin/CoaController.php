@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
+use App\Models\BatchReleaseCheck;
 use App\Models\CoaDocument;
 use App\Services\Quality\CoaService;
 use App\Support\DownloadName;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /**
@@ -120,6 +122,7 @@ class CoaController extends Controller
             'packagingChecklist',
             'releasedBy',
             'electronicSignatures.user',
+            'releaseChecks.checkedBy',
         ]);
 
         if ($document) {
@@ -180,6 +183,17 @@ class CoaController extends Controller
             ])->values() : [],
             'releaseGate' => $this->coa->releaseGate($batch),
             'issueGate' => $this->coa->issueGate($batch, $document),
+            'releaseChecks' => $batch->releaseChecks
+                ->groupBy('check_type')
+                ->map(fn ($items) => $items->first())
+                ->map(fn (BatchReleaseCheck $check) => [
+                    'type' => $check->check_type,
+                    'label' => BatchReleaseCheck::label($check->check_type),
+                    'status' => $check->status,
+                    'checked_at' => $check->checked_at?->toIso8601String(),
+                    'checked_by' => $check->checkedBy?->name,
+                    'evidence' => $check->evidence,
+                ]),
             'batchSignatures' => $batch->electronicSignatures->map(fn ($signature) => [
                 'id' => $signature->id,
                 'meaning' => $signature->meaning,
@@ -263,6 +277,28 @@ class CoaController extends Controller
         $this->coa->reissue($document, $request->user(), $data['reason']);
 
         return back()->with('success', '已创建新版本 COA 草稿，原版本保留。');
+    }
+
+    public function recordCheck(Request $request, Batch $batch)
+    {
+        $data = $request->validate([
+            'check_type' => ['required', Rule::in(BatchReleaseCheck::TYPES)],
+            'status' => ['required', Rule::in(BatchReleaseCheck::STATUSES)],
+            'evidence' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        BatchReleaseCheck::create([
+            'batch_id' => $batch->id,
+            'check_type' => $data['check_type'],
+            'status' => $data['status'],
+            'checked_by_id' => $request->user()?->id,
+            'checked_at' => now(),
+            'evidence' => $data['evidence'] ?? null,
+        ]);
+
+        return back()->with('success', __('批记录确认已登记：:type。', [
+            'type' => BatchReleaseCheck::label($data['check_type']),
+        ]));
     }
 
     public function pdf(Batch $batch)

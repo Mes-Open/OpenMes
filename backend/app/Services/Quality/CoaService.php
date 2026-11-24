@@ -3,6 +3,7 @@
 namespace App\Services\Quality;
 
 use App\Models\Batch;
+use App\Models\BatchReleaseCheck;
 use App\Models\CoaDocument;
 use App\Models\CoaDocumentVersion;
 use App\Models\ElectronicSignature;
@@ -109,6 +110,7 @@ class CoaService
             'qualityChecks.template',
             'qualityChecks.checkedBy',
             'packagingChecklist',
+            'releaseChecks.checkedBy',
         ]);
 
         $latestCheck = $batch->qualityChecks->first();
@@ -158,6 +160,24 @@ class CoaService
                 $this->hasOpenBlockingIssue($batch)
                     ? '存在未关闭且阻断工单的问题，需先处置。'
                     : '未发现阻断性问题。'
+            ),
+            $this->releaseCheckGate(
+                $this->latestReleaseCheck($batch, BatchReleaseCheck::TYPE_RETENTION_SAMPLE),
+                BatchReleaseCheck::TYPE_RETENTION_SAMPLE,
+                'retention_sample',
+                '留样已登记'
+            ),
+            $this->releaseCheckGate(
+                $this->latestReleaseCheck($batch, BatchReleaseCheck::TYPE_LINE_CLEARANCE),
+                BatchReleaseCheck::TYPE_LINE_CLEARANCE,
+                'line_clearance',
+                '清线检查合格'
+            ),
+            $this->releaseCheckGate(
+                $this->latestReleaseCheck($batch, BatchReleaseCheck::TYPE_LABEL_BALANCE),
+                BatchReleaseCheck::TYPE_LABEL_BALANCE,
+                'label_balance',
+                '标签平衡'
             ),
             $this->check(
                 'specification',
@@ -477,6 +497,28 @@ class CoaService
             ] : null,
             'release_gate' => $this->releaseGate($batch),
         ];
+    }
+
+    private function latestReleaseCheck(Batch $batch, string $type): ?BatchReleaseCheck
+    {
+        return $batch->releaseChecks->firstWhere('check_type', $type);
+    }
+
+    private function releaseCheckGate(?BatchReleaseCheck $check, string $type, string $key, string $label): array
+    {
+        $passed = $check !== null && $check->status === BatchReleaseCheck::STATUS_PASS;
+        $evidence = '批记录确认：'.BatchReleaseCheck::label($type);
+        $detail = match (true) {
+            $check === null => "尚未登记{$label}，放行前需由现场负责人确认并留下证据。",
+            $check->status !== BatchReleaseCheck::STATUS_PASS => "最近一次{$label}未通过"
+                .($check->evidence ? "：{$check->evidence}" : '。'),
+            default => '已确认通过'
+                .($check->checkedBy ? "；确认人 {$check->checkedBy->name}" : '')
+                .($check->checked_at ? '，'.$check->checked_at->format('m-d H:i') : '')
+                .($check->evidence ? "；{$check->evidence}" : '。'),
+        };
+
+        return $this->check($key, $label, $passed, $evidence, $detail);
     }
 
     private function makeCoaNumber(string $customerCode, string $productCode, string $lot): string

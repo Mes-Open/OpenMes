@@ -236,6 +236,12 @@ class Batch extends Model
     /**
      * The controlled COA document for this finished batch, if one exists.
      */
+    /** 留样/清线/标签平衡等现场确认，按事件追加。 */
+    public function releaseChecks(): HasMany
+    {
+        return $this->hasMany(BatchReleaseCheck::class)->orderByDesc('checked_at')->orderByDesc('id');
+    }
+
     public function coaDocument(): HasOne
     {
         return $this->hasOne(CoaDocument::class);

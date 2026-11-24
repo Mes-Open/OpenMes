@@ -1,4 +1,5 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import AppLayout from '../../../layouts/AppLayout';
 import { formatDateTime, formatNumber } from '../../../lib/i18n';
 
@@ -18,13 +19,13 @@ const SIGNATURE_LABEL = {
 };
 
 export default function CoaShow() {
-    const { batch, document, versions = [], releaseGate, issueGate, batchSignatures = [], documentSignatures = [] } = usePage().props;
+    const { batch, document, versions = [], releaseGate, issueGate, releaseChecks = {}, batchSignatures = [], documentSignatures = [] } = usePage().props;
     const form = useForm({ notes: '', reason: '' });
 
     const post = (path) => form.post(path, { preserveScroll: true });
 
     if (!document) {
-        return <NoCoa batch={batch} releaseGate={releaseGate} form={form} post={post} />;
+        return <NoCoa batch={batch} releaseGate={releaseGate} releaseChecks={releaseChecks} form={form} post={post} />;
     }
 
     return (
@@ -107,6 +108,8 @@ export default function CoaShow() {
                     <GatePanel title="放行门" subtitle="批次能否放行到销售" gate={releaseGate} />
                     <GatePanel title="签发门" subtitle="COA 能否对外签发" gate={issueGate} />
                 </div>
+
+                <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
 
                 {(document.status === 'ISSUED' || document.status === 'VOID') && (
                     <div className="rounded-om-sm border border-om-line bg-om-card px-5 py-4 shadow-sm">
@@ -327,7 +330,7 @@ export default function CoaShow() {
     );
 }
 
-function NoCoa({ batch, releaseGate, form, post }) {
+function NoCoa({ batch, releaseGate, releaseChecks = {}, form, post }) {
     return (
         <>
             <Head title={`${batch.lot_number ?? `B${batch.batch_number}`} — COA 与放行`} />
@@ -367,6 +370,8 @@ function NoCoa({ batch, releaseGate, form, post }) {
                     </div>
                 </div>
 
+                <ReleaseCheckPanel batch={batch} releaseChecks={releaseChecks} />
+
                 {!batch.released_at && (
                     <div className="rounded-om-sm border border-om-line bg-om-card px-5 py-4 shadow-sm">
                         <label className="text-sm font-bold text-om-ink" htmlFor="notes">放行备注</label>
@@ -392,6 +397,100 @@ function NoCoa({ batch, releaseGate, form, post }) {
                 )}
             </div>
         </>
+    );
+}
+
+const RELEASE_CHECK_META = [
+    {
+        key: 'RETENTION_SAMPLE',
+        title: '留样登记',
+        hint: '成品留样已封样、贴标、入库，数量与批号可追溯。',
+        placeholder: '留样编号 / 数量 / 位置，例如 LY-2643-01，2 袋，留样柜 A',
+    },
+    {
+        key: 'LINE_CLEARANCE',
+        title: '清线检查',
+        hint: '上一批物料、标签、半成品已清离产线，现场无混批风险。',
+        placeholder: '清线人 / 检查点，例如 拼配机、筛分机、包装台已清空',
+    },
+    {
+        key: 'LABEL_BALANCE',
+        title: '标签平衡',
+        hint: '领用、使用、报废、退回标签数量闭合，无标签流失。',
+        placeholder: '领用 / 使用 / 报废 / 退回，例如 500 / 498 / 2 / 0',
+    },
+];
+
+function ReleaseCheckPanel({ batch, releaseChecks = {} }) {
+    const [notes, setNotes] = useState({});
+
+    const record = (type, status) => {
+        router.post(`/admin/coa/${batch.id}/checks`, {
+            check_type: type,
+            status,
+            evidence: notes[type] ?? '',
+        }, { preserveScroll: true });
+    };
+
+    return (
+        <Section title="批记录确认" subtitle="G06–G08：留样、清线、标签平衡；每次登记追加，放行门取最新一条">
+            <div className="space-y-3">
+                {RELEASE_CHECK_META.map((meta) => {
+                    const check = releaseChecks[meta.key];
+                    const tone = check?.status === 'PASS'
+                        ? 'bg-om-running-bg text-om-running'
+                        : check?.status === 'FAIL'
+                            ? 'bg-om-blocked-bg text-om-blocked'
+                            : 'bg-om-chip text-om-muted';
+
+                    return (
+                        <div key={meta.key} className="rounded border border-om-line2 p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                    <div className="text-sm font-bold text-om-ink">{meta.title}</div>
+                                    <div className="mt-0.5 text-xs text-om-muted">{meta.hint}</div>
+                                </div>
+                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
+                                    {check?.status === 'PASS' ? '已通过' : check?.status === 'FAIL' ? '未通过' : '未登记'}
+                                </span>
+                            </div>
+
+                            {check && (
+                                <div className="mt-2 text-xs text-om-muted">
+                                    {check.checked_by ?? '—'} · {formatDateTime(check.checked_at)}
+                                    {check.evidence ? ` · ${check.evidence}` : ''}
+                                </div>
+                            )}
+
+                            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                                <input
+                                    value={notes[meta.key] ?? ''}
+                                    onChange={(event) => setNotes((current) => ({ ...current, [meta.key]: event.target.value }))}
+                                    placeholder={meta.placeholder}
+                                    className="min-w-0 flex-1 rounded border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none focus:border-om-accent focus:ring-2 focus:ring-om-accent/15"
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => record(meta.key, 'PASS')}
+                                        className="btn-touch btn-primary text-xs"
+                                    >
+                                        登记通过
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => record(meta.key, 'FAIL')}
+                                        className="btn-touch btn-danger text-xs"
+                                    >
+                                        登记不通过
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </Section>
     );
 }
 
