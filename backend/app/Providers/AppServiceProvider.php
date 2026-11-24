@@ -61,6 +61,14 @@ class AppServiceProvider extends ServiceProvider
             \App\Extension\Contracts\WorkforceCapacityProvider::class,
             \App\Services\Schedule\Finite\AssignedStaffCapacityProvider::class,
         );
+        // How the installation divides into scopes (plants, …) for the header
+        // switcher and live sync. Core has one scope; a module rebinds this.
+        // bind(), not singleton(): the module's binding must win and is
+        // typically per-request.
+        $this->app->bind(
+            \App\Extension\Contracts\ScopeProvider::class,
+            \App\Extension\Contracts\Null\NullScopeProvider::class,
+        );
         // Request-scoped tenant for headless (API-key) contexts. Set per request
         // by AuthenticateApiKey; falls through to null for user-authenticated
         // requests, which resolve the tenant from the logged-in user instead.

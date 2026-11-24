@@ -54,10 +54,22 @@ class CollectionController extends Controller
             $query->where('tenant_id', $user->tenant_id);
         }
 
+        // A scoping module (several plants in one installation) narrows the
+        // snapshot to the user's current scope. DB::table() never sees the
+        // Eloquent global scopes such a module puts on its models, so this is
+        // where the snapshot learns about them.
+        $scopes = app(\App\Extension\Contracts\ScopeProvider::class);
+        $scopes->constrainSnapshot($name, $shape->table(), $query, $user);
+
         // Tell the client which channel to subscribe to. Global (non-tenant)
         // tables live on "g" for everyone; tenant tables on the user's tenant —
-        // matching where CollectionBroadcaster publishes each row.
+        // matching where CollectionBroadcaster publishes each row. Inside a
+        // scope the user listens to that scope's partition of the channel only.
         $tenantKey = $scoped ? $user->tenant_id : 'g';
+        $partition = $scopes->subscriptionPartition($name, $shape->table(), $user);
+        if ($partition !== null) {
+            $tenantKey .= '@'.$partition;
+        }
 
         return response()->json([
             'rows' => $query->get(),

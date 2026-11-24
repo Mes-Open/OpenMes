@@ -277,7 +277,7 @@ function Field({ field, value, error, setData, data }) {
                 />
             ) : (
                 <input
-                    type={{ number: 'number', date: 'date', time: 'time', datetime: 'datetime-local' }[type] ?? 'text'}
+                    type={{ number: 'number', date: 'date', time: 'time', datetime: 'datetime-local', password: 'password' }[type] ?? 'text'}
                     name={name}
                     value={value ?? ''}
                     onChange={(e) => set(e.target.value)}

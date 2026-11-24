@@ -435,6 +435,7 @@ export default function AppLayout({ children }) {
                     <div data-page-title-slot className="flex min-w-0 items-center gap-3">
                         <NavTrail items={navTrail} show={!hasPageTitle} />
                     </div>
+                    <ScopeSwitcher className="ml-auto" />
                 </header>
 
                 {/* Desktop clock (top-right) — ported from app.blade.php's clock */}
@@ -472,6 +473,45 @@ export default function AppLayout({ children }) {
 function NavTrail({ items, show }) {
     if (!show || items.length === 0) return null;
     return <Breadcrumbs linkAs={Link} items={items} />;
+}
+
+/**
+ * Which part of the installation the page shows — e.g. one plant, or all of
+ * them — when a module divides the installation into scopes. The server sends
+ * the `scopeSwitcher` prop (App\Extension\Contracts\ScopeProvider); without
+ * such a module it is null and nothing renders.
+ *
+ * A plain form POST rather than an Inertia visit, on purpose: the choice
+ * changes which live channels every collection listens on and which rows its
+ * snapshot holds, and those live in the persistent layout. A full page load is
+ * the one way to drop them all and start again in the new scope.
+ */
+function ScopeSwitcher({ className = '' }) {
+    const { scopeSwitcher: s, csrf_token } = usePage().props;
+    const formRef = useRef(null);
+    if (!s || !Array.isArray(s.options) || s.options.length === 0) return null;
+
+    return (
+        <form ref={formRef} method="post" action={s.action} className={`flex shrink-0 items-center gap-2 ${className}`}>
+            <input type="hidden" name="_token" value={csrf_token} />
+            <label className="flex items-center gap-2 text-[13px] text-om-faint">
+                <UiIcon name="factory" size={14} />
+                <span className="hidden sm:inline">{s.label}</span>
+                <select
+                    name="scope"
+                    data-testid="scope-switcher"
+                    aria-label={s.label}
+                    defaultValue={s.current}
+                    onChange={() => formRef.current?.submit()}
+                    className="max-w-[14rem] cursor-pointer rounded-om-sm border border-om-line bg-om-bg px-2 py-1 text-[13px] text-om-ink outline-none focus:border-om-accent"
+                >
+                    {s.options.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                </select>
+            </label>
+        </form>
+    );
 }
 
 function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrail = false }) {
@@ -517,6 +557,7 @@ function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrai
             <div data-page-title-slot className="flex min-w-0 flex-1 items-center gap-3">
                 <NavTrail items={navTrail} show={showNavTrail} />
             </div>
+            <ScopeSwitcher />
             <div className="flex shrink-0 items-center gap-2 text-[13px] text-om-faint">
                 <UiIcon name="clock" size={14} />
                 <span>{t.date}</span>
