@@ -11,6 +11,7 @@ use App\Services\Quality\CoaService;
 use App\Support\DownloadName;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -235,6 +236,10 @@ class CoaController extends Controller
             'notes' => $labTest->notes,
             'recorded_by' => $labTest->recordedBy?->name,
             'recorded_at' => $labTest->created_at?->toIso8601String(),
+            'attachment_name' => $labTest->attachment_path ? basename($labTest->attachment_path) : null,
+            'attachment_url' => $labTest->attachment_path
+                ? route('admin.coa.lab-tests.attachment', ['batch' => $labTest->batch_id, 'labTest' => $labTest->id])
+                : null,
         ];
     }
 
@@ -390,6 +395,36 @@ class CoaController extends Controller
         );
 
         return back()->with('success', __('外检报告已登记：:no。', ['no' => $data['report_number']]));
+    }
+
+    public function uploadLabAttachment(Request $request, Batch $batch, BatchLabTest $labTest)
+    {
+        abort_unless((int) $labTest->batch_id === (int) $batch->id, 404);
+
+        $request->validate([
+            'attachment' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:20480'],
+        ]);
+
+        if ($labTest->attachment_path) {
+            Storage::disk('local')->delete($labTest->attachment_path);
+        }
+
+        $file = $request->file('attachment');
+        $dir = 'lab-tests/'.($batch->tenant_id ?: 'default').'/'.$batch->id;
+        $name = $labTest->report_number.'-'.now()->format('YmdHis').'.'.$file->getClientOriginalExtension();
+        $path = $file->storeAs($dir, $name, 'local');
+
+        $labTest->forceFill(['attachment_path' => $path])->save();
+
+        return back()->with('success', __('外检报告附件已上传。'));
+    }
+
+    public function downloadLabAttachment(Batch $batch, BatchLabTest $labTest)
+    {
+        abort_unless((int) $labTest->batch_id === (int) $batch->id, 404);
+        abort_unless($labTest->attachment_path && Storage::disk('local')->exists($labTest->attachment_path), 404);
+
+        return Storage::disk('local')->download($labTest->attachment_path, basename($labTest->attachment_path));
     }
 
     public function recordCheck(Request $request, Batch $batch)

@@ -471,6 +471,13 @@ function LabTestPanel({ batch, labTest, labTestRequired = false }) {
                             {labTest.sample_number ? ` ｜ 样品编号 ${labTest.sample_number}` : ''}
                             {labTest.recorded_by ? ` ｜ 登记人 ${labTest.recorded_by}` : ''}
                         </div>
+                        {labTest.attachment_url && (
+                            <div className="mt-2">
+                                <a href={labTest.attachment_url} className="text-xs font-bold text-om-accent hover:underline">
+                                    查看报告附件：{labTest.attachment_name}
+                                </a>
+                            </div>
+                        )}
                         <div className="mt-3 overflow-x-auto">
                             <table className="w-full min-w-[560px] text-xs">
                                 <thead>
@@ -531,6 +538,34 @@ function LabTestPanel({ batch, labTest, labTestRequired = false }) {
                             className="w-full rounded border border-om-line bg-om-card px-3 py-2 font-mono text-xs text-om-ink outline-none focus:border-om-accent"
                         />
                         <p className="text-[11px] text-om-muted">每行一条，格式：类别|项目|结果|限值|判定。类别建议用“农残 / 重金属 / 微生物”。</p>
+                        {labTest && (
+                            <div className="rounded border border-dashed border-om-line bg-om-card px-3 py-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <div className="text-xs font-bold text-om-ink">报告原件附件</div>
+                                        <p className="text-[11px] text-om-muted">支持 PDF / JPG / PNG，最大 20 MB；上传后可在上方直接查看。</p>
+                                    </div>
+                                    <label className="btn-touch btn-secondary cursor-pointer text-xs">
+                                        上传 / 替换附件
+                                        <input
+                                            type="file"
+                                            accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                            className="hidden"
+                                            onChange={(event) => {
+                                                const file = event.target.files?.[0];
+                                                if (!file) return;
+                                                router.post(`/admin/coa/${batch.id}/lab-tests/${labTest.id}/attachment`, { attachment: file }, {
+                                                    forceFormData: true,
+                                                    preserveScroll: true,
+                                                });
+                                                event.target.value = '';
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+                                {errors.attachment && <p className="mt-1 text-xs font-semibold text-om-blocked">{errors.attachment}</p>}
+                            </div>
+                        )}
                         {errors.items_text && <p className="text-xs font-semibold text-om-blocked">{errors.items_text}</p>}
                         {errors.report_number && <p className="text-xs font-semibold text-om-blocked">{errors.report_number}</p>}
                         <div className="flex justify-end">
