@@ -843,6 +843,28 @@ class NewTeaDemoSeeder extends Seeder
             }
         }
 
+        // 标签平衡差异演示：3005 尚未放行，领用 4000、消耗 3970、报废 20、
+        // 退回 0，差 10 张。最新 LABEL_BALANCE 记为 FAIL，G09 会阻断放行；
+        // 仓储页可直接看到差异行并跳回批次控制台。
+        if ($varianceBatch = Batch::where('batch_number', '3005')->first()) {
+            BatchReleaseCheck::create([
+                'batch_id' => $varianceBatch->id,
+                'check_type' => BatchReleaseCheck::TYPE_LABEL_BALANCE,
+                'status' => BatchReleaseCheck::STATUS_FAIL,
+                'checked_by_id' => $admin->id,
+                'checked_at' => now()->subMinutes(30),
+                'evidence' => '领用 4000 / 消耗 3970 / 报废 20 / 退回 0',
+                'metadata' => [
+                    'issued' => 4000,
+                    'consumed' => 3970,
+                    'scrapped' => 20,
+                    'returned' => 0,
+                    'variance' => 10,
+                    'notes' => '3 张标签破损、7 张未回收；差异未查清前 G09 阻断。',
+                ],
+            ]);
+        }
+
         // 批次完成后系统自动生成了领料/入库草稿，演示库不需要半成品单据，直接清理。
         $draftIds = StockDocument::where('status', StockDocument::STATUS_DRAFT)->pluck('id')->all();
         if ($draftIds !== []) {
@@ -909,10 +931,14 @@ class NewTeaDemoSeeder extends Seeder
             'notes' => '杯盖、吸管、标签与产品一致，包装完好。',
         ]);
 
+        $issuedLabels = max(1, (int) round((float) $batch->produced_qty > 0 ? (float) $batch->produced_qty : (float) $batch->target_qty));
+        $scrappedLabels = max(1, (int) round($issuedLabels * 0.004));
+        $consumedLabels = $issuedLabels - $scrappedLabels;
+
         foreach ([
             [BatchReleaseCheck::TYPE_RETENTION_SAMPLE, '留样 2 杯，留样柜 A-01'],
             [BatchReleaseCheck::TYPE_LINE_CLEARANCE, '灌装机、封口机、操作台已清线，无上一批残留'],
-            [BatchReleaseCheck::TYPE_LABEL_BALANCE, '领用 5000 / 使用 4980 / 报废 20 / 退回 0'],
+            [BatchReleaseCheck::TYPE_LABEL_BALANCE, "领用 {$issuedLabels} / 消耗 {$consumedLabels} / 报废 {$scrappedLabels} / 退回 0"],
         ] as [$type, $evidence]) {
             BatchReleaseCheck::create([
                 'batch_id' => $batch->id,

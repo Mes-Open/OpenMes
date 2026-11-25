@@ -996,6 +996,11 @@ Route::middleware('auth')->group(function () {
         // generates (material releases, product receipts). Gated by the
         // `warehouse` module via the tab.access middleware on this group.
 
+        // P1 label balance: issued / consumed / scrapped / returned labels per
+        // batch. A variance writes a FAIL LABEL_BALANCE check, which the existing
+        // G09 release gate reads before allowing the batch to be released.
+        Route::get('/warehouses', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'index'])->name('warehouses.index');
+        Route::post('/warehouses/label-balance/{batch}', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'store'])->name('warehouses.label-balance.store');
         // ── Gate 6: Costing ───────────────────────────────────────────────────
         // Cost Sources
         Route::resource('cost-sources', CostSourceController::class)->except(['show']);

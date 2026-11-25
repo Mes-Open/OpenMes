@@ -214,13 +214,14 @@ export const ADMIN_GROUPS = [
         lucide: 'warehouse',
         // The stock screens themselves ship as a module; what stays here is
         // the material catalogue, which production needs on its own.
-        match: ['/admin/materials', '/admin/material-types', '/admin/material-lots', '/admin/pallets'],
+        match: ['/admin/materials', '/admin/material-types', '/admin/material-lots', '/admin/pallets', '/admin/warehouses'],
         children: [
             { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
             { label: 'Material Types', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
             // Finished goods leave the plant on pallets: closing, quality and shipping live here.
             { label: 'Pallets', href: '/admin/pallets', match: ['/admin/pallets'], tab: 'packaging', lucide: 'container' },
+            { label: '标签平衡', href: '/admin/warehouses', match: ['/admin/warehouses'], tab: 'warehouse', lucide: 'scale' },
         ],
     },
     {
