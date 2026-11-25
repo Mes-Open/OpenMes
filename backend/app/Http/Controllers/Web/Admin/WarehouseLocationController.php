@@ -45,12 +45,12 @@ class WarehouseLocationController extends Controller
 
         $locations = WarehouseLocation::query()
             ->active()
-            ->with(['warehouse:id,code,name,kind', 'parent:id,code,name'])
+            ->with(['warehouse:id,code,name,kind', 'parent:id,code,name,sort_order'])
             ->when($warehouseId > 0, fn ($query) => $query->where('warehouse_id', $warehouseId))
             ->orderBy('warehouse_id')
-            ->orderBy('sort_order')
-            ->orderBy('code')
-            ->get();
+            ->get()
+            ->sortBy(fn (WarehouseLocation $location) => sprintf('%05d-%05d-%05d-%s', $location->warehouse_id, $location->parent?->sort_order ?? 0, $location->sort_order, $location->code))
+            ->values();
 
         $lots = MaterialLot::query()
             ->whereIn('warehouse_location_id', $locations->pluck('id'))
@@ -393,6 +393,210 @@ class WarehouseLocationController extends Controller
             });
 
         return [$query, $filters];
+    }
+
+    public function reconcile(Request $request)
+    {
+        $warehouseId = (int) $request->query('warehouse', 0);
+
+        $warehouses = Warehouse::query()
+            ->where('is_active', true)
+            ->when($warehouseId > 0, fn ($query) => $query->where('id', $warehouseId))
+            ->orderBy('id')
+            ->get(['id', 'code', 'name', 'kind']);
+
+        $warehouseIds = $warehouses->pluck('id');
+
+        $locations = WarehouseLocation::query()
+            ->active()
+            ->whereIn('warehouse_id', $warehouseIds)
+            ->where('kind', WarehouseLocation::KIND_BIN)
+            ->with(['parent:id,code,name,sort_order'])
+            ->orderBy('warehouse_id')
+            ->get()
+            ->sortBy(fn (WarehouseLocation $location) => sprintf('%05d-%05d-%05d-%s', $location->warehouse_id, $location->parent?->sort_order ?? 0, $location->sort_order, $location->code))
+            ->values();
+
+        $lots = MaterialLot::query()
+            ->whereIn('warehouse_location_id', $locations->pluck('id'))
+            ->with('material:id,code,name')
+            ->orderByDesc('received_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $products = WarehouseStock::query()
+            ->whereIn('warehouse_location_id', $locations->pluck('id'))
+            ->whereNotNull('product_type_id')
+            ->with('productType:id,code,name,unit_of_measure')
+            ->orderBy('id')
+            ->get();
+
+        $stocks = WarehouseStock::query()
+            ->whereIn('warehouse_id', $warehouseIds)
+            ->with([
+                'material:id,code,name',
+                'productType:id,code,name,unit_of_measure',
+                'location:id,code,name',
+            ])
+            ->orderBy('warehouse_id')
+            ->orderBy('id')
+            ->get();
+
+        $lotsByLocation = $lots->groupBy('warehouse_location_id');
+        $productsByLocation = $products->groupBy('warehouse_location_id');
+        $stocksByWarehouse = $stocks->groupBy('warehouse_id');
+        $locationsByWarehouse = $locations->groupBy('warehouse_id');
+
+        $locatedMaterialQuantity = $lots
+            ->groupBy(fn (MaterialLot $lot) => $lot->warehouse_id.'|'.$lot->material_id)
+            ->map(fn (Collection $group) => round((float) $group->sum('quantity_available'), 3));
+
+        $rows = $warehouses->map(function (Warehouse $warehouse) use (
+            $locationsByWarehouse,
+            $lotsByLocation,
+            $productsByLocation,
+            $stocksByWarehouse,
+            $locatedMaterialQuantity,
+            $lots,
+            $locations
+        ) {
+            $warehouseLocations = $locationsByWarehouse->get($warehouse->id, collect())->map(function (WarehouseLocation $location) use ($lotsByLocation, $productsByLocation) {
+                $locationLots = $lotsByLocation->get($location->id, collect());
+                $locationProducts = $productsByLocation->get($location->id, collect());
+
+                $items = $locationLots->map(fn (MaterialLot $lot) => [
+                    'key' => 'lot-'.$lot->id,
+                    'kind' => 'material',
+                    'code' => $lot->material?->code ?? '—',
+                    'name' => $lot->material?->name ?? '—',
+                    'lot_number' => $lot->lot_number,
+                    'quantity' => (float) $lot->quantity_available,
+                    'uom' => $lot->unit_of_measure,
+                    'status' => $lot->status,
+                    'status_label' => self::LOT_STATUS_LABELS[$lot->status] ?? $lot->status,
+                    'is_held' => in_array($lot->status, [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED], true),
+                ])->concat($locationProducts->map(fn (WarehouseStock $stock) => [
+                    'key' => 'product-'.$stock->id,
+                    'kind' => 'product',
+                    'code' => $stock->productType?->code ?? '—',
+                    'name' => $stock->productType?->name ?? '—',
+                    'lot_number' => null,
+                    'quantity' => (float) $stock->quantity,
+                    'uom' => $stock->unit_of_measure,
+                    'status' => 'product',
+                    'status_label' => '成品',
+                    'is_held' => false,
+                ]));
+
+                $items = $items->sortBy(fn (array $item) => sprintf('%d-%s-%s', $item['kind'] === 'material' ? 0 : 1, $item['code'], $item['lot_number'] ?? ''))->values();
+
+                $units = $items
+                    ->groupBy('uom')
+                    ->map(fn (Collection $group) => round((float) $group->sum('quantity'), 3))
+                    ->all();
+
+                return [
+                    'id' => $location->id,
+                    'code' => $location->code,
+                    'name' => $location->name,
+                    'zone_code' => $location->parent?->code ?? '—',
+                    'zone_name' => $location->parent?->name ?? '—',
+                    'items' => $items->values()->all(),
+                    'item_count' => $items->count(),
+                    'units' => $units,
+                    'held_count' => $items->where('is_held', true)->count(),
+                ];
+            })->values();
+
+            $stockLines = $stocksByWarehouse->get($warehouse->id, collect())->map(function (WarehouseStock $stock) use ($locatedMaterialQuantity, $lots, $locations) {
+                $balance = round((float) $stock->quantity, 3);
+                $isProduct = $stock->product_type_id !== null;
+
+                if ($isProduct) {
+                    $located = $stock->warehouse_location_id ? $balance : 0.0;
+                    $locationCodes = $stock->location?->code ? [$stock->location->code] : [];
+                    $relatedLots = collect();
+                } else {
+                    $located = (float) ($locatedMaterialQuantity->get($stock->warehouse_id.'|'.$stock->material_id, 0));
+                    $relatedLots = $lots
+                        ->where('warehouse_id', $stock->warehouse_id)
+                        ->where('material_id', $stock->material_id);
+                    $locationCodes = $relatedLots
+                        ->pluck('warehouse_location_id')
+                        ->filter()
+                        ->unique()
+                        ->map(fn ($id) => $locations->firstWhere('id', $id)?->code)
+                        ->filter()
+                        ->values()
+                        ->all();
+                }
+
+                $variance = round($located - $balance, 3);
+                $unlocated = max(round($balance - $located, 3), 0);
+
+                $status = match (true) {
+                    $located <= 0 && $balance > 0 => 'UNLOCATED',
+                    $variance < 0 => 'PARTIAL',
+                    $variance > 0 => 'OVER',
+                    default => 'OK',
+                };
+
+                return [
+                    'id' => $stock->id,
+                    'kind' => $isProduct ? 'product' : 'material',
+                    'code' => $isProduct ? ($stock->productType?->code ?? '—') : ($stock->material?->code ?? '—'),
+                    'name' => $isProduct ? ($stock->productType?->name ?? '—') : ($stock->material?->name ?? '—'),
+                    'balance' => $balance,
+                    'located' => round($located, 3),
+                    'variance' => $variance,
+                    'unlocated' => $unlocated,
+                    'uom' => $stock->unit_of_measure,
+                    'status' => $status,
+                    'location_codes' => $locationCodes,
+                    'lot_count' => $relatedLots->count(),
+                    'held_lot_count' => $relatedLots->whereIn('status', [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED])->count(),
+                ];
+            })->values();
+
+            $unassigned = $stockLines
+                ->where('unlocated', '>', 0)
+                ->sortBy('name')
+                ->values();
+
+            return [
+                'id' => $warehouse->id,
+                'code' => $warehouse->code,
+                'name' => $warehouse->name,
+                'locations' => $warehouseLocations,
+                'stock_lines' => $stockLines,
+                'unassigned' => $unassigned,
+                'stock_count' => $stockLines->count(),
+                'located_count' => $stockLines->where('status', 'OK')->count(),
+                'unlocated_count' => $unassigned->count(),
+                'variance_count' => $stockLines->whereIn('status', ['PARTIAL', 'OVER'])->count(),
+            ];
+        })->values();
+
+        $allStockLines = $rows->flatMap(fn (array $warehouse) => $warehouse['stock_lines']);
+        $allUnassigned = $rows->flatMap(fn (array $warehouse) => $warehouse['unassigned']);
+
+        $summary = [
+            'stock_lines' => $allStockLines->count(),
+            'located_lines' => $allStockLines->where('status', 'OK')->count(),
+            'unlocated_lines' => $allUnassigned->count(),
+            'variance_lines' => $allStockLines->whereIn('status', ['PARTIAL', 'OVER'])->count(),
+            'frozen_bins' => $locations->filter(fn (WarehouseLocation $location) => $lotsByLocation
+                ->get($location->id, collect())
+                ->whereIn('status', [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED])
+                ->isNotEmpty())->count(),
+            'located_items' => $lots->count() + $products->count(),
+        ];
+
+        return Inertia::render('admin/warehouses/LocationReconcile', [
+            'warehouses' => $rows,
+            'summary' => $summary,
+            'filters' => ['warehouse' => $warehouseId ?: ''],
+        ]);
     }
 
     public function label(WarehouseLocation $location)

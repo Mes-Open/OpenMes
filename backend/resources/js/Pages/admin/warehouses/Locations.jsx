@@ -84,6 +84,7 @@ export default function WarehouseLocations() {
                         >
                             打印标签
                         </a>
+                        <Link href={`/admin/warehouses/locations/reconcile${activeWarehouse ? `?warehouse=${activeWarehouse}` : ''}`} className="btn-touch btn-secondary text-sm">库位对账</Link>
                         <Link href="/admin/warehouses/stock" className="btn-touch btn-secondary text-sm">库存台账</Link>
                         <Link href="/admin/warehouses" className="btn-touch btn-secondary text-sm">标签平衡</Link>
                     </div>

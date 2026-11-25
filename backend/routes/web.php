@@ -1002,6 +1002,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/warehouses', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'index'])->name('warehouses.index');
         Route::get('/warehouses/stock', [\App\Http\Controllers\Web\Admin\WarehouseStockController::class, 'index'])->name('warehouses.stock.index');
         Route::get('/warehouses/locations', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'index'])->name('warehouses.locations.index');
+        Route::get('/warehouses/locations/reconcile', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'reconcile'])->name('warehouses.locations.reconcile');
         Route::get('/warehouses/locations/labels', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'labels'])->name('warehouses.locations.labels');
         Route::get('/warehouses/locations/moves', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'moves'])->name('warehouses.locations.moves.index');
         Route::get('/warehouses/locations/moves/export', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'exportMoves'])->name('warehouses.locations.moves.export');
