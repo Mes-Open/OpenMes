@@ -18,11 +18,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   - shift windows;
   - capacity and the finite scheduler;
   - staffing;
-  - OEE.
+  - OEE;
+  - the shift columns on the operator station.
 
+  When shifts with different coverage run at the same time on a line, the narrowest is
+  that line's shift: its own, then its group's, then the one for every line.
   Shifts only clash with shifts set for the same lines. The shift form takes module
   fields (`display.admin.shifts.form.fields`, `validation.admin.shifts`,
-  `persist.admin.shifts`). The shift list can name such a group in its Line column
+  `persist.admin.shifts`; it runs inside the save's transaction, before the overlap check,
+  so its listeners only write to the database). The shift list can name such a group in its Line column
   (`admin.shifts.coverage_column`). Shift validation moved to a Form Request.
 
 - **Extension points for dividing one installation into scopes (several plants).** Core
@@ -190,7 +194,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Modules hear about a change only once it is committed.** `ResourceChanged` now waits for the
   database commit, as webhooks and live broadcasts already did. A write that is rolled back no
   longer reaches a module listener, for example a shift refused for overlapping another.
-  Outside a transaction it still fires at once.
+  Outside a transaction it still fires at once. The listener gets the model as that write left
+  it, so `getOriginal()` and `wasChanged()` still describe that write even when a later save in
+  the same transaction changed it again.
 
 - **Flash messages float instead of pushing the page down.** "Step completed.", "Saved." and
   every other message after a redirect now appears as a floating notice, so nothing on the

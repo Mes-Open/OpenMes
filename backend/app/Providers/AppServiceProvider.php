@@ -241,6 +241,10 @@ class AppServiceProvider extends ServiceProvider
                     // that is rolled back (a refused save, a failed transaction)
                     // must not reach a module that may already have told an
                     // outside system about it. Outside a transaction it runs at once.
+                    // A copy taken now, not the live model: a later save in the same
+                    // transaction would otherwise show the listener its changes and
+                    // originals instead of this write's (getOriginal, wasChanged).
+                    $model = clone $model;
                     \Illuminate\Support\Facades\DB::afterCommit(function () use ($model, $verb) {
                         // A throwing module listener must never break the core write
                         // that triggered it (mirrors the best-effort webhook observers).

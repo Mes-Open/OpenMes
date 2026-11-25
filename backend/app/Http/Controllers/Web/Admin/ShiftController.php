@@ -20,7 +20,12 @@ class ShiftController extends Controller
     /** Where an installed module hangs its own fields on the shift form. */
     private const FIELDS_HOOK = 'display.admin.shifts.form.fields';
 
-    /** Fired after a shift is saved, inside the same transaction. */
+    /**
+     * Fired after a shift is saved, inside the same transaction — before the
+     * overlap check, which may still roll the save back. Listeners write to the
+     * database only; anything outside it (an API call, a cache, a file) belongs
+     * on ResourceChanged, which is only fired once the save is committed.
+     */
     private const SAVED_HOOK = 'persist.admin.shifts';
 
     public function index()

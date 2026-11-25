@@ -135,8 +135,9 @@ class WorkstationController extends Controller
         // Build all available columns: system fields + extra_data keys
         $allColumns = $this->buildAllColumns($workOrders, $line);
 
-        // Load active shifts for shift columns
-        $shifts = Shift::active()->get();
+        // Shift columns: the shifts that run on this line — a shift another
+        // line (or another plant's group of lines) owns is no column here.
+        $shifts = Shift::active()->get()->filter(fn (Shift $shift) => $shift->runsOnLine((int) $lineId))->values();
 
         // Load today's shift entries for these work orders
         $today = now()->toDateString();

@@ -99,9 +99,11 @@ class OeeCalculationService
     {
         $lines = Line::where('is_active', true)->get();
         $records = [];
+        // Loaded once: each shift's coverage is then worked out once, not per line.
+        $active = Shift::where('is_active', true)->get();
 
         foreach ($lines as $line) {
-            $shifts = $this->shiftsSetFor($line);
+            $shifts = $this->shiftsSetFor($line, $active);
 
             if ($shifts->isEmpty()) {
                 // No shifts defined → calculate whole day (assume 8h default)
@@ -146,9 +148,9 @@ class OeeCalculationService
      * The active shifts set for this line — its own, or its group's
      * (Shift::coverage) — leaving out those that run on every line.
      */
-    private function shiftsSetFor(Line $line): \Illuminate\Support\Collection
+    private function shiftsSetFor(Line $line, ?\Illuminate\Support\Collection $active = null): \Illuminate\Support\Collection
     {
-        return Shift::where('is_active', true)->get()
+        return ($active ?? Shift::where('is_active', true)->get())
             ->filter(fn (Shift $shift) => $shift->runsOnLine($line->id, plantWide: false))
             ->values();
     }
