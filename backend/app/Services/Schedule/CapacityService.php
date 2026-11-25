@@ -719,8 +719,9 @@ class CapacityService
     /**
      * Pre-index active shift minutes by line and ISO weekday, so per-day
      * availability is an O(1) lookup instead of re-scanning every shift for
-     * every (resource, bucket, day). Global shifts (line_id null) are kept
-     * separately and added to every line.
+     * every (resource, bucket, day). Shifts that run on every line are kept
+     * separately and added to every line; a shift set for a group of lines
+     * (Shift::coverage) is counted on each of them.
      *
      * @return array{global: array<int, int>, line: array<int, array<int, int>>}
      */
@@ -734,10 +735,13 @@ class CapacityService
                 if (! $this->shiftRunsOn($shift, $dow)) {
                     continue;
                 }
-                if ($shift->line_id === null) {
+                $lines = $shift->lineIds();
+                if ($lines === null) {
                     $index['global'][$dow] = ($index['global'][$dow] ?? 0) + $minutes;
                 } else {
-                    $index['line'][$shift->line_id][$dow] = ($index['line'][$shift->line_id][$dow] ?? 0) + $minutes;
+                    foreach ($lines as $lineId) {
+                        $index['line'][$lineId][$dow] = ($index['line'][$lineId][$dow] ?? 0) + $minutes;
+                    }
                 }
             }
         }

@@ -19,6 +19,7 @@ import { ADMIN, PASS, choose, login } from './support/app';
  *   - a per-site setting;
  *   - live sync reaching only the right site;
  *   - an ERP key bound to a site;
+ *   - each plant's own shifts;
  *   - the attempts to break each of these.
  */
 
@@ -37,6 +38,9 @@ const TS = Date.now().toString().slice(-6);
 const NEW_LINE = `MS-${TS}`;
 const SUPERVISOR = `ms-sup-${TS}`;
 const SUPERVISOR_PASS = 'E2e-Supervisor-2026!';
+// A one-minute shift slot of its own per run, so reruns never overlap.
+const SLOT = Number(TS) % 1380;
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -306,6 +310,10 @@ test('multi-site: one installation, several plants', async ({ page, browser }) =
 
   await test.step('a link to a loopback address is refused like an unsafe webhook', async () => {
     await page.goto('/admin/linked-instances');
+    // Let the page's own start-up requests (snapshots, live-channel auth)
+    // finish first: each one ages the session's flash, and one landing
+    // between the refused POST and its redirect would carry the errors off.
+    await page.waitForLoadState('networkidle');
     await page.getByRole('button', { name: 'Link an installation' }).click();
     const form = page.getByRole('dialog', { name: 'Link an installation' });
     await form.getByLabel('Name').fill(`Loop ${TS}`);
@@ -313,10 +321,58 @@ test('multi-site: one installation, several plants', async ({ page, browser }) =
     await form.getByLabel('API key').fill('anything');
     await form.getByRole('button', { name: 'Create' }).click();
     // The field's own error (ResourceForm renders it as an alert), and nothing saved.
-    await expect(form.getByRole('alert').first()).toBeVisible();
-    await expect(form.getByRole('alert').first()).not.toHaveText('');
+    await expect(form.getByRole('alert').first()).toContainText('private, local or reserved network');
     await form.getByRole('button', { name: 'Cancel' }).click();
+    await page.goto('/admin/linked-instances');
     await expect(page.getByRole('cell', { name: `Loop ${TS}`, exact: true })).toHaveCount(0);
+  });
+
+  await test.step('each plant runs its own shifts: same hours, no clash, listed by plant', async () => {
+    await page.goto('/admin/shifts');
+    // The header switcher's native <option>s carry the same names: pick from
+    // the drawer's own listbox.
+    const pickSite = async (drawer: ReturnType<Page['getByRole']>, site: string) => {
+      await drawer.getByRole('combobox', { name: 'Site', exact: true }).click();
+      await page.getByRole('listbox', { name: 'Site' }).getByRole('option', { name: new RegExp(`^${site}`) }).first().click();
+    };
+    const create = async (code: string, site: string) => {
+      await page.getByRole('button', { name: 'New Shift' }).click();
+      const drawer = page.getByRole('dialog', { name: 'New Shift' });
+      await drawer.getByLabel('Code').fill(code);
+      await drawer.getByLabel('Name').fill(`${site} slot`);
+      await pickSite(drawer, site);
+      await drawer.getByLabel('Start Time').fill(hhmm(SLOT));
+      await drawer.getByLabel('End Time').fill(hhmm(SLOT + 1));
+      await drawer.getByRole('button', { name: 'Create' }).click();
+      await expect(drawer).toBeHidden();
+    };
+
+    await create(`SA-${TS}`, A);
+    // The same minutes for the other plant: a different shift pattern, no clash.
+    await create(`SB-${TS}`, B);
+    const rowA = page.getByRole('row').filter({ hasText: `SA-${TS}` });
+    const rowB = page.getByRole('row').filter({ hasText: `SB-${TS}` });
+    await expect(rowA).toContainText(A);
+    await expect(rowB).toContainText(B);
+
+    // A second shift of plant A over the first one is refused.
+    await page.getByRole('button', { name: 'New Shift' }).click();
+    const drawer = page.getByRole('dialog', { name: 'New Shift' });
+    await drawer.getByLabel('Code').fill(`SX-${TS}`);
+    await drawer.getByLabel('Name').fill('Overlap');
+    await pickSite(drawer, A);
+    await drawer.getByLabel('Start Time').fill(hhmm(SLOT));
+    await drawer.getByLabel('End Time').fill(hhmm(SLOT + 1));
+    await drawer.getByRole('button', { name: 'Create' }).click();
+    await expect(page.getByText('This shift overlaps with an existing shift on this line.')).toBeVisible();
+    await page.goto('/admin/shifts');
+    await expect(page.getByRole('row').filter({ hasText: `SX-${TS}` })).toHaveCount(0);
+
+    // Looking at plant B, plant A's shift is not listed.
+    await switchSite(page, B);
+    await expect(rowB).toBeVisible();
+    await expect(rowA).toHaveCount(0);
+    await switchSite(page, 'All sites');
   });
 
   await sup.context().close();

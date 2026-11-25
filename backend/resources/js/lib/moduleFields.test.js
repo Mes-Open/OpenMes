@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { moduleFieldsFor, moduleFieldInitial, moduleFieldValue } from './moduleFields';
+import { moduleFieldsFor, moduleFieldInitial, moduleFieldValue, moduleFormFields, moduleFormInitial } from './moduleFields';
 
 const HOOK = 'display.admin.users.form.fields';
 const field = { name: 'module_example_code', type: 'text', label: 'Example field' };
@@ -65,5 +65,29 @@ describe('moduleFieldValue', () => {
     it('falls back to the contributed value before the form holds anything', () => {
         expect(moduleFieldValue({ ...field, value: 'OLD' }, {})).toBe('OLD');
         expect(moduleFieldValue({ ...field, value: 'OLD' }, undefined)).toBe('OLD');
+    });
+});
+
+describe('moduleFormFields / moduleFormInitial', () => {
+    const hook = 'display.admin.shifts.form.fields';
+    const hooks = {
+        [hook]: [
+            { name: 'module_x_site', type: 'select', label: 'Site', column: 'site_id', value: 3, options: [{ value: 3, label: 'North' }] },
+            { name: 'module_x_note', type: 'color', label: 'Note', value: null },
+        ],
+    };
+
+    it('draws only the types a ResourceForm knows, and stringifies option values', () => {
+        const [site, note] = moduleFormFields(hooks, hook);
+        expect(site).toMatchObject({ type: 'select', options: [{ value: '3', label: 'North' }] });
+        expect(note.type).toBe('text');
+    });
+
+    it('reads a named column off the record, else the value the server sent', () => {
+        expect(moduleFormInitial({ site_id: 7 }, hooks, hook)).toEqual({ module_x_site: '7', module_x_note: '' });
+        expect(moduleFormInitial({ site_id: null }, hooks, hook)).toEqual({ module_x_site: '', module_x_note: '' });
+        expect(moduleFormInitial({ id: 1 }, hooks, hook)).toEqual({ module_x_site: '3', module_x_note: '' });
+        expect(moduleFormInitial(null, hooks, hook)).toEqual({ module_x_site: '', module_x_note: '' });
+        expect(moduleFormInitial(null, {}, hook)).toEqual({});
     });
 });

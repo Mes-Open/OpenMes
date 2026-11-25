@@ -45,3 +45,37 @@ export function moduleFieldInitial(hooks, name) {
 export function moduleFieldValue(field, values) {
     return field.name in (values ?? {}) ? values[field.name] : field.value;
 }
+
+/**
+ * A module's contributed fields as ResourceForm fields. A module describes its
+ * field as data — core draws it — so only the types ResourceForm knows pass;
+ * anything else is drawn as a text input.
+ */
+export function moduleFormFields(hooks, name) {
+    return moduleFieldsFor(hooks, name).map((f) => ({
+        name: f.name,
+        label: f.label,
+        help: f.help,
+        required: !!f.required,
+        type: ['select', 'checkbox', 'checkbox-group'].includes(f.type) ? f.type : 'text',
+        options: (f.options ?? []).map((o) => ({ value: String(o.value), label: o.label })),
+    }));
+}
+
+/**
+ * Starting values for those fields on a ResourceForm. A field that names a
+ * `column` of the record reads the record's own value, so a list page's drawer
+ * (whose rows come from a synced collection, not from a per-record render)
+ * still opens with the stored choice.
+ */
+export function moduleFormInitial(record, hooks, name) {
+    return Object.fromEntries(moduleFieldsFor(hooks, name).map((f) => {
+        const empty = f.type === 'checkbox' ? false : f.type === 'checkbox-group' ? [] : '';
+        if (record && f.column && f.column in record) {
+            const v = record[f.column];
+            return [f.name, v == null ? empty : f.type === 'checkbox' ? !!v : String(v)];
+        }
+        const v = record ? f.value : undefined;
+        return [f.name, v == null ? empty : f.type === 'select' ? String(v) : v];
+    }));
+}
