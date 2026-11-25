@@ -330,3 +330,257 @@ html.dark .border-amber-200 { border-color: rgb(180 83 9 / 0.5)     !important; 
 html.dark .text-amber-800  { color: rgb(252 211 77)                  !important; }
 html.dark .bg-amber-100    { background-color: rgb(69 26 3 / 0.6)   !important; }
 html.dark .hover\:bg-amber-200:hover { background-color: rgb(69 26 3 / 0.8) !important; }
+
+/* ── MES 工业台 · dense operations console ─────────────────────────────── */
+/* A compact, table-first visual language for the warehouse operations
+   screens. Domestic MES convention: blue primary, hairline borders, dense
+   rows, explicit status tags, fixed filter bar, keyboard-friendly. */
+:root {
+    --mes-page: #eef2f7;
+    --mes-panel: #ffffff;
+    --mes-panel-soft: #f7f9fc;
+    --mes-head: #f2f6fb;
+    --mes-line: #d8e0ea;
+    --mes-line-soft: #e8eef5;
+    --mes-ink: #1f2937;
+    --mes-muted: #64748b;
+    --mes-faint: #94a3b8;
+    --mes-blue: #1677ff;
+    --mes-blue-hover: #0b63d6;
+    --mes-blue-soft: #e9f2ff;
+    --mes-green: #15803d;
+    --mes-green-soft: #e9f7ef;
+    --mes-orange: #b45309;
+    --mes-orange-soft: #fff4e5;
+    --mes-red: #b42318;
+    --mes-red-soft: #fef0ee;
+    --mes-gray-soft: #f1f5f9;
+    --mes-row-alt: #fbfcfe;
+    --mes-row-hover: #eef6ff;
+    --mes-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+html.dark {
+    --mes-page: #111827;
+    --mes-panel: #1b2431;
+    --mes-panel-soft: #202b3a;
+    --mes-head: #223044;
+    --mes-line: #334155;
+    --mes-line-soft: #2a3647;
+    --mes-ink: #e5edf7;
+    --mes-muted: #9aaabd;
+    --mes-faint: #748399;
+    --mes-blue: #69a7ff;
+    --mes-blue-hover: #8bbcff;
+    --mes-blue-soft: rgb(22 119 255 / 0.18);
+    --mes-green: #6ee7a0;
+    --mes-green-soft: rgb(21 128 61 / 0.2);
+    --mes-orange: #fbbf24;
+    --mes-orange-soft: rgb(180 83 9 / 0.22);
+    --mes-red: #fca5a5;
+    --mes-red-soft: rgb(180 35 24 / 0.22);
+    --mes-gray-soft: #263446;
+    --mes-row-alt: #1e2937;
+    --mes-row-hover: #20364f;
+    --mes-shadow: none;
+}
+
+.mes-page {
+    min-height: 100%;
+    padding: 18px 24px 36px;
+    background: var(--mes-page);
+    color: var(--mes-ink);
+}
+.mes-container {
+    width: 100%;
+    max-width: 1480px;
+    margin: 0 auto;
+}
+.mes-page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 14px;
+}
+.mes-kicker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--mes-faint);
+    font-size: 11px;
+    line-height: 16px;
+    letter-spacing: .02em;
+}
+.mes-kicker .sep { color: var(--mes-line); }
+.mes-title-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.mes-title { font-size: 21px; line-height: 28px; font-weight: 700; letter-spacing: -.02em; color: var(--mes-ink); }
+.mes-subtitle { margin-top: 5px; max-width: 880px; color: var(--mes-muted); font-size: 12px; line-height: 20px; }
+.mes-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+
+.mes-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--mes-line);
+    border-radius: 3px;
+    background: var(--mes-panel);
+    color: var(--mes-ink);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transition: border-color .15s, background .15s, color .15s;
+}
+.mes-btn:hover { border-color: var(--mes-blue); color: var(--mes-blue); }
+.mes-btn-primary { border-color: var(--mes-blue); background: var(--mes-blue); color: #fff; }
+.mes-btn-primary:hover { border-color: var(--mes-blue-hover); background: var(--mes-blue-hover); color: #fff; }
+.mes-btn-soft { border-color: var(--mes-line); background: var(--mes-panel-soft); color: var(--mes-muted); }
+.mes-btn-danger { border-color: var(--mes-red); background: var(--mes-panel); color: var(--mes-red); }
+
+.mes-input, .mes-select {
+    height: 32px;
+    min-width: 0;
+    border: 1px solid var(--mes-line);
+    border-radius: 3px;
+    background: var(--mes-panel);
+    color: var(--mes-ink);
+    padding: 0 9px;
+    font-size: 12px;
+    outline: none;
+}
+.mes-input::placeholder { color: var(--mes-faint); }
+.mes-input:focus, .mes-select:focus { border-color: var(--mes-blue); box-shadow: 0 0 0 2px var(--mes-blue-soft); }
+.mes-label { display: inline-flex; align-items: center; gap: 6px; color: var(--mes-muted); font-size: 11px; white-space: nowrap; }
+.mes-label::after { content: '：'; color: var(--mes-faint); }
+
+.mes-panel { border: 1px solid var(--mes-line); border-radius: 4px; background: var(--mes-panel); box-shadow: var(--mes-shadow); }
+.mes-filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; }
+.mes-filterbar .grow { flex: 1 1 180px; min-width: 160px; }
+.mes-filterbar .push { margin-left: auto; }
+.mes-filter-divider { width: 1px; height: 20px; background: var(--mes-line-soft); }
+
+.mes-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; border-bottom: 1px solid var(--mes-line); padding: 0 12px; background: var(--mes-panel); }
+.mes-tab {
+    position: relative;
+    height: 38px;
+    padding: 0 12px;
+    color: var(--mes-muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+.mes-tab:hover { color: var(--mes-blue); }
+.mes-tab[data-active="true"] { color: var(--mes-blue); }
+.mes-tab[data-active="true"]::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -1px;
+    height: 2px;
+    background: var(--mes-blue);
+}
+.mes-tab .count { margin-left: 5px; color: var(--mes-faint); font-family: var(--font-mono); font-size: 10px; }
+.mes-tab[data-active="true"] .count { color: var(--mes-blue); }
+
+.mes-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--mes-line); border-radius: 4px; background: var(--mes-panel); overflow: hidden; }
+.mes-stat { position: relative; min-width: 0; padding: 12px 16px 11px; border-right: 1px solid var(--mes-line-soft); }
+.mes-stat:last-child { border-right: 0; }
+.mes-stat::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--mes-stat-tone, var(--mes-blue)); opacity: .75; }
+.mes-stat-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--mes-muted); font-size: 11px; }
+.mes-stat-value { margin-top: 4px; color: var(--mes-stat-tone, var(--mes-ink)); font-family: var(--font-mono); font-size: 23px; line-height: 26px; font-weight: 700; letter-spacing: -.03em; }
+.mes-stat-sub { margin-top: 3px; overflow: hidden; color: var(--mes-faint); font-size: 10px; line-height: 14px; text-overflow: ellipsis; white-space: nowrap; }
+
+.mes-table-wrap { width: 100%; overflow: auto; }
+.mes-table { width: 100%; min-width: 720px; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 12px; }
+.mes-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    height: 36px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--mes-line);
+    background: var(--mes-head);
+    color: var(--mes-muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: left;
+    white-space: nowrap;
+}
+.mes-table th.num, .mes-table td.num { text-align: right; }
+.mes-table td { height: 41px; padding: 7px 10px; border-bottom: 1px solid var(--mes-line-soft); vertical-align: middle; color: var(--mes-ink); }
+.mes-table tbody tr:nth-child(even) { background: var(--mes-row-alt); }
+.mes-table tbody tr:hover { background: var(--mes-row-hover); }
+.mes-table tbody tr:last-child td { border-bottom: 0; }
+.mes-table tr.is-alert td { background: var(--mes-red-soft); }
+.mes-table tr.is-warn td { background: var(--mes-orange-soft); }
+.mes-table .code { color: var(--mes-muted); font-family: var(--font-mono); font-size: 10px; letter-spacing: .01em; }
+.mes-table .strong { font-weight: 700; }
+.mes-table .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.mes-table .muted { color: var(--mes-muted); }
+.mes-table .faint { color: var(--mes-faint); }
+.mes-table .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mes-link { color: var(--mes-blue); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.mes-link:hover { text-decoration: underline; }
+
+.mes-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 0 6px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    white-space: nowrap;
+}
+.mes-tag-green { border-color: #b7e4c7; background: var(--mes-green-soft); color: var(--mes-green); }
+.mes-tag-orange { border-color: #f5d59b; background: var(--mes-orange-soft); color: var(--mes-orange); }
+.mes-tag-red { border-color: #f3c1ba; background: var(--mes-red-soft); color: var(--mes-red); }
+.mes-tag-blue { border-color: #b8d7ff; background: var(--mes-blue-soft); color: var(--mes-blue); }
+.mes-tag-gray { border-color: var(--mes-line); background: var(--mes-gray-soft); color: var(--mes-muted); }
+html.dark .mes-tag-green { border-color: rgb(110 231 160 / .26); }
+html.dark .mes-tag-orange { border-color: rgb(251 191 36 / .26); }
+html.dark .mes-tag-red { border-color: rgb(252 165 165 / .26); }
+html.dark .mes-tag-blue { border-color: rgb(105 167 255 / .28); }
+
+.mes-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 42px; padding: 0 14px; border-bottom: 1px solid var(--mes-line-soft); background: var(--mes-panel); }
+.mes-section-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--mes-ink); }
+.mes-section-title::before { content: ''; width: 3px; height: 13px; background: var(--mes-blue); }
+.mes-section-meta { color: var(--mes-faint); font-size: 10px; }
+
+.mes-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 42px; padding: 0 14px; border-top: 1px solid var(--mes-line-soft); background: var(--mes-panel-soft); color: var(--mes-muted); font-size: 11px; }
+.mes-pager { display: flex; align-items: center; gap: 4px; }
+.mes-pager button { min-width: 26px; height: 24px; border: 1px solid var(--mes-line); border-radius: 2px; background: var(--mes-panel); color: var(--mes-muted); font-size: 11px; }
+.mes-pager button[data-active="true"] { border-color: var(--mes-blue); background: var(--mes-blue); color: #fff; }
+
+.mes-empty { padding: 48px 16px; text-align: center; color: var(--mes-muted); font-size: 12px; }
+.mes-empty strong { display: block; margin-bottom: 6px; color: var(--mes-ink); font-size: 13px; }
+.mes-note { border: 1px solid var(--mes-line); border-left: 3px solid var(--mes-blue); border-radius: 3px; background: var(--mes-panel-soft); padding: 9px 12px; color: var(--mes-muted); font-size: 11px; line-height: 18px; }
+.mes-check { width: 14px; height: 14px; accent-color: var(--mes-blue); cursor: pointer; }
+
+.mes-tree-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--mes-ink); font-weight: 600; }
+.mes-tree-toggle .chev { color: var(--mes-faint); font-size: 10px; transition: transform .15s; }
+.mes-subrow td { height: 32px; padding-top: 4px; padding-bottom: 4px; background: var(--mes-panel-soft) !important; color: var(--mes-muted); font-size: 11px; }
+
+@media (max-width: 1100px) {
+  .mes-page-head { flex-direction: column; align-items: stretch; gap: 12px; }
+  .mes-actions { justify-content: flex-start; padding-top: 0; }
+  .mes-head-desc { max-width: none; }
+}
+
+@media (max-width: 760px) {
+    .mes-page { padding: 12px; }
+    .mes-page-head { flex-direction: column; gap: 10px; }
+    .mes-actions { justify-content: flex-start; padding-top: 0; }
+    .mes-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mes-stat:nth-child(2) { border-right: 0; }
+    .mes-stat:nth-child(-n+2) { border-bottom: 1px solid var(--mes-line-soft); }
+    .mes-filterbar { gap: 8px; }
+    .mes-filterbar .push { margin-left: 0; }
+}

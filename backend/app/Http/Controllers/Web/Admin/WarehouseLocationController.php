@@ -74,9 +74,27 @@ class WarehouseLocationController extends Controller
 
         $productsByLocation = $productStocks->groupBy('warehouse_location_id');
 
-        $rows = $locations->map(function (WarehouseLocation $location) use ($lotsByLocation, $productsByLocation) {
+        // Row-level material stock has no material lot to point at a bin. The
+        // reconciliation page can still assign it a location, so the location
+        // map must show those rows too; otherwise B-01/B-02 look empty while
+        // the stock ledger reports 36,000 cups and 12,500 labels there.
+        $materialStocks = WarehouseStock::query()
+            ->whereIn('warehouse_location_id', $locations->pluck('id'))
+            ->whereNull('product_type_id')
+            ->where('quantity', '>', 0)
+            ->with('material:id,code,name,unit_of_measure,tracking_type')
+            ->orderBy('id')
+            ->get();
+
+        $materialStocksByLocation = $materialStocks->groupBy('warehouse_location_id');
+
+        $rows = $locations->map(function (WarehouseLocation $location) use ($lotsByLocation, $productsByLocation, $materialStocksByLocation) {
             $locationLots = $lotsByLocation->get($location->id, collect());
             $locationProducts = $productsByLocation->get($location->id, collect());
+            $locationMaterialStocks = $materialStocksByLocation->get($location->id, collect())
+                ->reject(fn (WarehouseStock $stock) => $locationLots->contains(
+                    fn (MaterialLot $lot) => (int) $lot->material_id === (int) $stock->material_id,
+                ));
             $heldLots = $locationLots->whereIn('status', [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED]);
 
             $items = $locationLots->map(fn (MaterialLot $lot) => [
@@ -93,7 +111,21 @@ class WarehouseLocationController extends Controller
                 'received_at' => $lot->received_at?->format('Y-m-d'),
                 'expiry' => $lot->expiry_date?->toDateString(),
                 'url' => "/admin/material-lots/{$lot->id}",
-            ])->concat($locationProducts->map(fn (WarehouseStock $stock) => [
+            ])->concat($locationMaterialStocks->map(fn (WarehouseStock $stock) => [
+                'id' => 'stock-'.$stock->id,
+                'item_id' => $stock->id,
+                'kind' => 'stock',
+                'lot_number' => null,
+                'material_code' => $stock->material?->code ?? '—',
+                'material_name' => $stock->material?->name ?? '—',
+                'status' => 'stock',
+                'status_label' => $stock->material?->tracking_type === 'batch' ? '缺批次' : '汇总库存',
+                'available' => (float) $stock->quantity,
+                'uom' => $stock->unit_of_measure,
+                'received_at' => null,
+                'expiry' => null,
+                'url' => '/admin/warehouses/stock',
+            ]))->concat($locationProducts->map(fn (WarehouseStock $stock) => [
                 'id' => 'product-'.$stock->id,
                 'item_id' => $stock->id,
                 'kind' => 'product',
@@ -145,6 +177,7 @@ class WarehouseLocationController extends Controller
                 },
                 'lots_count' => $items->count(),
                 'material_lots_count' => $locationLots->count(),
+                'material_stocks_count' => $locationMaterialStocks->count(),
                 'products_count' => $locationProducts->count(),
                 'held_lots' => $heldLots->count(),
                 'available_by_uom' => $availableByUom,
@@ -175,6 +208,7 @@ class WarehouseLocationController extends Controller
             'occupied_bins' => $bins->whereIn('status', ['OCCUPIED', 'HOLD'])->count(),
             'hold_bins' => $bins->where('status', 'HOLD')->count(),
             'located_lots' => $bins->sum('material_lots_count'),
+            'located_stocks' => $bins->sum('material_stocks_count'),
             'located_products' => $bins->sum('products_count'),
             'located_items' => $bins->sum('lots_count'),
             'unassigned_items' => $unassignedLots + $unassignedProducts,

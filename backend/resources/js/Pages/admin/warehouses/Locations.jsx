@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
 import { Icon } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import { MesHeader, MesPage, MesSection, MesStats, MesTag } from '../../../Components/mes/MesUI';
 
 const BIN_STATUS = {
     OCCUPIED: { label: '有料', className: 'bg-om-running-bg text-om-running', icon: 'check' },
@@ -57,89 +58,72 @@ export default function WarehouseLocations() {
     return (
         <>
             <Head title="仓储 · 库位" />
-            <div className="mx-auto w-full max-w-[1180px] space-y-4 px-4 pb-10 sm:px-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <h1 className="text-2xl font-bold tracking-tight text-om-ink">库位</h1>
-                        <p className="mt-1 max-w-[760px] text-sm leading-6 text-om-muted">
-                            按仓库维护库区与库位，并查看物料批和成品占用；可以把一项库存整项移到同仓另一个库位，只改位置、不动数量，并保留调整记录。
-                        </p>
-                        <p className="mt-2 text-xs text-om-faint">
-                            {summary.zones ?? 0} 个库区 · {summary.bins ?? 0} 个库位 · 已定位库存 {summary.located_items ?? 0} 项
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setEditor({ mode: 'create-zone', warehouseId: activeWarehouse || warehouses[0]?.id || null })}
-                            className="btn-touch btn-accent text-sm"
-                        >
-                            新增库区
-                        </button>
-                        <a
-                            href={`/admin/warehouses/locations/labels${activeWarehouse ? `?warehouse=${activeWarehouse}` : ''}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn-touch btn-secondary text-sm"
-                        >
-                            打印标签
-                        </a>
-                        <Link href={`/admin/warehouses/locations/reconcile${activeWarehouse ? `?warehouse=${activeWarehouse}` : ''}`} className="btn-touch btn-secondary text-sm">库位对账</Link>
-                        <Link href="/admin/warehouses/stock" className="btn-touch btn-secondary text-sm">库存台账</Link>
-                        <Link href="/admin/warehouses" className="btn-touch btn-secondary text-sm">标签平衡</Link>
-                    </div>
-                </div>
+            <MesPage>
+                <MesHeader
+                    breadcrumb={['仓储管理', '库位管理']}
+                    title="库位管理"
+                    tag={{ label: '库区 · 库位 · 占用', tone: 'blue' }}
+                    description="按仓库维护库区与库位，查看物料批和成品占用。移库只改位置、不动数量，并保留审计记录。"
+                    meta={`${summary.zones ?? 0} 个库区 · ${summary.bins ?? 0} 个库位 · 已定位库存 ${summary.located_items ?? 0} 项`}
+                    actions={(
+                        <>
+                            <button type="button" onClick={() => setEditor({ mode: 'create-zone', warehouseId: activeWarehouse || warehouses[0]?.id || null })} className="mes-btn mes-btn-primary">新增库区</button>
+                            <a href={`/admin/warehouses/locations/labels${activeWarehouse ? `?warehouse=${activeWarehouse}` : ''}`} target="_blank" rel="noreferrer" className="mes-btn">打印标签</a>
+                            <Link href={`/admin/warehouses/locations/reconcile${activeWarehouse ? `?warehouse=${activeWarehouse}` : ''}`} className="mes-btn">库位对账</Link>
+                            <Link href="/admin/warehouses/stock" className="mes-btn">库存台账</Link>
+                        </>
+                    )}
+                />
 
-                <div className="grid overflow-hidden rounded-om-sm border border-om-line bg-om-card sm:grid-cols-2 xl:grid-cols-4">
-                    <Metric label="启用仓库" value={summary.warehouses ?? 0} sub={warehouses.map((warehouse) => warehouse.name).join(' · ') || '没有启用仓库'} tone="text-om-ink" icon="warehouse" />
-                    <Metric label="库区 / 库位" value={`${summary.zones ?? 0} / ${summary.bins ?? 0}`} sub={`${summary.zones ?? 0} 个库区 · ${summary.bins ?? 0} 个库位`} tone="text-om-ink" icon="map-pin" />
-                    <Metric label="已占用库位" value={summary.occupied_bins ?? 0} sub={`冻结 / 待处理 ${summary.hold_bins ?? 0} 位`} tone={(summary.hold_bins ?? 0) > 0 ? 'text-om-blocked' : 'text-om-running'} icon="layers" />
-                    <Metric label="库位内库存" value={summary.located_items ?? 0} sub={`物料批 ${summary.located_lots ?? 0} · 成品 ${summary.located_products ?? 0} · 未分配 ${summary.unassigned_items ?? 0}`} tone="text-om-ink" icon="boxes" />
-                </div>
+                <div className="space-y-3">
+                    <MesStats
+                        items={[
+                            { label: '启用仓库', value: summary.warehouses ?? 0, sub: warehouses.map((warehouse) => warehouse.name).join(' · ') || '没有启用仓库', tone: 'var(--mes-blue)' },
+                            { label: '库区 / 库位', value: `${summary.zones ?? 0} / ${summary.bins ?? 0}`, sub: '库区下挂库位，库位承载库存', tone: 'var(--mes-ink)' },
+                            { label: '已占用库位', value: summary.occupied_bins ?? 0, sub: `冻结 / 待处理 ${summary.hold_bins ?? 0} 位`, tone: (summary.hold_bins ?? 0) > 0 ? 'var(--mes-red)' : 'var(--mes-green)' },
+                            { label: '库位内库存', value: summary.located_items ?? 0, sub: `物料批 ${summary.located_lots ?? 0} · 库存行 ${summary.located_stocks ?? 0} · 成品 ${summary.located_products ?? 0}`, tone: 'var(--mes-ink)' },
+                        ]}
+                    />
 
-                <div className="rounded-om-sm border border-om-line bg-om-chip/40 px-4 py-3 text-xs leading-5 text-om-muted">
-                    移库只调整物料批或成品库存所在库位，不改变库存余额，也不拆分批次数量；每次调整都会写一条记录。冻结或拒收批仍占库位，移到待处理位时状态不变。
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-bold tracking-wide text-om-faint">仓库</span>
-                    <FilterButton active={!activeWarehouse} onClick={() => apply('')}>全部仓</FilterButton>
-                    {warehouses.map((warehouse) => (
-                        <FilterButton key={warehouse.id} active={activeWarehouse === String(warehouse.id)} onClick={() => apply(warehouse.id)}>
-                            {warehouse.name}
-                        </FilterButton>
-                    ))}
-                    {hasFilter && <button type="button" onClick={() => apply('')} className="text-xs font-bold text-om-muted hover:text-om-ink">清除筛选</button>}
-                </div>
-
-                {grouped.length === 0 ? (
-                    <div className="rounded-om-sm border border-om-line bg-om-card px-4 py-12 text-center">
-                        <p className="text-sm font-bold text-om-ink">当前仓库还没有库位层级。</p>
-                        <p className="mt-2 text-xs text-om-muted">库位会在仓库收货或成品入库时使用；这里只显示已登记的库区与库位。</p>
-                    </div>
-                ) : (
-                    grouped.map((warehouse) => (
-                        <div key={warehouse.id} className="space-y-2">
-                            <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
-                                <div className="flex min-w-0 items-baseline gap-2">
-                                    <h2 className="text-base font-bold text-om-ink">{warehouse.name}</h2>
-                                    <span className="font-mono text-[10px] text-om-faint">{warehouse.code}</span>
-                                </div>
-                                <span className="text-[11px] text-om-muted">{warehouse.zones.length} 个库区</span>
+                    <div className="mes-panel">
+                        <div className="mes-filterbar">
+                            <label className="mes-label">仓库</label>
+                            <select value={activeWarehouse} onChange={(event) => apply(event.target.value)} className="mes-select w-[180px]">
+                                <option value="">全部仓库</option>
+                                {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
+                            </select>
+                            {hasFilter && <button type="button" onClick={() => apply('')} className="mes-btn">清除筛选</button>}
+                            <div className="push text-[11px] text-[var(--mes-faint)]">
+                                库位 <b className="font-mono text-[var(--mes-ink)]">{summary.bins ?? 0}</b> 个 · 已占用 <b className="font-mono text-[var(--mes-green)]">{summary.occupied_bins ?? 0}</b> 个
                             </div>
-                            {warehouse.zones.map((zone) => (
-                                <ZoneCard
-                                    key={zone.id}
-                                    zone={zone}
-                                    onMove={(item, bin) => setMoveItem({ item, bin })}
-                                    onEdit={() => setEditor({ mode: 'edit', location: zone })}
-                                    onAddBin={() => setEditor({ mode: 'create-bin', parent: zone })}
-                                    onEditBin={(bin) => setEditor({ mode: 'edit', location: bin })}
-                                />
-                            ))}
                         </div>
-                    ))
-                )}
+                    </div>
+
+                    {grouped.length === 0 ? (
+                        <div className="mes-panel mes-empty">
+                            <strong>当前仓库还没有库位层级</strong>
+                            库位会在仓库收货或成品入库时使用；这里只显示已登记的库区与库位。
+                        </div>
+                    ) : (
+                        grouped.map((warehouse) => (
+                            <MesSection
+                                key={warehouse.id}
+                                title={warehouse.name}
+                                meta={`${warehouse.code} · ${warehouse.zones.length} 个库区`}
+                            >
+                                {warehouse.zones.map((zone) => (
+                                    <ZoneCard
+                                        key={zone.id}
+                                        zone={zone}
+                                        onMove={(item, bin) => setMoveItem({ item, bin })}
+                                        onEdit={() => setEditor({ mode: 'edit', location: zone })}
+                                        onAddBin={() => setEditor({ mode: 'create-bin', parent: zone })}
+                                        onEditBin={(bin) => setEditor({ mode: 'edit', location: bin })}
+                                    />
+                                ))}
+                            </MesSection>
+                        ))
+                    )}
 
                 {moves.length > 0 && (
                     <div className="overflow-hidden rounded-om-sm border border-om-line bg-om-card">
@@ -158,7 +142,8 @@ export default function WarehouseLocations() {
                         </div>
                     </div>
                 )}
-            </div>
+                </div>
+            </MesPage>
 
             {moveItem && (
                 <MoveModal
@@ -208,6 +193,7 @@ function Metric({ label, value, sub, tone, icon }) {
 }
 
 function ZoneCard({ zone, onMove, onEdit, onAddBin, onEditBin }) {
+    const [expanded, setExpanded] = useState({});
     const qtyByUom = {};
     zone.bins.forEach((bin) => {
         Object.entries(bin.available_by_uom ?? {}).forEach(([uom, qty]) => {
@@ -217,96 +203,103 @@ function ZoneCard({ zone, onMove, onEdit, onAddBin, onEditBin }) {
     const occupied = zone.bins.filter((bin) => bin.status !== 'EMPTY').length;
     const held = zone.bins.filter((bin) => bin.status === 'HOLD').length;
     const items = zone.bins.reduce((total, bin) => total + Number(bin.lots_count ?? 0), 0);
+    const toggle = (id) => setExpanded((current) => ({ ...current, [id]: !current[id] }));
 
     return (
-        <div className="overflow-hidden rounded-om-sm border border-om-line bg-om-card">
-            <div className="border-b border-om-line2 px-4 py-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-mono text-[11px] font-bold text-om-accent">{zone.code}</span>
-                            <span className="rounded bg-om-chip px-1.5 py-0.5 text-[10px] font-bold text-om-muted">库区</span>
-                            <h3 className="text-sm font-bold text-om-ink">{zone.name}</h3>
-                        </div>
-                        {zone.description && <p className="mt-1 text-[11px] leading-4 text-om-muted">{zone.description}</p>}
-                        <div className="mt-1.5 flex items-center gap-3 text-[10px]">
-                            <button type="button" onClick={onEdit} className="font-bold text-om-muted hover:text-om-ink">编辑库区</button>
-                            <button type="button" onClick={onAddBin} className="font-bold text-om-accent hover:underline">+ 库位</button>
-                        </div>
-                    </div>
-                    <div className="text-right text-[10px] leading-4 text-om-muted">
-                        <div>{zone.bins.length} 个库位 · 已占用 {occupied} 个{held > 0 ? ` · 冻结 ${held}` : ''}</div>
-                        <div className="font-mono text-om-ink">{items} 项 · {qtyText(qtyByUom)}</div>
-                    </div>
+        <div className="border-b border-[var(--mes-line)] last:border-b-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--mes-line-soft)] bg-[var(--mes-panel-soft)] px-3 py-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="mes-tag mes-tag-blue font-mono">{zone.code}</span>
+                    <h3 className="text-[12px] font-bold text-[var(--mes-ink)]">{zone.name}</h3>
+                    {zone.description && <span className="truncate text-[10px] text-[var(--mes-muted)]" title={zone.description}>{zone.description}</span>}
+                    <span className="text-[10px] text-[var(--mes-faint)]">· {zone.bins.length} 个库位 · 已占用 {occupied}{held > 0 ? ` · 冻结 ${held}` : ''}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="hidden font-mono text-[10px] text-[var(--mes-muted)] sm:inline">{items} 项 · {qtyText(qtyByUom)}</span>
+                    <button type="button" onClick={onEdit} className="mes-link">编辑库区</button>
+                    <button type="button" onClick={onAddBin} className="mes-btn h-[26px] px-2 text-[11px]">+ 库位</button>
                 </div>
             </div>
 
-            <div className="divide-y divide-om-line2">
-                {zone.bins.length === 0 && (
-                    <div className="px-4 py-4 text-[11px] text-om-faint">这个库区还没有库位，点上方“+ 库位”添加。</div>
-                )}
-                {zone.bins.map((bin) => <BinRow key={bin.id} bin={bin} onMove={onMove} onEdit={() => onEditBin(bin)} />)}
-            </div>
-        </div>
-    );
-}
-
-function BinRow({ bin, onMove, onEdit }) {
-    const meta = BIN_STATUS[bin.status] ?? BIN_STATUS.EMPTY;
-    return (
-        <div id={`bin-${bin.id}`} className={`scroll-mt-20 px-4 py-3 ${bin.status === 'HOLD' ? 'bg-om-blocked-bg/10' : ''}`}>
-            <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-[11px] font-bold text-om-ink">{bin.code}</span>
-                        <span className="text-sm font-bold text-om-ink">{bin.name}</span>
-                        <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.className}`}>
-                            <Icon name={meta.icon} size={11} /> {meta.label}
-                        </span>
-                    </div>
-                    {bin.description && <p className="mt-0.5 line-clamp-1 text-[10px] text-om-faint">{bin.description}</p>}
-                </div>
-                <div className="shrink-0 text-right">
-                    <div className="text-[10px] text-om-faint">库位内</div>
-                    <div className="font-mono text-[11px] font-bold text-om-ink">{bin.lots_count} 项</div>
-                    <div className="mt-1 flex items-center justify-end gap-2 text-[10px]">
-                        <button type="button" onClick={onEdit} className="font-bold text-om-muted hover:text-om-ink">编辑</button>
-                        <a href={`/admin/warehouses/locations/${bin.id}/label`} target="_blank" rel="noreferrer" className="font-bold text-om-muted hover:text-om-ink">标签</a>
-                    </div>
-                </div>
-            </div>
-
-            {bin.lots.length === 0 ? (
-                <div className="mt-2 rounded-om-sm border border-dashed border-om-line2 px-3 py-2 text-[11px] text-om-faint">空库位，等待收料或成品入库。</div>
-            ) : (
-                <div className="mt-2 space-y-1.5">
-                    {bin.lots.map((item) => <BinItem key={item.id} item={item} bin={bin} onMove={onMove} />)}
-                </div>
-            )}
-        </div>
-    );
-}
-
-function BinItem({ item, bin, onMove }) {
-    const isProduct = item.kind === 'product';
-    return (
-        <div className="flex items-start justify-between gap-2 rounded-om-sm border border-om-line2 bg-om-chip/20 px-2.5 py-2">
-            <div className="min-w-0">
-                <div className="truncate text-[11px] font-bold text-om-ink">{item.material_name}</div>
-                <div className="mt-0.5 truncate font-mono text-[10px] text-om-faint">
-                    {isProduct ? `${item.material_code} · 成品` : `${item.lot_number} · ${item.material_code}`}
-                </div>
-                {!isProduct && (item.received_at || item.expiry) && (
-                    <div className="mt-0.5 text-[10px] text-om-faint">收货 {item.received_at ?? '—'}{item.expiry ? ` · 有效期 ${item.expiry}` : ''}</div>
-                )}
-            </div>
-            <div className="shrink-0 text-right">
-                <div className="font-mono text-xs font-bold text-om-ink">{number(item.available)} <span className="text-[10px] font-medium text-om-muted">{unit(item.uom)}</span></div>
-                <span className={`mt-0.5 inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold ${ITEM_STATUS[item.status] ?? ITEM_STATUS.received}`}>{item.status_label}</span>
-                <div className="mt-1 flex items-center justify-end gap-2 whitespace-nowrap">
-                    <button type="button" onClick={() => onMove(item, bin)} className="text-[10px] font-bold text-om-muted hover:text-om-ink">调整库位</button>
-                    <Link href={item.url} className="text-[10px] font-bold text-om-accent hover:underline">{isProduct ? '查看库存 →' : '查看物料批 →'}</Link>
-                </div>
+            <div className="mes-table-wrap">
+                <table className="mes-table min-w-[820px]">
+                    <thead>
+                        <tr>
+                            <th className="w-[150px]">库位编码 / 名称</th>
+                            <th className="w-[88px]">状态</th>
+                            <th className="w-[80px] num">占用项</th>
+                            <th className="w-[150px] num">库存合计</th>
+                            <th>说明</th>
+                            <th className="w-[150px]">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {zone.bins.length === 0 && (
+                            <tr><td colSpan={6} className="py-6 text-center text-[11px] text-[var(--mes-faint)]">这个库区还没有库位，点上方“+ 库位”添加。</td></tr>
+                        )}
+                        {zone.bins.map((bin) => {
+                            const meta = BIN_STATUS[bin.status] ?? BIN_STATUS.EMPTY;
+                            const open = Boolean(expanded[bin.id]);
+                            return (
+                                <React.Fragment key={bin.id}>
+                                    <tr id={`bin-${bin.id}`} className={bin.status === 'HOLD' ? 'is-alert scroll-mt-20' : 'scroll-mt-20'}>
+                                        <td>
+                                            {bin.lots_count > 0 ? (
+                                                <button type="button" className="mes-tree-toggle" onClick={() => toggle(bin.id)}>
+                                                    <span className="chev" style={{ transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
+                                                    <span className="font-mono">{bin.code}</span>
+                                                </button>
+                                            ) : <span className="font-mono font-semibold text-[var(--mes-muted)]">{bin.code}</span>}
+                                            <div className="code mt-0.5 truncate" title={bin.name}>{bin.name}</div>
+                                        </td>
+                                        <td>
+                                            <MesTag tone={bin.status === 'HOLD' ? 'red' : bin.status === 'OCCUPIED' ? 'green' : 'gray'}>{meta.label}</MesTag>
+                                        </td>
+                                        <td className="num">{bin.lots_count} <span className="text-[10px] text-[var(--mes-muted)]">项</span></td>
+                                        <td className="num">{qtyText(bin.available_by_uom)}</td>
+                                        <td className="truncate text-[10px] text-[var(--mes-muted)]">{bin.description || '—'}</td>
+                                        <td>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {bin.lots_count > 0 && <button type="button" onClick={() => toggle(bin.id)} className="mes-link">{open ? '收起' : '展开'}</button>}
+                                                <button type="button" onClick={() => onEditBin(bin)} className="mes-link">编辑</button>
+                                                <a href={`/admin/warehouses/locations/${bin.id}/label`} target="_blank" rel="noreferrer" className="mes-link">标签</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {open && bin.lots.length === 0 && (
+                                        <tr className="mes-subrow"><td /><td colSpan={5}>空库位，等待收料或成品入库。</td></tr>
+                                    )}
+                                    {open && bin.lots.map((item) => (
+                                        <tr key={item.id} className="mes-subrow">
+                                            <td><span className="pl-5 text-[var(--mes-faint)]">└</span></td>
+                                            <td><MesTag tone={item.status === 'rejected' || item.status === 'expired' ? 'red' : item.status === 'quarantine' ? 'orange' : item.status === 'released' ? 'green' : 'gray'}>{item.status_label}</MesTag></td>
+                                            <td colSpan={2}>
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <div className="truncate font-semibold text-[var(--mes-ink)]">{item.material_name}</div>
+                                                        <div className="truncate code">{item.kind === 'product' ? `${item.material_code} · 成品` : item.kind === 'stock' ? item.material_code : `${item.lot_number} · ${item.material_code}`}</div>
+                                                    </div>
+                                                    <div className="shrink-0 text-right font-mono text-[12px] font-bold text-[var(--mes-ink)]">
+                                                        {number(item.available)} <span className="text-[10px] font-medium text-[var(--mes-muted)]">{unit(item.uom)}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="code">
+                                                {item.kind === 'product' ? '成品汇总' : item.kind === 'stock' ? '按汇总数量管理' : item.expiry ? `有效期 ${item.expiry}` : item.received_at ? `收货 ${item.received_at}` : '—'}
+                                            </td>
+                                            <td>
+                                                <div className="flex items-center gap-2">
+                                                    <button type="button" onClick={() => onMove(item, bin)} className="mes-link">调整库位</button>
+                                                    <Link href={item.url} className="mes-link">{item.kind === 'product' ? '库存' : item.kind === 'stock' ? '台账' : '物料批'}</Link>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </React.Fragment>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
@@ -360,7 +353,7 @@ function MoveModal({ item, fromBin, locations, onClose }) {
         setProcessing(true);
         setError(null);
         router.post('/admin/warehouses/locations/move', {
-            item_type: item.kind === 'product' ? 'product_stock' : 'material_lot',
+            item_type: item.kind === 'product' ? 'product_stock' : item.kind === 'stock' ? 'material_stock' : 'material_lot',
             item_id: item.item_id,
             to_location_id: Number(target),
             note,
@@ -381,7 +374,7 @@ function MoveModal({ item, fromBin, locations, onClose }) {
                 <div className="flex items-start justify-between gap-3 border-b border-om-line2 px-4 py-3">
                     <div className="min-w-0">
                         <h2 id="move-location-title" className="text-sm font-bold text-om-ink">调整库位 · {item.material_name}</h2>
-                        <p className="mt-0.5 truncate font-mono text-[10px] text-om-faint">{item.kind === 'product' ? `${item.material_code} · 成品` : `${item.lot_number} · ${item.material_code}`}</p>
+                        <p className="mt-0.5 truncate font-mono text-[10px] text-om-faint">{item.kind === 'product' ? `${item.material_code} · 成品` : item.kind === 'stock' ? `${item.material_code} · 库存行` : `${item.lot_number} · ${item.material_code}`}</p>
                     </div>
                     <button type="button" onClick={onClose} className="btn-touch btn-secondary px-3 text-xs">关闭</button>
                 </div>

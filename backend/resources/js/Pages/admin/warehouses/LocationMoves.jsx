@@ -1,12 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
-import { Icon } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
+import { MesHeader, MesPage, MesSection, MesStats, MesTag } from '../../../Components/mes/MesUI';
 
 const TYPE = {
-    material_lot: { label: '物料批', className: 'bg-om-accent/10 text-om-accent', short: '批' },
-    material_stock: { label: '物料库存', className: 'bg-om-chip text-om-muted', short: '料' },
-    product_stock: { label: '成品库存', className: 'bg-om-chip text-om-muted', short: '成' },
+    material_lot: { label: '物料批', tone: 'blue' },
+    material_stock: { label: '物料库存', tone: 'gray' },
+    product_stock: { label: '成品库存', tone: 'green' },
 };
 
 const number = (value) => new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 3 }).format(Number(value || 0));
@@ -16,26 +16,9 @@ const formatDate = (value) => {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '—';
     return new Intl.DateTimeFormat('zh-CN', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-    }).format(date);
-};
-
-const formatLongDate = (value) => {
-    if (!value) return '—';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '—';
-    return new Intl.DateTimeFormat('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-    }).format(date);
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(date).replaceAll('/', '-');
 };
 
 const cleanParams = (filters, patch = {}) => {
@@ -59,231 +42,182 @@ export default function LocationMoves() {
         router.get('/admin/warehouses/locations/moves');
     };
 
-    const submitSearch = (event) => {
-        event.preventDefault();
-        apply({ q });
-    };
-
     const exportHref = `/admin/warehouses/locations/moves/export${Object.keys(cleanParams(filters)).length ? `?${new URLSearchParams(cleanParams(filters)).toString()}` : ''}`;
 
     return (
         <>
             <Head title="仓储 · 移库记录" />
-            <div className="mx-auto w-full max-w-[1180px] space-y-4 px-4 pb-10 sm:px-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <h1 className="text-2xl font-bold tracking-tight text-om-ink">移库记录</h1>
-                        <p className="mt-1 max-w-[760px] text-sm leading-6 text-om-muted">
-                            这里记录物料批、物料库存和成品库存的整项库位调整：只改物理位置，不拆数量、不改库存余额。
-                        </p>
-                        <p className="mt-2 text-xs text-om-faint">
-                            按筛选结果共 {summary.total ?? 0} 条 · 物料批 {summary.material_lot ?? 0} · 物料库存 {summary.material_stock ?? 0} · 成品 {summary.product_stock ?? 0}
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Link href="/admin/warehouses/locations" className="btn-touch btn-secondary text-sm">库位地图</Link>
-                        <a href={exportHref} className="btn-touch btn-secondary text-sm">导出 CSV</a>
-                    </div>
-                </div>
-
-                <div className="grid overflow-hidden rounded-om-sm border border-om-line bg-om-card sm:grid-cols-2 xl:grid-cols-4">
-                    <Metric label="记录总数" value={summary.total ?? 0} sub="当前筛选范围" icon="history" tone="text-om-ink" />
-                    <Metric label="物料移库" value={(summary.material_lot ?? 0) + (summary.material_stock ?? 0)} sub={`物料批 ${summary.material_lot ?? 0} · 库存行 ${summary.material_stock ?? 0}`} icon="package" tone="text-om-accent" />
-                    <Metric label="成品库存移库" value={summary.product_stock ?? 0} sub="按成品汇总行移动" icon="boxes" tone="text-om-ink" />
-                    <Metric label="操作人" value={summary.operators ?? 0} sub={`最近 ${formatLongDate(summary.last_moved_at)}`} icon="user-round" tone="text-om-ink" />
-                </div>
-
-                <div className="rounded-om-sm border border-om-line bg-om-chip/40 px-4 py-3 text-xs leading-5 text-om-muted">
-                    库位记录与库存台账分开：这里能追溯“谁把什么从哪儿移到哪儿”，库存数量仍以仓库余额为准。
-                </div>
-
-                <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-bold tracking-wide text-om-faint">仓库</span>
-                        <FilterButton active={!filters.warehouse} onClick={() => apply({ warehouse: '' })}>全部仓</FilterButton>
-                        {warehouses.map((warehouse) => (
-                            <FilterButton key={warehouse.id} active={String(filters.warehouse ?? '') === String(warehouse.id)} onClick={() => apply({ warehouse: warehouse.id })}>
-                                {warehouse.name}
-                            </FilterButton>
-                        ))}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-bold tracking-wide text-om-faint">类型</span>
-                        <FilterButton active={!filters.type} onClick={() => apply({ type: '' })}>全部</FilterButton>
-                        <FilterButton active={filters.type === 'material_lot'} onClick={() => apply({ type: 'material_lot' })}>物料批</FilterButton>
-                        <FilterButton active={filters.type === 'material_stock'} onClick={() => apply({ type: 'material_stock' })}>物料库存</FilterButton>
-                        <FilterButton active={filters.type === 'product_stock'} onClick={() => apply({ type: 'product_stock' })}>成品库存</FilterButton>
-                        {hasFilter && <button type="button" onClick={clear} className="text-xs font-bold text-om-muted hover:text-om-ink">清除筛选</button>}
-                    </div>
-                </div>
-
-                <form onSubmit={submitSearch} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                    <input
-                        value={q}
-                        onChange={(event) => setQ(event.target.value)}
-                        placeholder="搜物料/成品、库位编码、备注或操作人"
-                        className="h-10 min-w-0 rounded-om-sm border border-om-line bg-om-card px-3 text-sm text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent focus:ring-2 focus:ring-om-accent/20"
-                    />
-                    <button type="submit" className="btn-touch btn-secondary text-sm">搜索</button>
-                </form>
-
-                <div className="overflow-hidden rounded-om-sm border border-om-line bg-om-card">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-om-line2 px-4 py-3">
-                        <div>
-                            <h2 className="text-sm font-bold text-om-ink">调整明细</h2>
-                            <p className="mt-0.5 text-[10px] text-om-faint">按移库时间倒序；同一对象可以有多次往返。</p>
-                        </div>
-                        <span className="text-[10px] text-om-muted">{moves.from ?? 0}–{moves.to ?? 0} / {moves.total ?? 0} 条</span>
-                    </div>
-
-                    {rows.length === 0 ? (
-                        <div className="px-4 py-12 text-center">
-                            <p className="text-sm font-bold text-om-ink">{hasFilter ? '没有符合筛选的移库记录。' : '还没有移库记录。'}</p>
-                            <p className="mx-auto mt-2 max-w-[540px] text-xs leading-5 text-om-muted">
-                                {hasFilter ? '清除筛选后再看全部记录。' : '从库位地图调整一个物料批或成品库存的库位后，这里会留下记录。'}
-                            </p>
-                            {hasFilter && <button type="button" onClick={clear} className="btn-touch btn-secondary mt-4 text-xs">清除筛选</button>}
-                        </div>
-                    ) : (
+            <MesPage>
+                <MesHeader
+                    breadcrumb={['仓储管理', '库位管理', '移库记录']}
+                    title="移库记录"
+                    tag={{ label: '审计留痕', tone: 'gray' }}
+                    description="记录物料批、物料库存和成品库存的整项库位调整。只改物理位置，不拆数量、不改库存余额。"
+                    meta={`当前筛选 ${summary.total ?? 0} 条 · 按移库时间倒序`}
+                    actions={(
                         <>
-                            <div className="hidden lg:block">
-                                <MoveTable rows={rows} />
-                            </div>
-                            <div className="divide-y divide-om-line2 lg:hidden">
-                                {rows.map((move) => <MoveCard key={move.id} move={move} />)}
-                            </div>
-                            {moves.last_page > 1 && <Pagination links={moves.links ?? []} />}
+                            <Link href="/admin/warehouses/locations" className="mes-btn">库位管理</Link>
+                            <a href={exportHref} className="mes-btn mes-btn-primary">导出 CSV</a>
                         </>
                     )}
+                />
+
+                <div className="space-y-3">
+                    <MesStats
+                        items={[
+                            { label: '记录总数', value: summary.total ?? 0, sub: '当前筛选范围', tone: 'var(--mes-blue)' },
+                            { label: '物料移库', value: (summary.material_lot ?? 0) + (summary.material_stock ?? 0), sub: `物料批 ${summary.material_lot ?? 0} · 库存行 ${summary.material_stock ?? 0}`, tone: 'var(--mes-ink)' },
+                            { label: '成品移库', value: summary.product_stock ?? 0, sub: '按成品汇总行移动', tone: 'var(--mes-ink)' },
+                            { label: '操作人', value: summary.operators ?? 0, sub: `最近 ${summary.last_moved_at ? formatDate(summary.last_moved_at) : '—'}`, tone: 'var(--mes-green)' },
+                        ]}
+                    />
+
+                    <div className="mes-panel">
+                        <div className="mes-filterbar">
+                            <label className="mes-label">仓库</label>
+                            <select
+                                value={String(filters.warehouse ?? '')}
+                                onChange={(event) => apply({ warehouse: event.target.value })}
+                                className="mes-select w-[160px]"
+                            >
+                                <option value="">全部仓库</option>
+                                {warehouses.map((warehouse) => (
+                                    <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                                ))}
+                            </select>
+
+                            <label className="mes-label">类型</label>
+                            <select
+                                value={filters.type ?? ''}
+                                onChange={(event) => apply({ type: event.target.value })}
+                                className="mes-select w-[130px]"
+                            >
+                                <option value="">全部类型</option>
+                                <option value="material_lot">物料批</option>
+                                <option value="material_stock">物料库存</option>
+                                <option value="product_stock">成品库存</option>
+                            </select>
+
+                            <span className="mes-filter-divider" />
+
+                            <form
+                                onSubmit={(event) => { event.preventDefault(); apply({ q }); }}
+                                className="flex min-w-[280px] flex-1 items-center gap-2"
+                            >
+                                <input
+                                    value={q}
+                                    onChange={(event) => setQ(event.target.value)}
+                                    placeholder="物料 / 库位编码 / 备注 / 操作人"
+                                    className="mes-input flex-1"
+                                />
+                                <button type="submit" className="mes-btn mes-btn-primary">查询</button>
+                                <button type="button" onClick={clear} className="mes-btn">重置</button>
+                            </form>
+
+                            <div className="push text-[11px] text-[var(--mes-faint)]">
+                                共 <b className="font-mono text-[var(--mes-ink)]">{moves.total ?? 0}</b> 条
+                            </div>
+                        </div>
+                    </div>
+
+                    <MesSection
+                        title="移库明细"
+                        meta="同一对象可以多次往返；库位编码为只读凭证"
+                        footer={moves.last_page > 1 ? <Pagination moves={moves} /> : (
+                            <div className="mes-footer">
+                                <span>共 <b className="font-mono text-[var(--mes-ink)]">{moves.total ?? 0}</b> 条</span>
+                                <span className="text-[var(--mes-faint)]">当前 {moves.from ?? 0}-{moves.to ?? 0}</span>
+                            </div>
+                        )}
+                    >
+                        {rows.length === 0 ? (
+                            <div className="mes-empty">
+                                <strong>{hasFilter ? '没有符合筛选的移库记录' : '还没有移库记录'}</strong>
+                                {hasFilter ? '清除筛选后再查看全部记录。' : '从库位管理调整物料批或成品库存的库位后，这里会留下记录。'}
+                                {hasFilter && <div className="mt-3"><button type="button" onClick={clear} className="mes-btn">清除筛选</button></div>}
+                            </div>
+                        ) : (
+                            <div className="mes-table-wrap">
+                                <table className="mes-table min-w-[980px]">
+                                    <thead>
+                                        <tr>
+                                            <th className="w-[128px]">移库时间</th>
+                                            <th className="w-[80px]">类型</th>
+                                            <th className="w-[220px]">对象</th>
+                                            <th className="w-[100px] num">数量</th>
+                                            <th className="w-[176px]">移出 → 移入</th>
+                                            <th className="w-[90px]">操作人</th>
+                                            <th>备注</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.map((move) => (
+                                            <tr key={move.id}>
+                                                <td className="code">{formatDate(move.moved_at)}</td>
+                                                <td><MesTag tone={(TYPE[move.item_type] ?? TYPE.material_lot).tone}>{(TYPE[move.item_type] ?? TYPE.material_lot).label}</MesTag></td>
+                                                <td>
+                                                    <div className="truncate strong" title={move.item_name}>{move.item_name}</div>
+                                                    <div className="code mt-0.5">{move.item_code}</div>
+                                                </td>
+                                                <td className="num">
+                                                    <span className="text-[13px] font-bold">{number(move.quantity)}</span>
+                                                    <span className="ml-1 text-[10px] text-[var(--mes-muted)]">{move.unit_of_measure}</span>
+                                                </td>
+                                                <td>
+                                                    <div className="flex flex-wrap items-center gap-1">
+                                                        <LocationPill location={move.from_location} />
+                                                        <span className="text-[var(--mes-blue)]">→</span>
+                                                        <LocationPill location={move.to_location} />
+                                                    </div>
+                                                </td>
+                                                <td className="muted">{move.moved_by?.name ?? '系统'}</td>
+                                                <td className="truncate muted" title={move.note ?? ''}>{move.note ?? '—'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </MesSection>
+
+                    <div className="mes-note">
+                        审计口径：库位记录与库存台账分开。这里追溯“谁把什么从哪儿移到哪儿”，库存数量仍以仓库余额为准。
+                    </div>
                 </div>
-            </div>
+            </MesPage>
         </>
     );
 }
 
-function FilterButton({ active, onClick, children }) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={`btn-touch text-xs ${active ? 'bg-om-accent text-white hover:bg-om-accent/90' : 'hover:text-om-ink'}`}
-            style={active ? undefined : { background: 'var(--om-chip)', color: 'var(--om-muted)' }}
-        >
-            {children}
-        </button>
-    );
-}
-
-function Metric({ label, value, sub, icon, tone }) {
-    return (
-        <div className="min-w-0 border-b border-om-line2 px-4 py-3 last:border-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
-            <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-om-muted">{label}</span>
-                <span className="text-om-faint"><Icon name={icon} size={13} /></span>
-            </div>
-            <div className={`mt-1 font-mono text-xl font-bold leading-none tracking-tight ${tone}`}>{value}</div>
-            <div className="mt-1 truncate text-[10px] text-om-faint">{sub}</div>
-        </div>
-    );
-}
-
-function TypeBadge({ type }) {
-    const meta = TYPE[type] ?? TYPE.material_lot;
-    return <span className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.className}`}>{meta.label}</span>;
-}
-
 function LocationPill({ location }) {
     return (
-        <span className="inline-flex max-w-full items-center rounded border border-om-line bg-om-chip px-1.5 py-0.5 font-mono text-[10px] font-bold text-om-ink" title={location?.name ?? ''}>
+        <span className="mes-tag mes-tag-gray font-mono" title={location?.name ?? ''}>
             {location?.code ?? '—'}
         </span>
     );
 }
 
-function MoveCard({ move }) {
-    const meta = TYPE[move.item_type] ?? TYPE.material_lot;
+function Pagination({ moves }) {
+    const links = (moves.links ?? []).filter((link) => link.label !== '&laquo; Previous' && link.label !== 'Next &raquo;');
     return (
-        <div className="px-4 py-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <TypeBadge type={move.item_type} />
-                    <span className="truncate text-sm font-bold text-om-ink">{move.item_name}</span>
-                    <span className="font-mono text-[10px] text-om-faint">{move.item_code}</span>
-                </div>
-                <div className="shrink-0 text-right">
-                    <div className="font-mono text-sm font-bold text-om-ink">{number(move.quantity)} {move.unit_of_measure}</div>
-                    <div className="mt-0.5 text-[10px] text-om-faint">{formatDate(move.moved_at)}</div>
-                </div>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-om-muted">
-                <LocationPill location={move.from_location} />
-                <span className="text-om-accent">→</span>
-                <LocationPill location={move.to_location} />
-                <span className="text-om-faint">·</span>
-                <span>{move.warehouse?.name ?? '—'} · {move.moved_by?.name ?? '系统'}</span>
-            </div>
-            {move.note && <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-om-muted">{move.note}</p>}
-        </div>
-    );
-}
-
-function MoveTable({ rows }) {
-    return (
-        <table className="w-full table-fixed text-left text-xs">
-            <thead className="border-b border-om-line2 bg-om-chip/40 text-[10px] font-bold text-om-faint">
-                <tr>
-                    <th className="w-[88px] px-4 py-2">时间</th>
-                    <th className="w-[84px] px-2 py-2">类型</th>
-                    <th className="px-2 py-2">对象</th>
-                    <th className="w-[96px] px-2 py-2 text-right">数量</th>
-                    <th className="w-[126px] px-2 py-2">库位</th>
-                    <th className="w-[88px] px-2 py-2">操作人</th>
-                    <th className="px-4 py-2">备注</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-om-line2">
-                {rows.map((move) => (
-                    <tr key={move.id} className="align-top">
-                        <td className="px-4 py-3 font-mono text-[10px] text-om-muted">{formatDate(move.moved_at)}</td>
-                        <td className="px-2 py-3"><TypeBadge type={move.item_type} /></td>
-                        <td className="min-w-0 px-2 py-3">
-                            <div className="truncate font-bold text-om-ink">{move.item_name}</div>
-                            <div className="mt-0.5 truncate font-mono text-[10px] text-om-faint">{move.item_code}</div>
-                        </td>
-                        <td className="px-2 py-3 text-right font-mono text-om-ink">{number(move.quantity)} {move.unit_of_measure}</td>
-                        <td className="px-2 py-3">
-                            <div className="flex flex-wrap items-center gap-1">
-                                <LocationPill location={move.from_location} />
-                                <span className="text-om-accent">→</span>
-                                <LocationPill location={move.to_location} />
-                            </div>
-                        </td>
-                        <td className="truncate px-2 py-3 text-om-muted">{move.moved_by?.name ?? '系统'}</td>
-                        <td className="px-4 py-3 text-[10px] leading-4 text-om-muted">{move.note ?? '—'}</td>
-                    </tr>
+        <div className="mes-footer">
+            <span>共 <b className="font-mono text-[var(--mes-ink)]">{moves.total ?? 0}</b> 条 · 当前 {moves.from ?? 0}-{moves.to ?? 0}</span>
+            <div className="mes-pager">
+                {links.map((link, index) => (
+                    link.url ? (
+                        <Link
+                            key={`${link.label}-${index}`}
+                            href={link.url}
+                            preserveScroll
+                            data-active={link.active}
+                        >
+                            {link.label}
+                        </Link>
+                    ) : (
+                        <span key={`${link.label}-${index}`} className="px-1 text-[var(--mes-faint)]">{link.label}</span>
+                    )
                 ))}
-            </tbody>
-        </table>
-    );
-}
-
-function Pagination({ links }) {
-    return (
-        <div className="flex flex-wrap items-center justify-end gap-1 border-t border-om-line2 px-4 py-3">
-            {links.filter((link) => link.label !== '&laquo; Previous' && link.label !== 'Next &raquo;').map((link, index) => (
-                link.url ? (
-                    <Link
-                        key={`${link.label}-${index}`}
-                        href={link.url}
-                        preserveScroll
-                        className={`btn-touch px-2 text-[11px] ${link.active ? 'bg-om-accent text-white' : 'bg-om-chip text-om-muted'}`}
-                    >
-                        {link.label}
-                    </Link>
-                ) : (
-                    <span key={`${link.label}-${index}`} className="px-2 text-[11px] text-om-faint">{link.label}</span>
-                )
-            ))}
+            </div>
         </div>
     );
 }
