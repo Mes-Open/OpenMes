@@ -1002,6 +1002,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/warehouses', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'index'])->name('warehouses.index');
         Route::get('/warehouses/stock', [\App\Http\Controllers\Web\Admin\WarehouseStockController::class, 'index'])->name('warehouses.stock.index');
         Route::get('/warehouses/locations', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'index'])->name('warehouses.locations.index');
+        Route::get('/warehouses/locations/labels', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'labels'])->name('warehouses.locations.labels');
+        Route::get('/warehouses/locations/{location}/label', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'label'])->whereNumber('location')->name('warehouses.locations.label');
         Route::post('/warehouses/locations/move', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'move'])->name('warehouses.locations.move');
         Route::post('/warehouses/locations', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'store'])->name('warehouses.locations.store');
         Route::put('/warehouses/locations/{location}', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'update'])->whereNumber('location')->name('warehouses.locations.update');

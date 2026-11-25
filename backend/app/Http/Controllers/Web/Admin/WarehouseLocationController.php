@@ -8,6 +8,10 @@ use App\Models\Warehouse;
 use App\Models\WarehouseLocation;
 use App\Models\WarehouseLocationMove;
 use App\Models\WarehouseStock;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -303,6 +307,45 @@ class WarehouseLocationController extends Controller
         return back()->with('success', '库位已调整，库存数量未变。');
     }
 
+    public function label(WarehouseLocation $location)
+    {
+        abort_unless($location->kind === WarehouseLocation::KIND_BIN, 404);
+
+        $pdf = Pdf::loadView('admin.warehouses.location-label', [
+            'labels' => [$this->labelPayload($location)],
+        ])->setPaper([0, 0, 283, 198]);
+        $pdf->setOption('enable_font_subsetting', true);
+        $this->registerCjkFont($pdf);
+
+        return $pdf->stream('location-'.$location->code.'.pdf');
+    }
+
+    public function labels(Request $request)
+    {
+        $warehouseId = (int) $request->query('warehouse', 0);
+
+        $locations = WarehouseLocation::query()
+            ->where('kind', WarehouseLocation::KIND_BIN)
+            ->where('is_active', true)
+            ->when($warehouseId > 0, fn ($query) => $query->where('warehouse_id', $warehouseId))
+            ->with(['warehouse', 'parent'])
+            ->orderBy('warehouse_id')
+            ->orderBy('parent_id')
+            ->orderBy('sort_order')
+            ->orderBy('code')
+            ->get();
+
+        abort_if($locations->isEmpty(), 404);
+
+        $pdf = Pdf::loadView('admin.warehouses.location-label', [
+            'labels' => $locations->map(fn (WarehouseLocation $location) => $this->labelPayload($location))->all(),
+        ])->setPaper([0, 0, 283, 198]);
+        $pdf->setOption('enable_font_subsetting', true);
+        $this->registerCjkFont($pdf);
+
+        return $pdf->stream('location-labels.pdf');
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -374,6 +417,46 @@ class WarehouseLocationController extends Controller
         ]);
 
         return back()->with('success', ($location->kind === WarehouseLocation::KIND_ZONE ? '库区' : '库位').'已更新。');
+    }
+
+    private function registerCjkFont(\Barryvdh\DomPDF\PDF $pdf): void
+    {
+        $regular = public_path('fonts/NotoSansSC-Regular.ttf');
+        if (! is_file($regular)) {
+            return;
+        }
+
+        $metrics = $pdf->getDomPDF()->getFontMetrics();
+        $metrics->registerFont(['family' => 'CoaNotoSans', 'style' => 'normal', 'weight' => 'normal'], $regular);
+        $bold = public_path('fonts/NotoSansSC-Bold.ttf');
+        if (is_file($bold)) {
+            $metrics->registerFont(['family' => 'CoaNotoSans', 'style' => 'normal', 'weight' => 'bold'], $bold);
+        }
+    }
+
+    private function labelPayload(WarehouseLocation $location): array
+    {
+        $location->loadMissing(['warehouse', 'parent']);
+
+        $url = route('admin.warehouses.locations.index', ['warehouse' => $location->warehouse_id]).'#bin-'.$location->id;
+        $qr = (new PngWriter())
+            ->write(QrCode::create($url)
+                ->setSize(180)
+                ->setMargin(1)
+                ->setErrorCorrectionLevel(ErrorCorrectionLevel::Medium))
+            ->getDataUri();
+
+        return [
+            'code' => $location->code,
+            'name' => $location->name,
+            'description' => $location->description,
+            'warehouse_name' => $location->warehouse?->name,
+            'warehouse_code' => $location->warehouse?->code,
+            'zone_code' => $location->parent?->code,
+            'zone_name' => $location->parent?->name,
+            'qr' => $qr,
+            'generated_at' => now()->format('Y-m-d H:i'),
+        ];
     }
 
     private function resolveParent(array $data, ?WarehouseLocation $location = null): ?WarehouseLocation

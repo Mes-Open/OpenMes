@@ -76,6 +76,14 @@ export default function WarehouseLocations() {
                         >
                             新增库区
                         </button>
+                        <a
+                            href={`/admin/warehouses/locations/labels${activeWarehouse ? `?warehouse=${activeWarehouse}` : ''}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn-touch btn-secondary text-sm"
+                        >
+                            打印标签
+                        </a>
                         <Link href="/admin/warehouses/stock" className="btn-touch btn-secondary text-sm">库存台账</Link>
                         <Link href="/admin/warehouses" className="btn-touch btn-secondary text-sm">标签平衡</Link>
                     </div>
@@ -242,7 +250,7 @@ function ZoneCard({ zone, onMove, onEdit, onAddBin, onEditBin }) {
 function BinRow({ bin, onMove, onEdit }) {
     const meta = BIN_STATUS[bin.status] ?? BIN_STATUS.EMPTY;
     return (
-        <div className={`px-4 py-3 ${bin.status === 'HOLD' ? 'bg-om-blocked-bg/10' : ''}`}>
+        <div id={`bin-${bin.id}`} className={`scroll-mt-20 px-4 py-3 ${bin.status === 'HOLD' ? 'bg-om-blocked-bg/10' : ''}`}>
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -257,7 +265,10 @@ function BinRow({ bin, onMove, onEdit }) {
                 <div className="shrink-0 text-right">
                     <div className="text-[10px] text-om-faint">库位内</div>
                     <div className="font-mono text-[11px] font-bold text-om-ink">{bin.lots_count} 项</div>
-                    <button type="button" onClick={onEdit} className="mt-1 text-[10px] font-bold text-om-muted hover:text-om-ink">编辑</button>
+                    <div className="mt-1 flex items-center justify-end gap-2 text-[10px]">
+                        <button type="button" onClick={onEdit} className="font-bold text-om-muted hover:text-om-ink">编辑</button>
+                        <a href={`/admin/warehouses/locations/${bin.id}/label`} target="_blank" rel="noreferrer" className="font-bold text-om-muted hover:text-om-ink">标签</a>
+                    </div>
                 </div>
             </div>
 
