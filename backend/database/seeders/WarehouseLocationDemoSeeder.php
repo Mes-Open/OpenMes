@@ -6,6 +6,7 @@ use App\Models\MaterialLot;
 use App\Models\ProductType;
 use App\Models\Warehouse;
 use App\Models\WarehouseLocation;
+use App\Models\WarehouseLocationMove;
 use App\Models\WarehouseStock;
 use Illuminate\Database\Seeder;
 
@@ -141,6 +142,45 @@ class WarehouseLocationDemoSeeder extends Seeder
             $locatedProducts += WarehouseStock::where('warehouse_id', $bin->warehouse_id)
                 ->where('product_type_id', $product->id)
                 ->update(['warehouse_location_id' => $bin->id]);
+        }
+
+        if (! WarehouseLocationMove::where('warehouse_id', $warehouses->get('NT-WH-RM')->id)->exists()) {
+            $lot = MaterialLot::where('lot_number', 'NT-RM-DONGFANG-20261124')->first();
+            $mango = WarehouseStock::where('warehouse_id', $warehouses->get('NT-WH-FG')->id)
+                ->whereNotNull('product_type_id')
+                ->with('productType')
+                ->get()
+                ->first(fn (WarehouseStock $stock) => $stock->productType?->code === 'NT-FG-MANGO-SAGO');
+
+            if ($lot && $mango) {
+                WarehouseLocationMove::create([
+                    'warehouse_id' => $lot->warehouse_id,
+                    'from_location_id' => $bins->get('A-03')?->id,
+                    'to_location_id' => $bins->get('A-01')?->id,
+                    'item_type' => WarehouseLocationMove::ITEM_MATERIAL_LOT,
+                    'item_id' => $lot->id,
+                    'item_code' => trim(($lot->material?->code ?? '').' · '.$lot->lot_number, ' ·'),
+                    'item_name' => $lot->material?->name ?? $lot->lot_number,
+                    'quantity' => (float) $lot->quantity_available,
+                    'unit_of_measure' => $lot->unit_of_measure,
+                    'moved_at' => now()->subMinutes(40),
+                    'note' => '盘点结束，凤凰单丛回到叶类茶位',
+                ]);
+
+                WarehouseLocationMove::create([
+                    'warehouse_id' => $mango->warehouse_id,
+                    'from_location_id' => $bins->get('FG-01')?->id,
+                    'to_location_id' => $bins->get('FG-02')?->id,
+                    'item_type' => WarehouseLocationMove::ITEM_PRODUCT_STOCK,
+                    'item_id' => $mango->id,
+                    'item_code' => $mango->productType?->code,
+                    'item_name' => $mango->productType?->name ?? '成品',
+                    'quantity' => (float) $mango->quantity,
+                    'unit_of_measure' => $mango->unit_of_measure,
+                    'moved_at' => now()->subMinutes(15),
+                    'note' => '复核完成，杨枝甘露回到常温成品位',
+                ]);
+            }
         }
 
         $this->command?->info('Warehouse locations seeded: '.count($zones).' zones / '.$bins->count().' bins / '.$assigned.' lots + '.$locatedProducts.' products located');

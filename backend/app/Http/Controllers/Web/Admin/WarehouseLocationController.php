@@ -6,15 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\MaterialLot;
 use App\Models\Warehouse;
 use App\Models\WarehouseLocation;
+use App\Models\WarehouseLocationMove;
 use App\Models\WarehouseStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 /**
- * Read-only location map: zones and bins, and which material lots physically
- * sit in each bin. It deliberately does not move stock; the warehouse balance
- * remains the quantity source of truth.
+ * Location map: zones and bins, the lots/products in each bin, and an audited
+ * whole-item transfer. The transfer only repoints the physical location; the
+ * warehouse balance remains the quantity source of truth.
  */
 class WarehouseLocationController extends Controller
 {
@@ -74,6 +77,7 @@ class WarehouseLocationController extends Controller
 
             $items = $locationLots->map(fn (MaterialLot $lot) => [
                 'id' => 'lot-'.$lot->id,
+                'item_id' => $lot->id,
                 'kind' => 'material',
                 'lot_number' => $lot->lot_number,
                 'material_code' => $lot->material?->code ?? '—',
@@ -87,6 +91,7 @@ class WarehouseLocationController extends Controller
                 'url' => "/admin/material-lots/{$lot->id}",
             ])->concat($locationProducts->map(fn (WarehouseStock $stock) => [
                 'id' => 'product-'.$stock->id,
+                'item_id' => $stock->id,
                 'kind' => 'product',
                 'lot_number' => null,
                 'material_code' => $stock->productType?->code ?? '—',
@@ -171,13 +176,130 @@ class WarehouseLocationController extends Controller
             'unassigned_items' => $unassignedLots + $unassignedProducts,
         ];
 
+        $moves = WarehouseLocationMove::query()
+            ->with(['fromLocation:id,code,name', 'toLocation:id,code,name', 'movedBy:id,name'])
+            ->when($warehouseId > 0, fn ($query) => $query->where('warehouse_id', $warehouseId))
+            ->latest('moved_at')
+            ->latest('id')
+            ->limit(6)
+            ->get()
+            ->map(fn (WarehouseLocationMove $move) => [
+                'id' => $move->id,
+                'item_type' => $move->item_type,
+                'item_type_label' => $move->item_type === WarehouseLocationMove::ITEM_MATERIAL_LOT ? '物料批' : '成品',
+                'item_code' => $move->item_code,
+                'item_name' => $move->item_name,
+                'quantity' => (float) $move->quantity,
+                'uom' => $move->unit_of_measure,
+                'from_code' => $move->fromLocation?->code,
+                'from_name' => $move->fromLocation?->name,
+                'to_code' => $move->toLocation?->code,
+                'to_name' => $move->toLocation?->name,
+                'moved_by' => $move->movedBy?->name ?? '系统',
+                'moved_at' => $move->moved_at?->format('Y-m-d H:i'),
+                'note' => $move->note,
+            ]);
+
         return Inertia::render('admin/warehouses/Locations', [
             'locations' => $rows->values(),
+            'moves' => $moves,
             'summary' => $summary,
             'warehouses' => $warehouses,
             'filters' => [
                 'warehouse' => $warehouseId ?: '',
             ],
         ]);
+    }
+
+    public function move(Request $request)
+    {
+        $data = $request->validate([
+            'item_type' => 'required|in:material_lot,product_stock',
+            'item_id' => 'required|integer|min:1',
+            'to_location_id' => 'required|integer|exists:warehouse_locations,id',
+            'note' => 'nullable|string|max:160',
+        ]);
+
+        $target = WarehouseLocation::query()
+            ->active()
+            ->whereKey($data['to_location_id'])
+            ->first();
+
+        if (! $target || $target->kind !== WarehouseLocation::KIND_BIN) {
+            throw ValidationException::withMessages([
+                'to_location_id' => '目标必须是启用中的库位，不能直接移到库区。',
+            ]);
+        }
+
+        $warehouseId = $target->warehouse_id;
+        $movedBy = $request->user()?->id;
+        $note = trim((string) ($data['note'] ?? ''));
+
+        DB::transaction(function () use ($data, $target, $warehouseId, $movedBy, $note) {
+            $source = null;
+            $snapshot = [];
+
+            if ($data['item_type'] === WarehouseLocationMove::ITEM_MATERIAL_LOT) {
+                $lot = MaterialLot::query()->whereKey($data['item_id'])->lockForUpdate()->first();
+
+                if (! $lot || $lot->warehouse_id !== $warehouseId) {
+                    throw ValidationException::withMessages([
+                        'item_id' => '这个物料批不属于目标仓库。',
+                    ]);
+                }
+
+                $source = $lot->warehouse_location_id;
+                $snapshot = [
+                    'item_type' => WarehouseLocationMove::ITEM_MATERIAL_LOT,
+                    'item_id' => $lot->id,
+                    'item_code' => trim(($lot->material?->code ?? '').' · '.$lot->lot_number, ' ·'),
+                    'item_name' => $lot->material?->name ?? $lot->lot_number,
+                    'quantity' => (float) $lot->quantity_available,
+                    'unit_of_measure' => $lot->unit_of_measure,
+                ];
+            } else {
+                $stock = WarehouseStock::query()->whereKey($data['item_id'])->lockForUpdate()->first();
+
+                if (! $stock || $stock->warehouse_id !== $warehouseId || $stock->product_type_id === null) {
+                    throw ValidationException::withMessages([
+                        'item_id' => '这个成品库存不属于目标仓库。',
+                    ]);
+                }
+
+                $source = $stock->warehouse_location_id;
+                $snapshot = [
+                    'item_type' => WarehouseLocationMove::ITEM_PRODUCT_STOCK,
+                    'item_id' => $stock->id,
+                    'item_code' => $stock->productType?->code,
+                    'item_name' => $stock->productType?->name ?? '成品',
+                    'quantity' => (float) $stock->quantity,
+                    'unit_of_measure' => $stock->unit_of_measure,
+                ];
+            }
+
+            if ($source !== null && (int) $source === (int) $target->id) {
+                throw ValidationException::withMessages([
+                    'to_location_id' => '目标库位与当前库位相同。',
+                ]);
+            }
+
+            if ($data['item_type'] === WarehouseLocationMove::ITEM_MATERIAL_LOT) {
+                MaterialLot::whereKey($data['item_id'])->update(['warehouse_location_id' => $target->id]);
+            } else {
+                WarehouseStock::whereKey($data['item_id'])->update(['warehouse_location_id' => $target->id]);
+            }
+
+            WarehouseLocationMove::create([
+                'warehouse_id' => $warehouseId,
+                'from_location_id' => $source,
+                'to_location_id' => $target->id,
+                ...$snapshot,
+                'moved_by' => $movedBy,
+                'moved_at' => now(),
+                'note' => $note !== '' ? $note : null,
+            ]);
+        });
+
+        return back()->with('success', '库位已调整，库存数量未变。');
     }
 }
