@@ -145,10 +145,31 @@ class WarehouseLocationDemoSeeder extends Seeder
         }
 
         $stockRowAssignments = [
+            'NT-RM-SUGAR' => 'A-03',
+            'NT-RM-FRUIT-GRAPE' => 'A-03',
+            'NT-RM-FRUIT-LEMON' => 'A-03',
+            'NT-RM-DAIRY-CREAM' => 'A-03',
+            'NT-PKG-CUP-700' => 'B-01',
             'NT-PKG-LID-700' => 'B-01',
+            'NT-PKG-STRAW' => 'B-01',
+            'NT-PKG-LABEL' => 'B-02',
+            'NT-PKG-CARTON' => 'B-02',
+        ];
+
+        $stockRowNotes = [
+            'NT-RM-SUGAR' => '糖浆整桶上架到辅料 A 区',
+            'NT-RM-FRUIT-GRAPE' => '果肉整箱上架到辅料 A 区',
+            'NT-RM-FRUIT-LEMON' => '原浆整桶上架到辅料 A 区',
+            'NT-RM-DAIRY-CREAM' => '淡奶油冷藏暂存辅料 A 区',
+            'NT-PKG-CUP-700' => '注塑杯整箱上架到包材 B 区',
+            'NT-PKG-LID-700' => '杯盖整箱上架到包材 B 区',
+            'NT-PKG-STRAW' => '纸吸管整箱上架到包材 B 区',
+            'NT-PKG-LABEL' => '杯身标签上架到标签纸箱位',
+            'NT-PKG-CARTON' => '成品外箱上架到标签纸箱位',
         ];
 
         $locatedStockRows = 0;
+        $locatedStockRowModels = collect();
 
         foreach ($stockRowAssignments as $materialCode => $binCode) {
             $bin = $bins->get($binCode);
@@ -164,6 +185,8 @@ class WarehouseLocationDemoSeeder extends Seeder
 
             if ($stock) {
                 $stock->update(['warehouse_location_id' => $bin->id]);
+                $stock->loadMissing('material');
+                $locatedStockRowModels->put($materialCode, $stock);
                 $locatedStockRows++;
             }
         }
@@ -175,11 +198,7 @@ class WarehouseLocationDemoSeeder extends Seeder
                 ->with('productType')
                 ->get()
                 ->first(fn (WarehouseStock $stock) => $stock->productType?->code === 'NT-FG-MANGO-SAGO');
-            $lidStock = WarehouseStock::where('warehouse_id', $warehouses->get('NT-WH-RM')->id)
-                ->whereNull('product_type_id')
-                ->whereHas('material', fn ($query) => $query->where('code', 'NT-PKG-LID-700'))
-                ->with('material')
-                ->first();
+
 
             $recordMove = function (string $type, $item, ?string $fromCode, string $toCode, int $minutesAgo, string $note) use ($bins) {
                 $toBin = $bins->get($toCode);
@@ -226,7 +245,10 @@ class WarehouseLocationDemoSeeder extends Seeder
             $recordMove(WarehouseLocationMove::ITEM_MATERIAL_LOT, $lot, 'A-03', 'A-01', 50, '盘点结束，凤凰单丛回到叶类茶位');
             $recordMove(WarehouseLocationMove::ITEM_PRODUCT_STOCK, $mango, 'FG-02', 'FG-01', 20, '杨枝甘露临时移入冷藏位，等待发货复核');
             $recordMove(WarehouseLocationMove::ITEM_PRODUCT_STOCK, $mango, 'FG-01', 'FG-02', 10, '复核完成，杨枝甘露回到常温成品位');
-            $recordMove(WarehouseLocationMove::ITEM_MATERIAL_STOCK, $lidStock, null, 'B-01', 5, '杯盖整箱上架到包材 B 区');
+
+            foreach ($stockRowAssignments as $materialCode => $binCode) {
+                $recordMove(WarehouseLocationMove::ITEM_MATERIAL_STOCK, $locatedStockRowModels->get($materialCode), null, $binCode, 5, $stockRowNotes[$materialCode] ?? '账面库存上架到库位');
+            }
         }
 
         $this->command?->info('Warehouse locations seeded: '.count($zones).' zones / '.$bins->count().' bins / '.$assigned.' lots + '.$locatedProducts.' products + '.$locatedStockRows.' stock rows located');
