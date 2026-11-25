@@ -315,7 +315,12 @@ class FiniteScheduler
             $committed->map(fn ($op) => [$op->id, $op->work_order_id, $op->workstation_id, $op->line_id, $iso($op->planned_start_at), $iso($op->planned_end_at), $op->status->value, $op->required_operators])->all(),
             $minutePlanned->map(fn ($o) => [$o->id, $o->line_id, $iso($o->planned_start_at), $iso($o->planned_end_at), $o->product_type_id])->all(),
             ResourceCalendar::maintenanceFor($start, $end)->map(fn ($m) => [$m->id, $m->line_id, $m->workstation_id, $iso($m->scheduled_at), $iso($m->scheduled_end_at), $m->status])->all(),
-            \App\Models\Shift::where('is_active', true)->orderBy('id')->get()->map(fn ($sh) => [$sh->id, $sh->line_id, $sh->start_time, $sh->end_time, $sh->days_of_week])->all(),
+            // A module's line group joins the fingerprint only when there is one,
+            // so drafts generated before groups existed still apply.
+            \App\Models\Shift::where('is_active', true)->orderBy('id')->get()->map(fn ($sh) => [
+                $sh->id, $sh->line_id, $sh->start_time, $sh->end_time, $sh->days_of_week,
+                ...(in_array($sh->coverage()['key'], ['all', 'line:'.$sh->line_id], true) ? [] : [$sh->lineIds()]),
+            ])->all(),
             \App\Models\ChangeoverRule::where('is_active', true)->orderBy('id')->get()->map(fn ($r) => [$r->id, $r->attribute, $r->from_value, $r->to_value, $r->workstation_type_id, $r->workstation_id, $r->setup_minutes])->all(),
             Line::where('is_active', true)->orderBy('id')->get()->map(fn ($l) => [$l->id, (string) $l->planning_efficiency_pct])->all(),
             Workstation::where('is_active', true)->orderBy('id')->get()->map(fn ($w) => [$w->id, $w->line_id, $w->workstation_type_id])->all(),

@@ -1,6 +1,10 @@
 import { __ } from '../../../lib/i18n';
+import { moduleFormFields, moduleFormInitial } from '../../../lib/moduleFields';
 
-export function shiftFields(lines) {
+/** Where an installed module hangs its own fields on this form (HookRegistry). */
+export const SHIFT_FIELDS_HOOK = 'display.admin.shifts.form.fields';
+
+export function shiftFields(lines, hooks = {}) {
     return [
         { name: 'code', label: __('Code'), required: true },
         { name: 'name', label: __('Name'), required: true },
@@ -13,6 +17,7 @@ export function shiftFields(lines) {
                 ...lines.map((l) => ({ value: String(l.id), label: l.name })),
             ],
         },
+        ...moduleFormFields(hooks, SHIFT_FIELDS_HOOK),
         { name: 'start_time', label: __('Start Time'), type: 'time', required: true },
         { name: 'end_time', label: __('End Time'), type: 'time', required: true },
         { name: 'sort_order', label: __('Sort Order'), type: 'number' },
@@ -27,12 +32,14 @@ export function shiftFields(lines) {
  * drawer, so the three can't drift on what a blank field is or how a stored
  * value is coerced for the input that shows it.
  */
-export function shiftInitial(record) {
+export function shiftInitial(record, hooks = {}, options = {}) {
+    const modules = moduleFormInitial(record, hooks, SHIFT_FIELDS_HOOK, options);
     if (!record) {
-        return { code: '', name: '', line_id: '', start_time: '', end_time: '', sort_order: 0, is_active: true };
+        return { code: '', name: '', line_id: '', start_time: '', end_time: '', sort_order: 0, is_active: true, ...modules };
     }
 
     return {
+        ...modules,
         code: record.code ?? '',
         name: record.name ?? '',
         line_id: record.line_id != null ? String(record.line_id) : '',

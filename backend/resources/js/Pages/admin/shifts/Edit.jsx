@@ -5,7 +5,7 @@ import { shiftFields, shiftInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function ShiftEdit() {
-    const { shift, lines = [] } = usePage().props;
+    const { shift, lines = [], hooks = {} } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`${__('Edit')} ${shift.name}`} />
@@ -13,8 +13,8 @@ export default function ShiftEdit() {
             <ResourceForm
                 action={`/admin/shifts/${shift.id}`}
                 method="put"
-                fields={shiftFields(lines)}
-                initial={shiftInitial(shift)}
+                fields={shiftFields(lines, hooks)}
+                initial={shiftInitial(shift, hooks)}
                 submitLabel="Save Changes"
                 cancelHref="/admin/shifts"
             />

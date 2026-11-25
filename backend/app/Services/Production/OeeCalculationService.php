@@ -101,7 +101,7 @@ class OeeCalculationService
         $records = [];
 
         foreach ($lines as $line) {
-            $shifts = Shift::where('line_id', $line->id)->where('is_active', true)->get();
+            $shifts = $this->shiftsSetFor($line);
 
             if ($shifts->isEmpty()) {
                 // No shifts defined → calculate whole day (assume 8h default)
@@ -132,7 +132,7 @@ class OeeCalculationService
         }
 
         // If no specific shift, check if line has shifts defined
-        $shifts = Shift::where('line_id', $line->id)->where('is_active', true)->get();
+        $shifts = $this->shiftsSetFor($line);
 
         if ($shifts->isNotEmpty()) {
             return $shifts->sum(fn ($s) => $this->shiftDurationMinutes($s));
@@ -140,6 +140,17 @@ class OeeCalculationService
 
         // Default: 8 hours
         return 480;
+    }
+
+    /**
+     * The active shifts set for this line — its own, or its group's
+     * (Shift::coverage) — leaving out those that run on every line.
+     */
+    private function shiftsSetFor(Line $line): \Illuminate\Support\Collection
+    {
+        return Shift::where('is_active', true)->get()
+            ->filter(fn (Shift $shift) => $shift->runsOnLine($line->id, plantWide: false))
+            ->values();
     }
 
     private function shiftDurationMinutes(Shift $shift): int

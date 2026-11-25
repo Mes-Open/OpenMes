@@ -252,8 +252,9 @@ class AssignedStaffCapacityProvider implements ExplainsWorkforceCapacity, Workfo
     private function absentBetween(?int $lineId, CarbonInterface $start, CarbonInterface $end): array
     {
         $this->shifts ??= Shift::where('is_active', true)->get();
-        $this->ownCalendar ??= $this->shifts->whereNotNull('line_id')
-            ->mapWithKeys(fn (Shift $s) => [(int) $s->line_id => true])->all();
+        $this->ownCalendar ??= $this->shifts
+            ->flatMap(fn (Shift $s) => $s->lineIds() ?? [])
+            ->mapWithKeys(fn (int $lineId) => [$lineId => true])->all();
         $from = ResourceCalendar::toMinutes($start);
         $to = ResourceCalendar::toMinutes($end);
         $calendar = $lineId !== null && isset($this->ownCalendar[$lineId]) ? (string) $lineId : 'global';

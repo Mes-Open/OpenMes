@@ -132,7 +132,7 @@ final class ShiftOccurrences
      */
     private static function forLine(Collection $shifts, ?int $lineId): Collection
     {
-        return $shifts->filter(fn (Shift $s) => $s->line_id === null || ($lineId !== null && (int) $s->line_id === $lineId));
+        return $shifts->filter(fn (Shift $s) => $s->lineIds() === null || ($lineId !== null && $s->runsOnLine($lineId)));
     }
 
     /**

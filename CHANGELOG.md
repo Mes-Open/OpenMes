@@ -9,6 +9,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **A module can set a shift for a group of lines (one plant's shifts).** A shift with a
+  line still runs on that line, and one without still runs on every line. Through the
+  new `shifts.coverage` filter, a module can narrow a shift with no line to a group of
+  lines. Everything that asks which shift runs on a line goes through one place
+  (`Shift::coverage()` / `runsOnLine()`):
+  - the current shift;
+  - shift windows;
+  - capacity and the finite scheduler;
+  - staffing;
+  - OEE.
+
+  Shifts only clash with shifts set for the same lines. The shift form takes module
+  fields (`display.admin.shifts.form.fields`, `validation.admin.shifts`,
+  `persist.admin.shifts`). The shift list can name such a group in its Line column
+  (`admin.shifts.coverage_column`). Shift validation moved to a Form Request.
+
 - **Extension points for dividing one installation into scopes (several plants).** Core
   still has no notion of a plant. A module can now answer a new `ScopeProvider` contract
   (`App\Extension\Contracts`); without one, nothing changes. The contract covers:
@@ -170,6 +186,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   routing.
 
 ### Changed
+
+- **Modules hear about a change only once it is committed.** `ResourceChanged` now waits for the
+  database commit, as webhooks and live broadcasts already did. A write that is rolled back no
+  longer reaches a module listener, for example a shift refused for overlapping another.
+  Outside a transaction it still fires at once.
 
 - **Flash messages float instead of pushing the page down.** "Step completed.", "Saved." and
   every other message after a redirect now appears as a floating notice, so nothing on the
