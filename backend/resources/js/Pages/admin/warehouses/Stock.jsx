@@ -81,7 +81,7 @@ export default function WarehouseStock() {
                 </div>
 
                 <div className="grid overflow-hidden rounded-om-sm border border-om-line bg-om-card sm:grid-cols-2 xl:grid-cols-4">
-                    <Metric label="在库仓库" value={summary.warehouses ?? 0} sub={warehouses.map((w) => w.name).join(' · ') || '没有启用仓库'} tone="text-om-ink" icon="warehouse" />
+                    <Metric label="启用仓库" value={summary.warehouses ?? 0} sub={warehouses.map((w) => w.name).join(' · ') || '没有启用仓库'} tone="text-om-ink" icon="warehouse" />
                     <Metric label="库存 SKU" value={summary.total ?? 0} sub={`原料 ${summary.material ?? 0} · 包材 ${summary.packaging ?? 0} · 成品 ${summary.product ?? 0}`} tone="text-om-ink" icon="boxes" />
                     <Metric
                         label="库存数量"
