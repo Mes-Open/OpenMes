@@ -57,254 +57,246 @@ export const ICONS = {
  * `alert: true` marks the Alerts item so it can show the badge + red active.
  */
 export const ADMIN_LINKS = [
-    { key: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
-    // A dropdown holding one item is just a link with an extra click, and the
-    // sidebar draws every group below every link — so as a group this could not
-    // sit above Alerts at all. `key` is what gates a top-level link, so it stays
-    // 'schedule': the TabRegistry name, not the label.
-    { key: 'schedule', label: 'Scheduler', href: '/admin/schedule', icon: 'calendar', lucide: 'calendar-days', match: ['/admin/schedule'] },
-    { key: 'alerts', label: 'Alerts', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
-    // The admin's own mount of the shift monitor. Supervisors reach the same
-    // screen at /supervisor/shift-monitor (supervisorNav.js) — each section
-    // links its own URL, so what gates an entry's visibility (here, the
-    // shift_monitor tab) also gates where it leads.
-    {
-        key: 'shift_monitor',
-        label: 'Shift Monitor',
-        href: '/admin/shift-monitor',
-        lucide: 'activity',
-        match: ['/admin/shift-monitor'],
-    },
-    // The plant board. Same `key` — it is the same tab grant, so an admin who
-    // can watch a shift can watch the floor — but its own href, which is what
-    // React keys these by.
-    {
-        key: 'shift_monitor',
-        label: 'Plant Board',
-        href: '/admin/shift-board',
-        lucide: 'layout-grid',
-        match: ['/admin/shift-board'],
-    },
+    { key: 'dashboard', label: '工作台', href: '/admin/dashboard', icon: 'dashboard', match: ['/admin/dashboard'] },
+    { key: 'alerts', label: '预警中心', href: '/admin/alerts', icon: 'bell', match: ['/admin/alerts'], alert: true },
 ];
 
 /**
- * Collapsible groups. `key` is the persisted expand-state id; `match` decides
- * whether the group auto-expands and highlights based on the current path.
+ * 业务流程分组：订单 → 计划 → 采购/来料 → 品控 → 生产 → 仓储。
+ * 支撑功能放在流程组之后，基础档案只在页面内互相引用，不重复占用侧栏。
+ * `key` 保持稳定，模块注入和侧栏展开状态都依赖它。
  */
 export const ADMIN_GROUPS = [
     {
-        key: 'connectivity',
-        order: 10,
-        label: 'Connectivity',
-        icon: 'wifi',
-        lucide: 'wifi',
-        match: ['/admin/connectivity', '/admin/workstation-types', '/admin/workstation-devices'],
-        children: [
-            { label: 'Overview', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true, tab: 'connectivity', lucide: 'radio' },
-            { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'], tab: 'connectivity', lucide: 'antenna' },
-            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], tab: 'connectivity', lucide: 'cable' },
-            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], tab: 'connectivity', lucide: 'plug' },
-            // Its own tab: a supervisor granted only this sees the group with
-            // just this entry (groupVisible) and none of the configuration.
-            { label: 'Machine counters', href: '/admin/connectivity/counters', match: ['/admin/connectivity/counters'], tab: 'machine_counters', lucide: 'gauge' },
-            // The physical end of the same story: what a station is, and which
-            // boxes are enrolled as one. Gated by the structure module, which is
-            // what TabAccessMiddleware checks for these URLs — without the tab
-            // they would show for anyone with Connectivity on and 404 on click.
-            { label: 'Workstation Types', href: '/admin/workstation-types', match: ['/admin/workstation-types'], tab: 'structure', lucide: 'monitor-cog' },
-            { label: 'Workstation Devices', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'], tab: 'structure', lucide: 'monitor' },
-        ],
-    },
-    {
         key: 'orders',
         order: 20,
-        label: 'Orders',
+        label: '订单与工单',
         icon: 'clipboard',
         lucide: 'clipboard-list',
         href: '/admin/work-orders',
-        match: ['/admin/work-orders', '/admin/customers', '/admin/priority-rules'],
+        match: ['/admin/work-orders', '/admin/work-order-change-requests', '/admin/customers', '/admin/priority-rules'],
         children: [
-            { label: 'All Orders', href: '/admin/work-orders', match: ['/admin/work-orders'], tab: 'orders', lucide: 'list' },
-            { label: 'Customers', href: '/admin/customers', match: ['/admin/customers'], tab: 'order_data', lucide: 'users' },
-            { label: 'Priority Settings', href: '/admin/priority-rules', match: ['/admin/priority-rules'], tab: 'order_data', lucide: 'sliders-horizontal' },
+            { label: '全部订单', href: '/admin/work-orders', match: ['/admin/work-orders'], tab: 'orders', lucide: 'list' },
+            { label: '变更与取消', href: '/admin/work-order-change-requests', match: ['/admin/work-order-change-requests'], tab: 'orders', lucide: 'git-pull-request' },
+            { label: '客户档案', href: '/admin/customers', match: ['/admin/customers'], tab: 'order_data', lucide: 'users' },
+            { label: '订单优先级', href: '/admin/priority-rules', match: ['/admin/priority-rules'], tab: 'order_data', lucide: 'sliders-horizontal' },
+        ],
+    },
+    {
+        key: 'planning',
+        order: 25,
+        label: '计划与排程',
+        icon: 'calendar',
+        lucide: 'calendar-days',
+        match: ['/admin/schedule', '/admin/shifts'],
+        children: [
+            { label: '排产计划', href: '/admin/schedule', match: ['/admin/schedule'], tab: 'schedule', lucide: 'calendar-days' },
+            { label: '计划列表', href: '/admin/schedule/list', match: ['/admin/schedule/list'], tab: 'schedule', lucide: 'list' },
+            { label: '产能负荷', href: '/admin/schedule/capacity', match: ['/admin/schedule/capacity'], tab: 'schedule', lucide: 'bar-chart-3' },
+            { label: '自动排产', href: '/admin/schedule/auto', match: ['/admin/schedule/auto'], tab: 'schedule', lucide: 'sparkles' },
+            { label: '人员排班', href: '/admin/schedule/employees', match: ['/admin/schedule/employees'], tab: 'schedule', lucide: 'users-round' },
+            { label: '班次定义', href: '/admin/shifts', match: ['/admin/shifts'], tab: 'production', lucide: 'clock' },
+        ],
+    },
+    {
+        key: 'purchasing',
+        order: 27,
+        label: '采购与来料',
+        icon: 'cube',
+        lucide: 'truck',
+        match: ['/admin/purchasing', '/admin/net-requirements', '/admin/companies'],
+        children: [
+            { label: '净需求与缺口', href: '/admin/net-requirements', match: ['/admin/net-requirements'], tab: 'advanced_reports', lucide: 'clipboard-list' },
+            { label: '到货登记', href: '/admin/purchasing/receipts', match: ['/admin/purchasing/receipts'], tab: 'purchasing', lucide: 'package-check' },
+            { label: '供应商与往来单位', href: '/admin/companies', match: ['/admin/companies'], tab: 'companies', lucide: 'building-2' },
+        ],
+    },
+    {
+        key: 'quality',
+        order: 29,
+        label: '品控',
+        icon: 'shield',
+        lucide: 'badge-check',
+        match: ['/admin/quality', '/admin/inspection-plans', '/admin/quality-control-triggers', '/admin/issues', '/admin/coa', '/admin/supplier-quality', '/admin/tea-bases', '/admin/flower-lots', '/admin/blend-formulas', '/admin/sensory', '/admin/customer-flavor-standards', '/admin/scrap-reasons'],
+        children: [
+            { key: 'qualityExecution', label: '检验与放行', lucide: 'clipboard-check', match: ['/admin/quality', '/admin/inspection-plans', '/admin/quality-control-triggers', '/admin/issues', '/admin/coa', '/admin/supplier-quality'], children: [
+                { label: '质量指挥台', href: '/admin/quality', match: ['/admin/quality'], tab: 'quality', lucide: 'gauge' },
+                { label: '来料检验计划', href: '/admin/inspection-plans', match: ['/admin/inspection-plans'], tab: 'quality', lucide: 'clipboard-check' },
+                { label: '质检触发', href: '/admin/quality-control-triggers', match: ['/admin/quality-control-triggers'], tab: 'quality', lucide: 'zap' },
+                { label: '质量异常', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
+                { label: 'COA 与放行', href: '/admin/coa', match: ['/admin/coa'], tab: 'quality', lucide: 'file-check' },
+                { label: '供应商质量', href: '/admin/supplier-quality', match: ['/admin/supplier-quality'], tab: 'quality', lucide: 'building-2' },
+            ] },
+            { key: 'qualityStandards', label: '原料与感官', lucide: 'flask-conical', match: ['/admin/tea-bases', '/admin/flower-lots', '/admin/blend-formulas', '/admin/sensory', '/admin/customer-flavor-standards'], children: [
+                { label: '茶底档案', href: '/admin/tea-bases', match: ['/admin/tea-bases'], tab: 'quality', lucide: 'archive' },
+                { label: '鲜花批次', href: '/admin/flower-lots', match: ['/admin/flower-lots'], tab: 'quality', lucide: 'timer' },
+                { label: '拼配版本', href: '/admin/blend-formulas', match: ['/admin/blend-formulas'], tab: 'quality', lucide: 'layers' },
+                { label: '感官盲评', href: '/admin/sensory', match: ['/admin/sensory'], tab: 'quality', lucide: 'eye' },
+                { label: '客户风味标准', href: '/admin/customer-flavor-standards', match: ['/admin/customer-flavor-standards'], tab: 'quality', lucide: 'book-open' },
+            ] },
+            { label: '报废原因', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
         ],
     },
     {
         key: 'production',
         order: 30,
-        label: 'Production',
+        label: '生产制造',
         icon: 'beaker',
         lucide: 'factory',
-        match: [
-            '/admin/product-types', '/admin/product-revisions', '/admin/traceability',
-            '/admin/lot-sequences', '/admin/process-segments', '/admin/lines',
-            '/admin/line-statuses', '/admin/view-templates', '/admin/shifts',
-            '/admin/issues', '/admin/scrap-reasons', '/packaging/eans', '/packaging/station',
-            '/packaging/label-templates', '/admin/work-order-change-requests', '/admin/coa',
-            '/admin/customer-flavor-standards',
-        ],
+        match: ['/admin/shift-monitor', '/admin/shift-board', '/admin/machine-monitor', '/admin/lines', '/admin/line-statuses', '/admin/view-templates', '/admin/product-types', '/admin/product-revisions', '/admin/process-segments', '/admin/lot-sequences', '/packaging/station', '/packaging/label-templates', '/packaging/eans', '/admin/downtime-reasons'],
         children: [
-            // Process templates, their BOMs and engineering documents all hang
-            // off a specific product type — there is no standalone list to link,
-            // so the product type is the way in to all three.
-            { label: 'Product Types', href: '/admin/product-types', match: ['/admin/product-types'], lucide: 'box' },
-            // The reviewer's queue: changes and cancellations of running orders,
-            // including the ones an ERP sends. Same `orders` tab as the review page.
-            { label: 'Change requests', href: '/admin/work-order-change-requests', match: ['/admin/work-order-change-requests'], tab: 'orders', lucide: 'git-pull-request' },
-            { label: 'Packing station', href: '/packaging/station', match: ['/packaging/station'], lucide: 'package' },
-            { label: 'Label Templates', href: '/packaging/label-templates', match: ['/packaging/label-templates'], lucide: 'tag' },
-            { label: 'EAN Management', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
-            { label: 'Product Revisions', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
-            { label: 'Traceability', href: '/admin/traceability', match: ['/admin/traceability'], tab: 'materials', lucide: 'route' },
-            { label: 'LOT Sequences', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], lucide: 'hash' },
-            { label: 'Process Segments', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
-            {
-                key: 'linesGroup',
-                label: 'Production Lines',
-                lucide: 'factory',
-                match: ['/admin/lines', '/admin/line-statuses', '/admin/view-templates'],
-                children: [
-                    { label: 'All Production Lines', href: '/admin/lines', match: ['/admin/lines'], lucide: 'list' },
-                    { label: 'Line Statuses', href: '/admin/line-statuses', match: ['/admin/line-statuses'], lucide: 'activity' },
-                    { label: 'View Templates', href: '/admin/view-templates', match: ['/admin/view-templates'], lucide: 'layout-template' },
-                ],
-            },
-            // Shift definitions. OEE, downtime, scrap and the shift monitor all
-            // read their windows through Support\ShiftWindow, so a system with no
-            // way to define them falls back to a fixed 06:00/18:00 split.
-            { label: 'Shifts', href: '/admin/shifts', match: ['/admin/shifts'], lucide: 'clock' },
-            // What the shop floor reported, and what an operator picks from when
-            // reporting it. Both governed by the quality tab, not Production.
-            { label: 'Issues', href: '/admin/issues', match: ['/admin/issues'], tab: 'quality', lucide: 'circle-alert' },
-            { label: '来料检验计划', href: '/admin/inspection-plans', match: ['/admin/inspection-plans'], tab: 'quality', lucide: 'clipboard-check' },
-            { label: '供应商质量', href: '/admin/supplier-quality', match: ['/admin/supplier-quality'], tab: 'quality', lucide: 'building-2' },
-            { label: '客户风味标准', href: '/admin/customer-flavor-standards', match: ['/admin/customer-flavor-standards'], tab: 'quality', lucide: 'book-open' },
-            { label: '质量指挥台', href: '/admin/quality', match: ['/admin/quality'], tab: 'quality', lucide: 'gauge' },
-            { label: '茶底档案', href: '/admin/tea-bases', match: ['/admin/tea-bases'], tab: 'quality', lucide: 'archive' },
-            { label: '鲜花批次', href: '/admin/flower-lots', match: ['/admin/flower-lots'], tab: 'quality', lucide: 'timer' },
-            { label: '拼配版本', href: '/admin/blend-formulas', match: ['/admin/blend-formulas'], tab: 'quality', lucide: 'layers' },
-            { label: '感官盲评', href: '/admin/sensory', match: ['/admin/sensory'], tab: 'quality', lucide: 'eye' },
-            { label: 'COA 与放行', href: '/admin/coa', match: ['/admin/coa'], tab: 'quality', lucide: 'file-check' },
-            { label: 'Scrap Reasons', href: '/admin/scrap-reasons', match: ['/admin/scrap-reasons'], tab: 'quality', lucide: 'file-x' },
-            // What an operator picks from when a machine stops. Feeds OEE
-            // availability, so it sits with the other shop-floor dictionaries.
-            { label: 'Downtime Reasons', href: '/admin/downtime-reasons', match: ['/admin/downtime-reasons'], tab: 'quality', lucide: 'octagon-pause' },
-        ],
-    },
-    {
-        // Personnel records. The optional workforce module fills this out with
-        // crews, absences, skills and wage groups; on its own core knows only
-        // who works here.
-        key: 'hr',
-        order: 35,
-        label: 'HR',
-        icon: 'hr',
-        lucide: 'users-round',
-        match: ['/admin/workers'],
-        children: [
-            { label: 'Workers', href: '/admin/workers', match: ['/admin/workers'], lucide: 'contact' },
+            { label: '班次监控', href: '/admin/shift-monitor', match: ['/admin/shift-monitor'], tab: 'shift_monitor', lucide: 'activity' },
+            { label: '工厂看板', href: '/admin/shift-board', match: ['/admin/shift-board'], tab: 'shift_monitor', lucide: 'layout-grid' },
+            { label: '设备监控', href: '/admin/machine-monitor', match: ['/admin/machine-monitor'], tab: 'connectivity', lucide: 'monitor' },
+            { key: 'productionProcess', label: '产线与工艺', lucide: 'factory', match: ['/admin/lines', '/admin/line-statuses', '/admin/view-templates', '/admin/product-types', '/admin/product-revisions', '/admin/process-segments', '/admin/lot-sequences'], children: [
+                { label: '产线管理', href: '/admin/lines', match: ['/admin/lines'], tab: 'production', lucide: 'factory' },
+                { label: '产线状态', href: '/admin/line-statuses', match: ['/admin/line-statuses'], tab: 'production', lucide: 'activity' },
+                { label: '视图模板', href: '/admin/view-templates', match: ['/admin/view-templates'], tab: 'production', lucide: 'layout-template' },
+                { label: '产品类型', href: '/admin/product-types', match: ['/admin/product-types'], tab: 'production', lucide: 'box' },
+                { label: '产品版本', href: '/admin/product-revisions', match: ['/admin/product-revisions'], tab: 'product_engineering', lucide: 'git-branch' },
+                { label: '工序段', href: '/admin/process-segments', match: ['/admin/process-segments'], tab: 'product_engineering', lucide: 'workflow' },
+                { label: '批号序列', href: '/admin/lot-sequences', match: ['/admin/lot-sequences'], tab: 'production', lucide: 'hash' },
+            ] },
+            { key: 'packagingGroup', label: '包装与标签', lucide: 'package', match: ['/packaging/station', '/packaging/label-templates', '/packaging/eans'], children: [
+                { label: '包装工位', href: '/packaging/station', match: ['/packaging/station'], lucide: 'package' },
+                { label: '标签模板', href: '/packaging/label-templates', match: ['/packaging/label-templates'], lucide: 'tag' },
+                { label: 'EAN 管理', href: '/packaging/eans', match: ['/packaging/eans'], lucide: 'barcode' },
+            ] },
+            { label: '停机原因', href: '/admin/downtime-reasons', match: ['/admin/downtime-reasons'], tab: 'quality', lucide: 'octagon-pause' },
         ],
     },
     {
         key: 'warehouses',
         order: 40,
         tab: 'warehouse',
-        label: 'Warehouses',
+        label: '仓储与物流',
         icon: 'cube',
         lucide: 'warehouse',
-        // The stock screens themselves ship as a module; what stays here is
-        // the material catalogue, which production needs on its own.
         match: ['/admin/materials', '/admin/material-types', '/admin/material-lots', '/admin/pallets', '/admin/warehouses'],
         children: [
-            { label: 'Materials', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
-            { label: 'Material Types', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
-            { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
-            // Finished goods leave the plant on pallets: closing, quality and shipping live here.
-            { label: 'Pallets', href: '/admin/pallets', match: ['/admin/pallets'], tab: 'packaging', lucide: 'container' },
-            { label: '库位', href: '/admin/warehouses/locations', match: ['/admin/warehouses/locations'], tab: 'warehouse', lucide: 'map-pin' },
             { label: '库存台账', href: '/admin/warehouses/stock', match: ['/admin/warehouses/stock'], tab: 'warehouse', lucide: 'archive' },
+            { key: 'locationGroup', label: '库位与移库', lucide: 'map-pin', match: ['/admin/warehouses/locations'], children: [
+                { label: '库位管理', href: '/admin/warehouses/locations', match: ['/admin/warehouses/locations'], tab: 'warehouse', lucide: 'map-pin' },
+                { label: '库位对账', href: '/admin/warehouses/locations/reconcile', match: ['/admin/warehouses/locations/reconcile'], tab: 'warehouse', lucide: 'scale' },
+                { label: '移库记录', href: '/admin/warehouses/locations/moves', match: ['/admin/warehouses/locations/moves'], tab: 'warehouse', lucide: 'arrow-left-right' },
+                { label: '库位标签', href: '/admin/warehouses/locations/labels', match: ['/admin/warehouses/locations/labels'], tab: 'warehouse', lucide: 'tag' },
+            ] },
+            { key: 'materialGroup', label: '物料档案', lucide: 'boxes', match: ['/admin/materials', '/admin/material-types', '/admin/material-lots'], children: [
+                { label: '物料档案', href: '/admin/materials', match: ['/admin/materials'], tab: 'materials', lucide: 'boxes' },
+                { label: '物料类型', href: '/admin/material-types', match: ['/admin/material-types'], tab: 'materials', lucide: 'tag' },
+                { label: '物料批次', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
+            ] },
             { label: '标签平衡', href: '/admin/warehouses', match: ['/admin/warehouses'], exact: true, tab: 'warehouse', lucide: 'scale' },
+            { label: '托盘管理', href: '/admin/pallets', match: ['/admin/pallets'], tab: 'packaging', lucide: 'container' },
         ],
     },
     {
-        key: 'reports',
-        order: 50,
-        label: 'Analytics',
-        icon: 'chart',
-        lucide: 'chart-column',
-        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/oee'],
+        key: 'connectivity',
+        order: 60,
+        label: '设备与采集',
+        icon: 'wifi',
+        lucide: 'wifi',
+        match: ['/admin/connectivity', '/admin/workstation-types', '/admin/workstation-devices'],
         children: [
-            { label: 'Work Order History', href: '/admin/reports', match: ['/admin/reports'], tab: 'reports', lucide: 'history' },
-            { label: 'Production Cost Report', href: '/admin/cost-reports', match: ['/admin/cost-reports'], tab: 'advanced_reports', lucide: 'banknote' },
-            { label: 'Scrap Reports', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'], tab: 'advanced_reports', lucide: 'trash-2' },
-            // Reads the same shift windows as the monitor, but it is the
-            // maintenance module that owns the tab governing this URL.
-            { label: 'OEE Report', href: '/admin/oee', match: ['/admin/oee'], tab: 'maintenance', lucide: 'gauge' },
+            { label: '采集总览', href: '/admin/connectivity', match: ['/admin/connectivity'], exact: true, tab: 'connectivity', lucide: 'radio' },
+            { label: 'MQTT', href: '/admin/connectivity/mqtt', match: ['/admin/connectivity/mqtt'], tab: 'connectivity', lucide: 'antenna' },
+            { label: 'Modbus', href: '/admin/connectivity/modbus', match: ['/admin/connectivity/modbus'], tab: 'connectivity', lucide: 'cable' },
+            { label: 'OPC UA', href: '/admin/connectivity/opcua', match: ['/admin/connectivity/opcua'], tab: 'connectivity', lucide: 'plug' },
+            { label: '设备计数', href: '/admin/connectivity/counters', match: ['/admin/connectivity/counters'], tab: 'machine_counters', lucide: 'gauge' },
+            { label: '工位类型', href: '/admin/workstation-types', match: ['/admin/workstation-types'], tab: 'structure', lucide: 'monitor-cog' },
+            { label: '工位设备', href: '/admin/workstation-devices', match: ['/admin/workstation-devices'], tab: 'structure', lucide: 'monitor' },
+        ],
+    },
+    {
+        key: 'hr',
+        order: 65,
+        tab: 'hr',
+        label: '人力资源',
+        icon: 'hr',
+        lucide: 'users-round',
+        match: ['/admin/workers'],
+        children: [
+            { label: '员工档案', href: '/admin/workers', match: ['/admin/workers'], lucide: 'contact' },
         ],
     },
     {
         key: 'maintenance',
         order: 70,
-        label: 'Maintenance',
+        tab: 'maintenance',
+        label: '设备运维',
         icon: 'cog',
         lucide: 'wrench',
         match: ['/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/calibrations'],
         children: [
-            { label: 'Maintenance Events', href: '/admin/maintenance-events', match: ['/admin/maintenance-events'], lucide: 'calendar-clock' },
-            { label: 'Maintenance Schedules', href: '/admin/maintenance-schedules', match: ['/admin/maintenance-schedules'], lucide: 'calendar-check' },
-            { label: 'Tools', href: '/admin/tools', match: ['/admin/tools'], lucide: 'wrench' },
+            { label: '保养事件', href: '/admin/maintenance-events', match: ['/admin/maintenance-events'], lucide: 'calendar-clock' },
+            { label: '保养计划', href: '/admin/maintenance-schedules', match: ['/admin/maintenance-schedules'], lucide: 'calendar-check' },
+            { label: '工具管理', href: '/admin/tools', match: ['/admin/tools'], lucide: 'wrench' },
             { label: '设备校准', href: '/admin/calibrations', match: ['/admin/calibrations'], lucide: 'gauge' },
+        ],
+    },
+    {
+        key: 'reports',
+        order: 75,
+        label: '报表与绩效',
+        icon: 'chart',
+        lucide: 'chart-column',
+        match: ['/admin/reports', '/admin/cost-reports', '/admin/scrap-reports', '/admin/non-conformance-reports', '/admin/oee'],
+        children: [
+            { label: '工单历史', href: '/admin/reports', match: ['/admin/reports'], tab: 'reports', lucide: 'history' },
+            { label: '生产成本', href: '/admin/cost-reports', match: ['/admin/cost-reports'], tab: 'advanced_reports', lucide: 'banknote' },
+            { label: '报废分析', href: '/admin/scrap-reports', match: ['/admin/scrap-reports'], tab: 'advanced_reports', lucide: 'trash-2' },
+            { label: '不合格分析', href: '/admin/non-conformance-reports', match: ['/admin/non-conformance-reports'], tab: 'advanced_reports', lucide: 'file-warning' },
+            { label: 'OEE 报表', href: '/admin/oee', match: ['/admin/oee'], tab: 'maintenance', lucide: 'gauge' },
         ],
     },
     {
         key: 'webhooks',
         order: 90,
-        label: 'Webhooks',
+        tab: 'webhooks',
+        label: '系统集成',
         icon: 'webhook',
         lucide: 'webhook',
-        match: ['/admin/webhooks'],
+        match: ['/admin/webhooks', '/admin/integrations'],
         children: [
-            { label: 'Endpoints', href: '/admin/webhooks', match: ['/admin/webhooks'], lucide: 'webhook' },
+            { label: 'Webhooks', href: '/admin/webhooks', match: ['/admin/webhooks'], lucide: 'webhook' },
+            { label: '接口配置', href: '/admin/integrations', match: ['/admin/integrations'], lucide: 'plug' },
         ],
     },
     {
         key: 'adminGroup',
         order: 100,
         tab: 'admin',
-        label: 'Admin',
+        label: '系统管理',
         icon: 'shield',
         lucide: 'shield',
         match: ['/admin/users', '/admin/logs', '/admin/audit-logs', '/admin/import', '/admin/trash'],
         children: [
-            { label: 'Users & Accounts', href: '/admin/users', match: ['/admin/users'], lucide: 'users' },
-            { label: 'Activity Logs', href: '/admin/logs/activity', match: ['/admin/logs/activity'], lucide: 'scroll-text' },
-            { label: 'System Logs', href: '/admin/logs/system', match: ['/admin/logs/system'], lucide: 'file-text' },
-            { label: 'Audit Logs', href: '/admin/audit-logs', match: ['/admin/audit-logs'], lucide: 'file-search' },
-            // Unified importer — its own tab so it can be granted without the rest of Admin.
-            { label: 'Import', href: '/admin/import', match: ['/admin/import'], tab: 'import', lucide: 'file-up' },
-            { label: 'Trash', href: '/admin/trash', match: ['/admin/trash'], lucide: 'trash-2' },
+            { label: '用户与账号', href: '/admin/users', match: ['/admin/users'], lucide: 'users' },
+            { label: '活动日志', href: '/admin/logs/activity', match: ['/admin/logs/activity'], lucide: 'scroll-text' },
+            { label: '系统日志', href: '/admin/logs/system', match: ['/admin/logs/system'], lucide: 'file-text' },
+            { label: '审计日志', href: '/admin/audit-logs', match: ['/admin/audit-logs'], lucide: 'file-search' },
+            { label: '数据导入', href: '/admin/import', match: ['/admin/import'], tab: 'import', lucide: 'file-up' },
+            { label: '回收站', href: '/admin/trash', match: ['/admin/trash'], lucide: 'trash-2' },
         ],
     },
     {
         key: 'modulesGroup',
         order: 110,
         tab: 'modules',
-        label: 'Modules',
+        label: '模块管理',
         icon: 'packaging',
         lucide: 'blocks',
         href: '/admin/modules',
         match: ['/admin/modules'],
         children: [
-            { label: 'Installed Modules', href: '/admin/modules', match: ['/admin/modules'], exact: true, lucide: 'blocks' },
+            { label: '已安装模块', href: '/admin/modules', match: ['/admin/modules'], exact: true, lucide: 'blocks' },
         ],
     },
     {
         key: 'settings',
         order: 120,
-        // Not a feature module: profile, password and 2FA belong to whoever is
-        // logged in, so this one is not gated behind an enabled-module tab.
         alwaysVisible: true,
-        label: 'Settings',
+        label: '设置',
         icon: 'settings',
         lucide: 'settings',
         href: '/settings',
@@ -312,27 +304,25 @@ export const ADMIN_GROUPS = [
         children: [
             {
                 key: 'systemSettingsGroup',
-                label: 'System Settings',
+                label: '系统设置',
                 lucide: 'sliders-horizontal',
                 match: ['/settings/system'],
-                // One page, six panels. The panel is chosen by ?tab=, so each entry
-                // deep-links straight into its own section (System.jsx reads it).
                 children: [
-                    { label: 'General', href: '/settings/system?tab=general', query: 'general', match: ['/settings/system'], lucide: 'settings' },
-                    { label: 'Production', href: '/settings/system?tab=production', query: 'production', match: ['/settings/system'], lucide: 'factory' },
-                    { label: 'Schedule', href: '/settings/system?tab=schedule', query: 'schedule', match: ['/settings/system'], lucide: 'calendar-days' },
-                    { label: 'Security', href: '/settings/system?tab=security', query: 'security', match: ['/settings/system'], lucide: 'shield' },
-                    { label: 'Modules', href: '/settings/system?tab=modules', query: 'modules', match: ['/settings/system'], lucide: 'blocks' },
-                    { label: 'Data', href: '/settings/system?tab=data', query: 'data', match: ['/settings/system'], lucide: 'database' },
+                    { label: '常规', href: '/settings/system?tab=general', query: 'general', match: ['/settings/system'], lucide: 'settings' },
+                    { label: '生产', href: '/settings/system?tab=production', query: 'production', match: ['/settings/system'], lucide: 'factory' },
+                    { label: '排程', href: '/settings/system?tab=schedule', query: 'schedule', match: ['/settings/system'], lucide: 'calendar-days' },
+                    { label: '安全', href: '/settings/system?tab=security', query: 'security', match: ['/settings/system'], lucide: 'shield' },
+                    { label: '模块', href: '/settings/system?tab=modules', query: 'modules', match: ['/settings/system'], lucide: 'blocks' },
+                    { label: '数据', href: '/settings/system?tab=data', query: 'data', match: ['/settings/system'], lucide: 'database' },
                 ],
             },
-            { label: 'API Keys', href: '/settings/api-tokens', match: ['/settings/api-tokens'], lucide: 'key' },
-            { label: 'Custom Fields', href: '/admin/custom-fields', match: ['/admin/custom-fields'], lucide: 'list-plus' },
-            { label: 'Units of Measure', href: '/admin/unit-aliases', match: ['/admin/unit-aliases'], lucide: 'ruler' },
-            { label: 'Tab Access', href: '/settings/access', match: ['/settings/access'], lucide: 'lock' },
-            { label: 'Profile', href: '/settings/profile', match: ['/settings/profile'], lucide: 'user-round' },
-            { label: 'Change Password', href: '/settings/change-password', match: ['/settings/change-password'], lucide: 'key-round' },
-            { label: 'Two-Factor Authentication', href: '/settings/two-factor/enable', match: ['/settings/two-factor'], lucide: 'smartphone' },
+            { label: 'API 密钥', href: '/settings/api-tokens', match: ['/settings/api-tokens'], lucide: 'key' },
+            { label: '自定义字段', href: '/admin/custom-fields', match: ['/admin/custom-fields'], lucide: 'list-plus' },
+            { label: '单位换算', href: '/admin/unit-aliases', match: ['/admin/unit-aliases'], lucide: 'ruler' },
+            { label: '权限矩阵', href: '/settings/access', match: ['/settings/access'], lucide: 'lock' },
+            { label: '个人资料', href: '/settings/profile', match: ['/settings/profile'], lucide: 'user-round' },
+            { label: '修改密码', href: '/settings/change-password', match: ['/settings/change-password'], lucide: 'key-round' },
+            { label: '双重验证', href: '/settings/two-factor/enable', match: ['/settings/two-factor'], lucide: 'smartphone' },
         ],
     },
 ];

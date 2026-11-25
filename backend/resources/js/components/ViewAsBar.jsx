@@ -15,9 +15,14 @@ import { __ } from '../lib/i18n';
  * fewer rights, or a missing button for a missing permission.
  */
 const VIEWS = [
-    { key: 'admin', label: 'Administrator' },
-    { key: 'supervisor', label: 'Supervisor' },
-    { key: 'operator', label: 'Operator' },
+    { key: 'admin', label: '管理员' },
+    { key: 'planner', label: '计划' },
+    { key: 'purchasing', label: '采购' },
+    { key: 'quality', label: '品控' },
+    { key: 'production', label: '生产' },
+    { key: 'warehouse', label: '仓管' },
+    { key: 'supervisor', label: '主管' },
+    { key: 'operator', label: '操作工' },
 ];
 
 export default function ViewAsBar() {

@@ -26,7 +26,29 @@ final class ViewAs
 
     public const OPERATOR = 'operator';
 
-    public const VIEWS = [self::ADMIN, self::SUPERVISOR, self::OPERATOR];
+    public const PLANNER = 'planner';
+
+    public const PURCHASING = 'purchasing';
+
+    public const QUALITY = 'quality';
+
+    public const PRODUCTION = 'production';
+
+    public const WAREHOUSE = 'warehouse';
+
+    public const VIEWS = [
+        self::ADMIN, self::PLANNER, self::PURCHASING, self::QUALITY,
+        self::PRODUCTION, self::WAREHOUSE, self::SUPERVISOR, self::OPERATOR,
+    ];
+
+    /** Functional views mapped to the role whose tab grants drive the preview. */
+    private const ROLE_BY_VIEW = [
+        self::PLANNER => 'Planner',
+        self::PURCHASING => 'Purchasing',
+        self::QUALITY => 'QA',
+        self::PRODUCTION => 'Production',
+        self::WAREHOUSE => 'Warehouse',
+    ];
 
     /** May this user switch views at all? Server-side: the bar is never sent otherwise. */
     public static function available(?object $user): bool
@@ -44,6 +66,20 @@ final class ViewAs
         $view = $request->hasSession() ? $request->session()->get(self::SESSION_KEY) : null;
 
         return in_array($view, self::VIEWS, true) ? $view : self::ADMIN;
+    }
+
+    /**
+     * Admin-tab set for a functional role preview. Null means the caller should
+     * keep using the signed-in administrator's tabs (admin/supervisor/operator).
+     *
+     * @return array<int, string>|null
+     */
+    public static function tabsForCurrent(Request $request): ?array
+    {
+        $view = self::current($request);
+        $role = $view !== null ? (self::ROLE_BY_VIEW[$view] ?? null) : null;
+
+        return $role !== null ? TabRegistry::accessibleForRole($role) : null;
     }
 
     /** Where switching to a view takes the administrator. */

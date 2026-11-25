@@ -22,6 +22,7 @@ use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 // Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
+use App\Http\Controllers\Web\Admin\MaterialReceiptController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\PalletController as AdminPalletController;
@@ -549,6 +550,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/update/apply', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'apply'])->name('update.apply');
         Route::get('/update/status', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'status'])->name('update.status');
         Route::get('/update/history', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'history'])->name('update.history');
+
+        // Purchasing & receiving workbench. Manual receipts post through the
+        // same service as the material page but stay scoped to the purchasing
+        // tab; a clerk does not need the whole material master to register an
+        // arrival.
+        Route::get('/purchasing/receipts', [MaterialReceiptController::class, 'index'])->name('purchasing.receipts.index');
+        Route::post('/purchasing/receipts', [MaterialReceiptController::class, 'store'])->name('purchasing.receipts.store');
 
         // Schedule (planner is the main view; list is a secondary overview)
         Route::get('/schedule/list', [ScheduleController::class, 'index'])->name('schedule.list');

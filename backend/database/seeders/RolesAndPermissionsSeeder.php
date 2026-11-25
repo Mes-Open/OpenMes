@@ -154,9 +154,53 @@ class RolesAndPermissionsSeeder extends Seeder
         // reason codes) so a QA lead can approve/issue COAs without full Admin.
         $qaRole = Role::firstOrCreate(['name' => 'QA', 'guard_name' => 'web']);
         $qaRole->syncPermissions(array_merge($keepGranted($qaRole), [
-            'tab:quality',
+            'tab:dashboard', 'tab:alerts', 'tab:quality', 'tab:orders',
             'view work orders', 'view products', 'view lines',
             'view issues', 'create issues',
+        ]));
+
+        // Planner — plans the schedule from the order pool. The net-requirements
+        // screen retains its advanced_reports tab, so the planner gets that tab
+        // rather than moving the route out from under the report module.
+        $plannerRole = Role::firstOrCreate(['name' => 'Planner', 'guard_name' => 'web']);
+        $plannerRole->syncPermissions(array_merge($keepGranted($plannerRole), [
+            'tab:dashboard', 'tab:alerts', 'tab:orders', 'tab:order_data', 'tab:schedule',
+            'tab:production', 'tab:advanced_reports',
+            'view work orders', 'create work orders', 'edit work orders',
+            'view lines', 'view products', 'view process templates',
+        ]));
+
+        // Purchasing — owns supplier data and the receiving workbench. Warehouse
+        // and materials tabs are read context for checking stock and lots; the
+        // receiving POST itself is gated by tab:purchasing.
+        $purchasingRole = Role::firstOrCreate(['name' => 'Purchasing', 'guard_name' => 'web']);
+        $purchasingRole->syncPermissions(array_merge($keepGranted($purchasingRole), [
+            'tab:dashboard', 'tab:alerts', 'tab:purchasing', 'tab:companies',
+            'tab:advanced_reports', 'tab:warehouse', 'tab:materials',
+            'view work orders', 'view companies', 'view products',
+        ]));
+
+        // Production — line supervision without the full Admin panel. Quality is
+        // included for issue disposition and reason codes; connectivity covers
+        // the machine monitor but not gateway configuration.
+        $productionRole = Role::firstOrCreate(['name' => 'Production', 'guard_name' => 'web']);
+        $productionRole->syncPermissions(array_merge($keepGranted($productionRole), [
+            'tab:dashboard', 'tab:alerts', 'tab:orders', 'tab:schedule', 'tab:production',
+            'tab:shift_monitor', 'tab:quality', 'tab:connectivity',
+            'view work orders', 'create work orders', 'edit work orders', 'approve work order changes',
+            'view lines', 'view products', 'view process templates',
+            'start batch step', 'complete batch step',
+            'view issues', 'create issues', 'assign issues', 'resolve issues', 'close issues',
+            'view production anomalies', 'manage production anomalies',
+        ]));
+
+        // Warehouse — stock, bins, labels and receiving. No lot release: that
+        // remains a QA disposition.
+        $warehouseRole = Role::firstOrCreate(['name' => 'Warehouse', 'guard_name' => 'web']);
+        $warehouseRole->syncPermissions(array_merge($keepGranted($warehouseRole), [
+            'tab:dashboard', 'tab:alerts', 'tab:warehouse', 'tab:purchasing',
+            'tab:materials', 'tab:packaging',
+            'view work orders', 'view products',
         ]));
 
         // Operator — minimal: view queue + execute steps + report issues

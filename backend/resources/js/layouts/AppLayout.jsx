@@ -297,6 +297,10 @@ function useNavTree() {
     // Which admin tabs this user may open (#144) — role grants and enabled
     // modules, resolved server-side.
     const allowedTabs = page.props.auth?.user?.accessibleTabs;
+    // Admin role preview overrides the admin tab set without changing real
+    // permissions. The backend sends the preview role's tabs only while an
+    // administrator is previewing; null means "use the signed-in user's tabs".
+    const viewAsTabs = page.props.viewAsTabs;
     // Optional feature modules this install has switched on.
     const enabledModules = page.props.enabledModules;
 
@@ -318,9 +322,12 @@ function useNavTree() {
         return {
             links: ADMIN_LINKS,
             groups: mergeModuleNav(moduleNav),
-            showTab: (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key),
+            showTab: (key) => {
+                const tabs = Array.isArray(viewAsTabs) ? viewAsTabs : allowedTabs;
+                return ! Array.isArray(tabs) || ! key || tabs.includes(key);
+            },
         };
-    }, [isAdmin, isSupervisor, viewAs, moduleNav, allowedTabs, enabledModules]);
+    }, [isAdmin, isSupervisor, viewAs, moduleNav, allowedTabs, viewAsTabs, enabledModules]);
 }
 
 export default function AppLayout({ children }) {

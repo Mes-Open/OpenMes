@@ -8,7 +8,13 @@ class ReceiveMaterialRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('Admin') ?? false;
+        $user = $this->user();
+
+        return $user !== null && (
+            $user->hasRole('Admin')
+            || $user->can('tab:materials')
+            || $user->can('tab:warehouse')
+        );
     }
 
     public function rules(): array
