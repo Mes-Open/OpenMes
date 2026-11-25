@@ -219,6 +219,75 @@ class ShiftCoverageTest extends TestCase
         $this->assertCount(1, Storage::allFiles());
     }
 
+    public function test_a_module_hears_each_write_as_it_was_even_after_a_later_save(): void
+    {
+        $shift = $this->shift('DAY', '06:00', '14:00');
+        $heard = [];
+        Event::listen(ResourceChanged::class, function (ResourceChanged $e) use (&$heard) {
+            if ($e->model instanceof Shift && $e->action === 'updated') {
+                $heard[] = [array_keys(array_diff_key($e->model->getChanges(), ['updated_at' => 1])), substr((string) $e->model->getOriginal('start_time'), 0, 5)];
+            }
+        });
+
+        // Two saves in one transaction: each event still shows its own change.
+        \Illuminate\Support\Facades\DB::transaction(function () use ($shift) {
+            $shift->update(['start_time' => '07:00']);
+            $shift->update(['name' => 'Day shift']);
+        });
+
+        $this->assertSame([[['start_time'], '06:00'], [['name'], '07:00']], $heard);
+    }
+
+    public function test_the_narrowest_shift_running_on_a_line_is_its_current_shift(): void
+    {
+        $this->northShiftsOnNorthLine();
+        $this->travelTo(Carbon::parse('2026-11-25 10:00'));
+        $this->shift('G', '06:00', '14:00', ['sort_order' => 0]);
+        $this->shift('N-AM', '06:00', '14:00', ['sort_order' => 5]);
+
+        $this->assertSame('N-AM', Shift::current($this->north->id)?->code);
+        $this->assertSame('N-AM', ShiftWindow::at($this->north->id, now())?->shift->code);
+        $this->assertSame('N-AM', ShiftWindow::startingOnDate($this->north->id, now()->startOfDay())?->shift->code);
+        $this->assertSame('G', Shift::current($this->south->id)?->code);
+
+        $this->shift('S-OWN', '06:00', '14:00', ['line_id' => $this->south->id, 'sort_order' => 9]);
+        $this->assertSame('S-OWN', Shift::current($this->south->id)?->code);
+    }
+
+    public function test_only_an_admin_may_add_or_change_a_shift(): void
+    {
+        Role::findOrCreate('Supervisor');
+        $supervisor = User::factory()->create();
+        $supervisor->assignRole('Supervisor');
+        $shift = $this->shift('DAY', '06:00', '14:00');
+        $payload = ['code' => 'X', 'name' => 'X', 'start_time' => '14:00', 'end_time' => '22:00'];
+
+        $this->actingAs($supervisor)->post('/admin/shifts', $payload)->assertForbidden();
+        $this->actingAs($supervisor)->put("/admin/shifts/{$shift->id}", $payload)->assertForbidden();
+        $this->actingAs($supervisor)->delete("/admin/shifts/{$shift->id}")->assertForbidden();
+
+        $this->assertDatabaseMissing('shifts', ['code' => 'X']);
+        $this->assertNotSoftDeleted('shifts', ['id' => $shift->id, 'code' => 'DAY']);
+    }
+
+    public function test_the_operator_station_only_offers_the_shifts_that_run_on_its_line(): void
+    {
+        $this->northShiftsOnNorthLine();
+        $this->shift('G', '06:00', '14:00');
+        $this->shift('N-AM', '06:00', '14:00');
+        $this->shift('S-OWN', '14:00', '22:00', ['line_id' => $this->south->id]);
+        Role::findOrCreate('Operator');
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+        $operator->lines()->attach($this->south->id);
+
+        $response = $this->actingAs($operator)->withSession(['selected_line_id' => $this->south->id])
+            ->get(route('operator.workstation'))->assertOk();
+
+        $codes = collect($response->viewData('page')['props']['shifts'])->pluck('code')->sort()->values()->all();
+        $this->assertSame(['G', 'S-OWN'], $codes);
+    }
+
     private function admin(): User
     {
         Role::findOrCreate('Admin');

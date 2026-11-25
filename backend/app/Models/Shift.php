@@ -111,6 +111,36 @@ class Shift extends Model
         return $lines === null ? $plantWide : in_array($lineId, $lines, true);
     }
 
+    /**
+     * How narrowly this shift is set: 2 for one line, 1 for a group of lines a
+     * module defined, 0 for every line. When two shifts that may overlap (they
+     * have different coverage) both run on a line, the narrower one is that
+     * line's shift — a plant's own morning shift wins over a global one.
+     */
+    public function specificity(): int
+    {
+        if ($this->line_id !== null) {
+            return 2;
+        }
+
+        return $this->lineIds() === null ? 0 : 1;
+    }
+
+    /**
+     * Active shifts that run on the line (all of them for a null line), the
+     * narrowest first (see specificity()) and otherwise in sort order.
+     *
+     * @return \Illuminate\Support\Collection<int, self>
+     */
+    public static function runningOn(?int $lineId): \Illuminate\Support\Collection
+    {
+        return static::active()
+            ->get()
+            ->filter(fn (self $shift) => $shift->runsOnLine($lineId ?: null))
+            ->sortByDesc(fn (self $shift) => $shift->specificity())
+            ->values();
+    }
+
     public function shiftEntries(): HasMany
     {
         return $this->hasMany(WorkOrderShiftEntry::class);
@@ -125,9 +155,7 @@ class Shift extends Model
         $dayOfWeek = (int) $now->format('N');
         $time = $now->format('H:i:s');
 
-        return static::where('is_active', true)
-            ->get()
-            ->filter(fn (self $shift) => $shift->runsOnLine($lineId ?: null))
+        return static::runningOn($lineId)
             ->first(function (self $shift) use ($dayOfWeek, $time) {
                 if (is_array($shift->days_of_week) && ! in_array($dayOfWeek, $shift->days_of_week)) {
                     return false;
