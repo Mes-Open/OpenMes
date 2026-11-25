@@ -455,6 +455,10 @@ html.dark {
 .mes-btn-primary:hover { border-color: var(--mes-blue-hover); background: var(--mes-blue-hover); color: #fff; }
 .mes-btn-soft { border-color: var(--mes-line); background: var(--mes-panel-soft); color: var(--mes-muted); }
 .mes-btn-danger { border-color: var(--mes-red); background: var(--mes-panel); color: var(--mes-red); }
+/* Theme switches must repaint immediately. A transitioned colour can be left
+   mid-way in browsers that pause requestAnimationFrame, which made secondary
+   buttons keep their light-theme text on a dark panel. */
+.mes-shell .mes-btn { transition: none; }
 /* The dark palette's blue is light enough that white text loses contrast. */
 html.dark .mes-shell .mes-btn-primary { color: #071425; }
 html.dark .mes-shell .mes-btn-primary:hover { color: #071425; }
