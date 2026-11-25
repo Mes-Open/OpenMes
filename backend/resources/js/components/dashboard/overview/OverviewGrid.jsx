@@ -27,9 +27,9 @@ export default function OverviewGrid({ overview, sections = SECTIONS }) {
     if (rows.length === 0) return null;
 
     return (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
             {rows.map(({ row, items }) => (
-                <div key={row} className="flex flex-wrap items-stretch gap-4">
+                <div key={row} className="flex flex-wrap items-stretch gap-3">
                     {items.map(({ id, span = 'full', Component }) => (
                         <div key={id} className={SPAN_CLASS[span] ?? SPAN_CLASS.full}>
                             <Component overview={overview} accessibleTabs={accessibleTabs} />

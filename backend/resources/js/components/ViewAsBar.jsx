@@ -51,7 +51,7 @@ export default function ViewAsBar() {
                             onClick={() => switchTo(v.key)}
                             className={`px-2.5 py-1 rounded-om-sm font-medium transition-colors ${
                                 v.key === viewAs
-                                    ? 'bg-om-ink text-om-on-ink'
+                                    ? 'bg-[var(--mes-blue)] text-white'
                                     : 'text-om-muted hover:text-om-ink hover:bg-om-chip'
                             }`}
                         >

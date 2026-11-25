@@ -433,7 +433,7 @@ html.dark {
     font-weight: 600;
     line-height: 1;
     white-space: nowrap;
-    transition: border-color .15s, background .15s, color .15s;
+    transition: border-color .15s, color .15s;
 }
 .mes-btn:hover { border-color: var(--mes-blue); color: var(--mes-blue); }
 .mes-btn-primary { border-color: var(--mes-blue); background: var(--mes-blue); color: #fff; }
@@ -583,4 +583,102 @@ html.dark .mes-tag-blue { border-color: rgb(105 167 255 / .28); }
     .mes-stat:nth-child(-n+2) { border-bottom: 1px solid var(--mes-line-soft); }
     .mes-filterbar { gap: 8px; }
     .mes-filterbar .push { margin-left: 0; }
+}
+
+/* ── Site-wide MES shell ───────────────────────────────────────────────────
+   The warehouse screens introduced `mes-*` tokens. The rest of the application
+   still speaks the older `om-*` vocabulary, so this scoped remap turns the
+   shared primitives (backgrounds, borders, text, status colours, radii) into
+   the same industrial palette without touching 180 individual pages. */
+.mes-shell {
+  --om-page: #e8edf4;
+  --om-bg: #f3f6fa;
+  --om-panel: #ffffff;
+  --om-card: #ffffff;
+  --om-chip: #f1f5fa;
+  --om-selected: #e9f2ff;
+  --om-on-ink: #ffffff;
+  --om-ink-hover: #0b3a66;
+  --om-line: #d7e0ea;
+  --om-line2: #e8eef5;
+  --om-ink: #102a43;
+  --om-muted: #52657a;
+  --om-faint: #8496a9;
+  --om-faintest: #b8c4d2;
+  --om-accent: #1677ff;
+  --om-accent-bg: #e8f2ff;
+  --om-running: #15803d;
+  --om-running-bg: #e9f7ef;
+  --om-pending: #64748b;
+  --om-pending-bg: #f1f5f9;
+  --om-blocked: #b42318;
+  --om-blocked-bg: #fef0ee;
+  --om-downtime: #b45309;
+  --om-downtime-bg: #fff4e5;
+  --om-done: #475569;
+  --om-done-bg: #f1f5f9;
+  --om-accepted: #1677ff;
+  --om-accepted-bg: #e8f2ff;
+  --om-maint: #6d4aff;
+  --om-maint-bg: #f0edff;
+  --om-rejected: #9f1d14;
+  --om-rejected-bg: #fdecea;
+  --om-track: #eef2f7;
+  --om-deep: #8f1d14;
+  --om-planned: #dbe3ec;
+  --radius-om: 4px;
+  --radius-om-sm: 3px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+html.dark .mes-shell {
+  --om-page: #0b1220;
+  --om-bg: #111827;
+  --om-panel: #162132;
+  --om-card: #182433;
+  --om-chip: #223044;
+  --om-selected: #1b3252;
+  --om-on-ink: #ffffff;
+  --om-ink-hover: #061426;
+  --om-line: #334155;
+  --om-line2: #2a3647;
+  --om-ink: #e5edf7;
+  --om-muted: #9aaabd;
+  --om-faint: #748399;
+  --om-faintest: #4b5b70;
+  --om-accent: #69a7ff;
+  --om-accent-bg: rgb(22 119 255 / .18);
+  --om-running: #4ade80;
+  --om-running-bg: rgb(21 128 61 / .18);
+  --om-blocked: #fca5a5;
+  --om-blocked-bg: rgb(180 35 24 / .18);
+  --om-downtime: #fbbf24;
+  --om-downtime-bg: rgb(180 83 9 / .18);
+  --om-done: #cbd5e1;
+  --om-done-bg: rgb(71 85 105 / .22);
+  --om-accepted: #69a7ff;
+  --om-accepted-bg: rgb(22 119 255 / .18);
+  --om-track: #1e293b;
+  --om-planned: #3b4a60;
+}
+
+.mes-shell .mes-nav-active { background: var(--mes-blue); color: #fff; }
+html.dark .mes-shell .mes-nav-active { color: #071425; }
+
+/* Theme switching changes the value behind every `bg-om-*` utility. Chromium
+   can leave a background transition stuck on its pre-switch colour, so buttons
+   and hoverable rows deliberately animate only colour/border — not background. */
+.mes-shell .transition-colors { transition-property: color, border-color, opacity, box-shadow, transform !important; }
+
+/* ResourceTable pages: one compact title row above the table instead of
+   dropping straight into a full-bleed grid. */
+.mes-resource-page { min-height: 100%; padding: 12px 16px 0; background: var(--mes-page); color: var(--mes-ink); }
+.mes-resource-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 2px 2px 10px; }
+.mes-resource-title { font-size: 20px; font-weight: 700; line-height: 1.25; color: var(--mes-ink); }
+.mes-resource-sub { margin-top: 3px; font-size: 11px; line-height: 17px; color: var(--mes-muted); }
+.mes-resource-head .mes-actions { justify-content: flex-end; padding-top: 0; }
+@media (max-width: 760px) {
+  .mes-resource-page { padding: 10px 10px 0; }
+  .mes-resource-head { align-items: flex-start; }
+  .mes-resource-head .mes-actions { justify-content: flex-start; }
 }

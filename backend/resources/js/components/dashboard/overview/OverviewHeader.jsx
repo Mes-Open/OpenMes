@@ -22,10 +22,10 @@ export default function OverviewHeader({ shift, liveOk = true }) {
     return (
         <header className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-col gap-1.5 min-w-0">
-                <h1 className="m-0 text-[28px] font-bold leading-tight tracking-[-0.02em] text-om-ink">
+                <h1 className="m-0 text-[20px] font-bold leading-tight text-om-ink">
                     {__('Plant overview')}
                 </h1>
-                <div className="flex flex-wrap items-center gap-2.5 text-[14px] text-om-muted">
+                <div className="flex flex-wrap items-center gap-2 text-[12px] text-om-muted">
                     <span
                         className={`inline-flex items-center gap-1.5 font-semibold ${liveOk ? 'text-om-running' : 'text-om-faint'}`}
                         title={liveOk ? undefined : __('Last refresh failed')}
@@ -55,7 +55,7 @@ export default function OverviewHeader({ shift, liveOk = true }) {
             {canCreateOrder && (
                 <Link
                     href="/admin/work-orders/create"
-                    className="inline-flex h-11 items-center gap-2 rounded-[10px] bg-om-ink px-[18px] text-[14px] font-medium text-om-on-ink transition-colors hover:bg-om-ink-hover"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-[3px] bg-[var(--mes-blue)] px-3.5 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--mes-blue-hover)]"
                 >
                     <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                         <path d="M12 5v14M5 12h14" />

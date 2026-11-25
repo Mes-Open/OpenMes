@@ -1,4 +1,5 @@
 import React from 'react';
+import { PageTitleContext } from '../../layouts/AppLayout';
 
 /**
  * MES 工业台：面向国内制造企业的高密度工作台。
@@ -15,6 +16,11 @@ export function MesPage({ children, className = '' }) {
 }
 
 export function MesHeader({ breadcrumb = [], title, tag, description, meta, actions }) {
+    // A MES page brings its own breadcrumb and heading. Mark it so the desktop
+    // utility bar does not repeat the same trail above the page.
+    const { register } = React.useContext(PageTitleContext);
+    React.useEffect(() => register(), [register]);
+
     return (
         <div className="mes-page-head">
             <div className="min-w-0">

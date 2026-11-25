@@ -8,10 +8,10 @@
  */
 export default function OverviewCard({ title, action, children, className = '' }) {
     return (
-        <section className={`h-full bg-om-card border border-om-line rounded-[14px] px-6 py-5 flex flex-col gap-3.5 ${className}`}>
+        <section className={`h-full bg-om-card border border-om-line rounded-[4px] px-4 py-3 flex flex-col gap-2.5 ${className}`}>
             {(title || action) && (
                 <div className="flex items-center justify-between gap-3">
-                    {title && <h2 className="text-[18px] font-semibold text-om-ink">{title}</h2>}
+                    {title && <h2 className="border-l-2 border-[var(--mes-blue)] pl-2 text-[13px] font-semibold text-om-ink">{title}</h2>}
                     {action}
                 </div>
             )}

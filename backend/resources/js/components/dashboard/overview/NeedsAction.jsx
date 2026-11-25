@@ -46,7 +46,7 @@ export default function NeedsAction({ overview, accessibleTabs = [] }) {
                     </Link>
                 )}
             </div>
-            <div className="overflow-hidden rounded-[14px] border border-om-line bg-om-card">
+            <div className="overflow-hidden rounded-[4px] border border-om-line bg-om-card">
                 {items.length === 0 ? (
                     <p className="m-0 px-5 py-6 text-center text-[14px] text-om-muted">
                         {__('Nothing needs action right now')}

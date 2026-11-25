@@ -23,7 +23,7 @@ export function Button({
         'inline-flex items-center justify-center gap-2 font-semibold rounded-om-sm transition-colors cursor-pointer disabled:cursor-not-allowed';
     // Colour only — padding/text come from `sizes` so variants compose with size.
     const variants = {
-        primary: 'text-om-on-ink bg-om-ink hover:bg-om-ink-hover',
+        primary: 'text-white bg-om-accent hover:brightness-95',
         accent: 'text-white bg-om-accent hover:brightness-95',
         secondary: 'text-om-ink bg-om-chip hover:bg-om-line2',
         ghost: 'text-om-ink bg-transparent border border-om-line hover:bg-om-chip',
@@ -64,7 +64,7 @@ export function Button({
 /** Square 38px icon button. `variant`: 'primary' (ink) | 'danger' (soft red) | 'default' (chip). */
 export function IconButton({ variant = 'default', className = '', children, ...props }) {
     const variants = {
-        primary: 'text-om-on-ink bg-om-ink hover:bg-om-ink-hover',
+        primary: 'text-white bg-om-accent hover:brightness-95',
         danger: 'text-om-blocked bg-om-blocked-bg hover:bg-[#f8ddd6]',
         default: 'text-om-ink bg-om-chip hover:bg-om-line2',
     };

@@ -78,12 +78,12 @@ function fpyTile(f) {
 function Tile({ id, label, value, note, tone, href }) {
     const body = (
         <>
-            <span className="text-[14px] text-om-muted">{label}</span>
-            <span className="font-mono text-[30px] font-semibold leading-[1.15] tracking-[-0.03em] text-om-ink">{value}</span>
-            <span className={`text-[13px] font-medium ${TONE_CLASS[tone] ?? TONE_CLASS.mute}`}>{note}</span>
+            <span className="text-[12px] text-om-muted">{label}</span>
+            <span className="font-mono text-[22px] font-semibold leading-[1.15] tracking-[-0.01em] text-om-ink">{value}</span>
+            <span className={`text-[11px] font-medium ${TONE_CLASS[tone] ?? TONE_CLASS.mute}`}>{note}</span>
         </>
     );
-    const className = 'min-h-[96px] bg-om-card border border-om-line rounded-[14px] px-5 py-3.5 flex flex-col justify-center gap-0.5 text-om-ink no-underline';
+    const className = 'min-h-[76px] bg-om-card border border-om-line rounded-[4px] px-3 py-2.5 flex flex-col justify-center gap-0.5 text-om-ink no-underline';
 
     return href ? (
         <Link href={href} data-testid={`kpi-${id}`} className={`${className} transition-colors hover:border-om-faintest`}>

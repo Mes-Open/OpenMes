@@ -45,7 +45,7 @@ export default function OperatorLayout({ children }) {
 
     return (
         <ToastProvider dismissLabel={__('Close')}>
-        <div className="min-h-screen flex bg-om-bg font-sans">
+        <div className="mes-shell min-h-screen flex bg-om-bg font-sans">
             {tabLinks.length > 0 && <OperatorSidebar tabLinks={tabLinks} isActive={isActive} />}
             <div className="flex flex-col flex-1 min-w-0">
             {/* Administrator's view switcher, in the document flow above the bar so
