@@ -61,7 +61,7 @@ export default function ShiftsIndex() {
                 {...drawer.props}
                 action="/admin/shifts"
                 fields={shiftFields(lines ?? [], hooks ?? {})}
-                initial={(record) => shiftInitial(record, hooks ?? {})}
+                initial={(record) => shiftInitial(record, hooks ?? {}, { perRecord: false })}
                 customFields={customFields}
                 ensure={['lines', 'customFields', 'hooks']}
                 ready={lines !== undefined}

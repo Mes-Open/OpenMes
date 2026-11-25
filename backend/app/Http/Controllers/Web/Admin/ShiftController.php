@@ -99,14 +99,15 @@ class ShiftController extends Controller
      * contributed them, then check for overlap — all as one unit of work, so a
      * module that moves the shift to a group of lines is checked against that
      * group. Null (and nothing saved) when the shift would overlap another.
+     *
+     * Custom fields go last, once the shift is known to be kept: storing them
+     * writes uploaded files and deletes the ones they replace, which a database
+     * rollback could not undo.
      */
     private function persist(ShiftRequest $request, array $validated, ?Shift $shift = null): ?Shift
     {
         $cf = app(CustomFieldService::class);
         unset($validated['custom_field_files'], $validated['custom_fields']);
-        if ($cf->touched($request)) {
-            $validated['custom_fields'] = $cf->fromRequest($request, 'shift', $shift?->custom_fields) ?: null;
-        }
 
         // A module's keys are `module_<name>_<field>` (AllowsModuleFields) — they
         // are not columns of this table and must not reach the model.
@@ -133,6 +134,12 @@ class ShiftController extends Controller
                 return null;
             }
 
+            if ($cf->touched($request)) {
+                $shift->forceFill([
+                    'custom_fields' => $cf->fromRequest($request, 'shift', $shift->custom_fields) ?: null,
+                ])->save();
+            }
+
             DB::commit();
 
             return $shift;
@@ -141,6 +148,17 @@ class ShiftController extends Controller
 
             throw $e;
         }
+    }
+
+    public function destroy(Shift $shift)
+    {
+        if ($shift->shiftEntries()->exists()) {
+            return back()->with('error', __('Cannot delete shift with production entries. Deactivate it instead.'));
+        }
+
+        $shift->delete();
+
+        return redirect()->route('admin.shifts.index')->with('success', __('Shift deleted.'));
     }
 
     /**

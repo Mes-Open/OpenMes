@@ -237,13 +237,19 @@ class AppServiceProvider extends ServiceProvider
                 $model = $data[0] ?? null;
                 $hooked = $hookedModels();
                 if ($model instanceof \Illuminate\Database\Eloquent\Model && isset($hooked[$model::class])) {
-                    // A throwing module listener must never break the core write
-                    // that triggered it (mirrors the best-effort webhook observers).
-                    try {
-                        event(new \App\Events\Resource\ResourceChanged($model, $verb));
-                    } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::warning('ResourceChanged hook failed', ['error' => $e->getMessage()]);
-                    }
+                    // Once committed, like webhooks and live broadcasts: a write
+                    // that is rolled back (a refused save, a failed transaction)
+                    // must not reach a module that may already have told an
+                    // outside system about it. Outside a transaction it runs at once.
+                    \Illuminate\Support\Facades\DB::afterCommit(function () use ($model, $verb) {
+                        // A throwing module listener must never break the core write
+                        // that triggered it (mirrors the best-effort webhook observers).
+                        try {
+                            event(new \App\Events\Resource\ResourceChanged($model, $verb));
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::warning('ResourceChanged hook failed', ['error' => $e->getMessage()]);
+                        }
+                    });
                 }
             });
         }

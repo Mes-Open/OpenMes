@@ -59,7 +59,7 @@ export default function LinesIndex() {
                 {...drawer.props}
                 action="/admin/lines"
                 fields={lineFields(warehouses ?? [], hooks ?? {})}
-                initial={(record) => lineInitial(record, hooks ?? {})}
+                initial={(record) => lineInitial(record, hooks ?? {}, { perRecord: false })}
                 customFields={customFields}
                 ensure={['warehouses', 'customFields', 'hooks']}
                 ready={warehouses !== undefined}

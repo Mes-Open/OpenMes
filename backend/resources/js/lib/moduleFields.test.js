@@ -87,7 +87,23 @@ describe('moduleFormFields / moduleFormInitial', () => {
         expect(moduleFormInitial({ site_id: 7 }, hooks, hook)).toEqual({ module_x_site: '7', module_x_note: '' });
         expect(moduleFormInitial({ site_id: null }, hooks, hook)).toEqual({ module_x_site: '', module_x_note: '' });
         expect(moduleFormInitial({ id: 1 }, hooks, hook)).toEqual({ module_x_site: '3', module_x_note: '' });
-        expect(moduleFormInitial(null, hooks, hook)).toEqual({ module_x_site: '', module_x_note: '' });
+        // A new record starts from the module's default.
+        expect(moduleFormInitial(null, hooks, hook)).toEqual({ module_x_site: '3', module_x_note: '' });
         expect(moduleFormInitial(null, {}, hook)).toEqual({});
+    });
+
+    it('keeps a checkbox group stored in a column as an array of strings', () => {
+        const group = { [hook]: [{ name: 'module_x_lines', type: 'checkbox-group', label: 'Lines', column: 'line_ids' }] };
+        expect(moduleFormInitial({ line_ids: [3, 7] }, group, hook)).toEqual({ module_x_lines: ['3', '7'] });
+        expect(moduleFormInitial({ line_ids: null }, group, hook)).toEqual({ module_x_lines: [] });
+        expect(moduleFormInitial({ line_ids: '3,7' }, group, hook)).toEqual({ module_x_lines: [] });
+    });
+
+    it('on a list drawer, leaves out a field whose value the row does not carry', () => {
+        // Hooks rendered once for the list know no row: their `value` is not this row's.
+        const listed = { [hook]: [hooks[hook][0], { name: 'module_x_crew', type: 'select', label: 'Crew', value: null }] };
+        expect(moduleFormInitial({ site_id: 4 }, listed, hook, { perRecord: false })).toEqual({ module_x_site: '4' });
+        // Creating from the drawer still starts from the module's defaults.
+        expect(moduleFormInitial(null, listed, hook, { perRecord: false })).toEqual({ module_x_site: '3', module_x_crew: '' });
     });
 });

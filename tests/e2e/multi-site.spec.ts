@@ -38,8 +38,6 @@ const TS = Date.now().toString().slice(-6);
 const NEW_LINE = `MS-${TS}`;
 const SUPERVISOR = `ms-sup-${TS}`;
 const SUPERVISOR_PASS = 'E2e-Supervisor-2026!';
-// A one-minute shift slot of its own per run, so reruns never overlap.
-const SLOT = Number(TS) % 1380;
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 test.describe.configure({ mode: 'serial' });
@@ -329,6 +327,19 @@ test('multi-site: one installation, several plants', async ({ page, browser }) =
 
   await test.step('each plant runs its own shifts: same hours, no clash, listed by plant', async () => {
     await page.goto('/admin/shifts');
+    // A one-minute slot no active shift of either plant covers yet, so a run
+    // never trips over what an earlier (or interrupted) run left behind.
+    const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+    const covered = new Set<number>();
+    for (const s of (await rows(page, 'shifts')).rows as { site_id?: number | null; line_id: number | null; is_active: boolean; start_time: string; end_time: string }[]) {
+      if (!s.is_active || s.line_id !== null || s.site_id == null) continue;
+      const start = toMin(s.start_time);
+      const end = toMin(s.end_time) + (toMin(s.end_time) <= start ? 1440 : 0);
+      for (let m = start; m < end; m++) covered.add(m % 1440);
+    }
+    const SLOT = Array.from({ length: 1439 }, (_, m) => m).find((m) => !covered.has(m) && !covered.has(m + 1));
+    expect(SLOT, 'a free minute in the day').toBeDefined();
+
     // The header switcher's native <option>s carry the same names: pick from
     // the drawer's own listbox.
     const pickSite = async (drawer: ReturnType<Page['getByRole']>, site: string) => {
@@ -341,8 +352,8 @@ test('multi-site: one installation, several plants', async ({ page, browser }) =
       await drawer.getByLabel('Code').fill(code);
       await drawer.getByLabel('Name').fill(`${site} slot`);
       await pickSite(drawer, site);
-      await drawer.getByLabel('Start Time').fill(hhmm(SLOT));
-      await drawer.getByLabel('End Time').fill(hhmm(SLOT + 1));
+      await drawer.getByLabel('Start Time').fill(hhmm(SLOT!));
+      await drawer.getByLabel('End Time').fill(hhmm(SLOT! + 1));
       await drawer.getByRole('button', { name: 'Create' }).click();
       await expect(drawer).toBeHidden();
     };
@@ -361,8 +372,8 @@ test('multi-site: one installation, several plants', async ({ page, browser }) =
     await drawer.getByLabel('Code').fill(`SX-${TS}`);
     await drawer.getByLabel('Name').fill('Overlap');
     await pickSite(drawer, A);
-    await drawer.getByLabel('Start Time').fill(hhmm(SLOT));
-    await drawer.getByLabel('End Time').fill(hhmm(SLOT + 1));
+    await drawer.getByLabel('Start Time').fill(hhmm(SLOT!));
+    await drawer.getByLabel('End Time').fill(hhmm(SLOT! + 1));
     await drawer.getByRole('button', { name: 'Create' }).click();
     await expect(page.getByText('This shift overlaps with an existing shift on this line.')).toBeVisible();
     await page.goto('/admin/shifts');
@@ -373,6 +384,13 @@ test('multi-site: one installation, several plants', async ({ page, browser }) =
     await expect(rowB).toBeVisible();
     await expect(rowA).toHaveCount(0);
     await switchSite(page, 'All sites');
+
+    // Clean up through the list's own delete action.
+    for (const row of [rowA, rowB]) {
+      await row.getByRole('button', { name: 'Delete' }).click();
+      await page.getByRole('button', { name: 'Delete shift', exact: true }).click();
+      await expect(row).toHaveCount(0);
+    }
   });
 
   await sup.context().close();

@@ -187,6 +187,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Modules hear about a change only once it is committed.** `ResourceChanged` now waits for the
+  database commit, as webhooks and live broadcasts already did. A write that is rolled back no
+  longer reaches a module listener, for example a shift refused for overlapping another.
+  Outside a transaction it still fires at once.
+
 - **Flash messages float instead of pushing the page down.** "Step completed.", "Saved." and
   every other message after a redirect now appears as a floating notice, so nothing on the
   screen jumps. On operator screens it is larger and centred just under the top bar; on

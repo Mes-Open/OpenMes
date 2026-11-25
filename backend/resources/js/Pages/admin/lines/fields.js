@@ -33,8 +33,8 @@ export function lineFields(warehouses = [], hooks = {}) {
  * drawer, so the three can't drift on what a blank field is or how a stored
  * value is coerced for the input that shows it.
  */
-export function lineInitial(record, hooks = {}) {
-    const modules = moduleFormInitial(record, hooks, LINE_FIELDS_HOOK);
+export function lineInitial(record, hooks = {}, options = {}) {
+    const modules = moduleFormInitial(record, hooks, LINE_FIELDS_HOOK, options);
     if (!record) {
         return { code: '', name: '', warehouse_id: '', planning_efficiency_pct: '100', description: '', is_active: true, ...modules };
     }

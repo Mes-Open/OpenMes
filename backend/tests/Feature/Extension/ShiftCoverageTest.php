@@ -2,14 +2,21 @@
 
 namespace Tests\Feature\Extension;
 
+use App\Events\Resource\ResourceChanged;
 use App\Extension\FilterRegistry;
 use App\Extension\HookRegistry;
+use App\Models\CustomFieldDefinition;
 use App\Models\Line;
 use App\Models\Shift;
 use App\Models\User;
+use App\Models\WorkOrder;
+use App\Models\WorkOrderShiftEntry;
 use App\Support\ShiftWindow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -77,6 +84,21 @@ class ShiftCoverageTest extends TestCase
         $this->assertNull(Shift::current($this->south->id));
     }
 
+    public function test_the_api_lists_the_shifts_set_for_a_line_including_its_group(): void
+    {
+        $this->northShiftsOnNorthLine();
+        $this->shift('N-AM', '06:00', '14:00');
+        $this->shift('OWN', '14:00', '22:00', ['line_id' => $this->north->id]);
+        $this->shift('ALL', '22:00', '06:00');
+
+        $codes = fn (Line $line) => collect($this->actingAs($this->admin(), 'sanctum')->getJson("/api/v1/shifts?line_id={$line->id}")
+            ->assertOk()->json('data'))->pluck('code')->sort()->values()->all();
+
+        // As before: a line's own shifts, not those every line runs — plus its group's.
+        $this->assertSame(['N-AM', 'OWN'], $codes($this->north));
+        $this->assertSame([], $codes($this->south));
+    }
+
     public function test_shifts_only_clash_with_shifts_set_for_the_same_lines(): void
     {
         $this->northShiftsOnNorthLine();
@@ -138,6 +160,63 @@ class ShiftCoverageTest extends TestCase
 
         $this->actingAs($admin)->post('/admin/shifts', ['code' => 'TAKEN', 'name' => '', 'start_time' => '6am', 'end_time' => '14:00'])
             ->assertSessionHasErrors(['code', 'name', 'start_time']);
+    }
+
+    public function test_a_shift_is_deleted_unless_production_was_booked_on_it(): void
+    {
+        $admin = $this->admin();
+        $unused = $this->shift('FREE', '06:00', '14:00');
+        $booked = $this->shift('BOOKED', '14:00', '22:00');
+        WorkOrderShiftEntry::create(['work_order_id' => WorkOrder::factory()->create()->id, 'shift_id' => $booked->id, 'quantity' => 5, 'production_date' => now()->toDateString()]);
+
+        $this->actingAs($admin)->delete("/admin/shifts/{$unused->id}")->assertRedirect('/admin/shifts')->assertSessionHas('success');
+        $this->assertSoftDeleted('shifts', ['id' => $unused->id]);
+
+        $this->actingAs($admin)->delete("/admin/shifts/{$booked->id}")->assertSessionHas('error');
+        $this->assertNotSoftDeleted('shifts', ['id' => $booked->id]);
+    }
+
+    public function test_a_refused_shift_is_never_announced_to_modules(): void
+    {
+        $admin = $this->admin();
+        $this->shift('DAY', '06:00', '14:00');
+        $heard = [];
+        Event::listen(ResourceChanged::class, function (ResourceChanged $e) use (&$heard) {
+            if ($e->model instanceof Shift) {
+                $heard[] = [$e->action, $e->model->code];
+            }
+        });
+
+        // Saved first, then found to overlap and rolled back: modules hear nothing.
+        $this->actingAs($admin)->post('/admin/shifts', ['code' => 'CLASH', 'name' => 'Clash', 'start_time' => '10:00', 'end_time' => '18:00'])
+            ->assertSessionHas('error');
+        $this->assertSame([], $heard);
+
+        $this->actingAs($admin)->post('/admin/shifts', ['code' => 'LATE', 'name' => 'Late', 'start_time' => '14:00', 'end_time' => '22:00'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame([['created', 'LATE']], $heard);
+    }
+
+    public function test_a_refused_update_keeps_the_stored_file(): void
+    {
+        Storage::fake();
+        CustomFieldDefinition::create(['entity_type' => 'shift', 'key' => 'f_file', 'label' => 'Rota', 'type' => 'file', 'required' => false, 'position' => 0, 'config' => []]);
+        $admin = $this->admin();
+        $base = ['name' => 'Morning', 'start_time' => '06:00', 'end_time' => '14:00'];
+
+        $this->actingAs($admin)->post('/admin/shifts', $base + ['code' => 'AM', 'custom_field_files' => ['f_file' => UploadedFile::fake()->create('rota.pdf', 20, 'application/pdf')]])
+            ->assertSessionHasNoErrors();
+        $shift = Shift::where('code', 'AM')->firstOrFail();
+        $first = $shift->custom_fields['f_file']['path'];
+        $this->shift('PM', '14:00', '22:00');
+
+        // Moved over the afternoon with a new file: refused — the old file stays, the new one is never stored.
+        $this->actingAs($admin)->put("/admin/shifts/{$shift->id}", ['code' => 'AM', 'name' => 'Morning', 'start_time' => '12:00', 'end_time' => '20:00',
+            'custom_field_files' => ['f_file' => UploadedFile::fake()->create('new.pdf', 20, 'application/pdf')]])->assertSessionHas('error');
+
+        $this->assertSame($first, $shift->fresh()->custom_fields['f_file']['path']);
+        Storage::assertExists($first);
+        $this->assertCount(1, Storage::allFiles());
     }
 
     private function admin(): User

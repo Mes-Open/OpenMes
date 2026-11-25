@@ -67,15 +67,35 @@ export function moduleFormFields(hooks, name) {
  * `column` of the record reads the record's own value, so a list page's drawer
  * (whose rows come from a synced collection, not from a per-record render)
  * still opens with the stored choice.
+ *
+ * Pass `{ perRecord: false }` when the hooks were rendered without the record
+ * — a list page renders them once for every row. A field whose value then
+ * cannot be read off the record is left out of the starting values: unless
+ * someone changes it, it is not submitted, and the module keeps what it stored
+ * instead of receiving a blank it would take for "cleared".
  */
-export function moduleFormInitial(record, hooks, name) {
-    return Object.fromEntries(moduleFieldsFor(hooks, name).map((f) => {
+export function moduleFormInitial(record, hooks, name, { perRecord = true } = {}) {
+    const entries = [];
+    for (const f of moduleFieldsFor(hooks, name)) {
         const empty = f.type === 'checkbox' ? false : f.type === 'checkbox-group' ? [] : '';
         if (record && f.column && f.column in record) {
-            const v = record[f.column];
-            return [f.name, v == null ? empty : f.type === 'checkbox' ? !!v : String(v)];
+            entries.push([f.name, fromStored(f, record[f.column], empty)]);
+        } else if (!record || perRecord) {
+            // With no record, `value` is the module's default for a new one.
+            const v = f.value;
+            entries.push([f.name, v == null ? empty : f.type === 'select' ? String(v) : v]);
         }
-        const v = record ? f.value : undefined;
-        return [f.name, v == null ? empty : f.type === 'select' ? String(v) : v];
-    }));
+    }
+
+    return Object.fromEntries(entries);
+}
+
+/** A stored column value as the input for the field's type shows it. */
+function fromStored(field, value, empty) {
+    if (value == null) return empty;
+    if (field.type === 'checkbox') return !!value;
+    // Option values are strings, and a checkbox group matches them strictly.
+    if (field.type === 'checkbox-group') return Array.isArray(value) ? value.map(String) : empty;
+
+    return String(value);
 }

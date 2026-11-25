@@ -32,8 +32,8 @@ export function shiftFields(lines, hooks = {}) {
  * drawer, so the three can't drift on what a blank field is or how a stored
  * value is coerced for the input that shows it.
  */
-export function shiftInitial(record, hooks = {}) {
-    const modules = moduleFormInitial(record, hooks, SHIFT_FIELDS_HOOK);
+export function shiftInitial(record, hooks = {}, options = {}) {
+    const modules = moduleFormInitial(record, hooks, SHIFT_FIELDS_HOOK, options);
     if (!record) {
         return { code: '', name: '', line_id: '', start_time: '', end_time: '', sort_order: 0, is_active: true, ...modules };
     }
