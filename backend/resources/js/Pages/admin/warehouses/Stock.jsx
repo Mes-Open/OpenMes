@@ -243,13 +243,17 @@ function StockTable({ rows, onOpen }) {
                         <td className="px-2 py-3">
                             <div className="text-[11px] font-bold text-om-ink">{row.lot_summary}</div>
                             <div className="mt-0.5 text-[10px] text-om-faint">
-                                {row.lots_count > 0 ? `可用 ${number(row.lots_available)} ${unit(row.uom)}` : row.tracking_label}
+                                {row.lots_count > 0
+                                    ? `可用 ${number(row.lots_available)} ${unit(row.uom)}`
+                                    : row.tracking === 'batch' ? row.tracking_label : '按汇总数量管理'}
                                 {row.next_expiry ? ` · 至 ${row.next_expiry}` : ''}
                             </div>
                         </td>
                         <td className="px-4 py-3">
                             <StatusPill status={row.status} label={row.status_label} />
-                            <button type="button" onClick={() => onOpen(row)} className="mt-1.5 block text-[11px] font-bold text-om-muted hover:text-om-ink">批次明细 →</button>
+                            <button type="button" onClick={() => onOpen(row)} className="mt-1.5 block text-[11px] font-bold text-om-muted hover:text-om-ink">
+                                {row.tracking === 'batch' ? '批次明细 →' : '查看详情 →'}
+                            </button>
                         </td>
                     </tr>
                 ))}
@@ -275,12 +279,16 @@ function StockCard({ row, onOpen }) {
                 </div>
                 <div className="text-right">
                     <div className="text-[11px] font-bold text-om-ink">{row.lot_summary}</div>
-                    <div className="mt-0.5 text-[10px] text-om-faint">{row.lots_count > 0 ? `可用 ${number(row.lots_available)} ${unit(row.uom)}` : row.tracking_label}</div>
+                    <div className="mt-0.5 text-[10px] text-om-faint">
+                        {row.lots_count > 0 ? `可用 ${number(row.lots_available)} ${unit(row.uom)}` : row.tracking === 'batch' ? row.tracking_label : '按汇总数量管理'}
+                    </div>
                 </div>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="text-[10px] text-om-faint">{row.next_expiry ? `最近有效期 ${row.next_expiry}` : '没有登记有效期'}</span>
-                <button type="button" onClick={() => onOpen(row)} className="text-[11px] font-bold text-om-accent hover:underline">批次明细 →</button>
+                <button type="button" onClick={() => onOpen(row)} className="text-[11px] font-bold text-om-accent hover:underline">
+                    {row.tracking === 'batch' ? '批次明细 →' : '查看详情 →'}
+                </button>
             </div>
         </div>
     );
@@ -319,7 +327,7 @@ function StockDrawer({ stock, onClose }) {
 
                 <div className="border-t border-om-line2 px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-xs font-bold text-om-ink">在库批次</h3>
+                        <h3 className="text-xs font-bold text-om-ink">{stock.kind === 'product' ? '库存明细' : '在库批次'}</h3>
                         <span className="text-[10px] text-om-faint">
                             {stock.lots_count > 0 ? `批次可用合计 ${number(stock.lots_available)} ${unit(stock.uom)}` : '没有批次记录'}
                         </span>
@@ -327,9 +335,11 @@ function StockDrawer({ stock, onClose }) {
 
                     {stock.lots.length === 0 ? (
                         <div className="mt-3 rounded-om-sm border border-om-line bg-om-chip/30 px-3 py-4 text-xs leading-5 text-om-muted">
-                            {stock.tracking === 'batch'
-                                ? '该物料要求批次跟踪，但当前库存余额没有对应的物料批。先补收料/检验批次，再按批次发料。'
-                                : '该物料不要求批次跟踪，当前只维护汇总数量。'}
+                            {stock.kind === 'product'
+                                ? '成品按汇总数量管理，当前不跟踪批次。'
+                                : stock.tracking === 'batch'
+                                    ? '该物料要求批次跟踪，但当前库存余额没有对应的物料批。先补收料/检验批次，再按批次发料。'
+                                    : '该物料不要求批次跟踪，当前只维护汇总数量。'}
                         </div>
                     ) : (
                         <div className="mt-2 divide-y divide-om-line2">
