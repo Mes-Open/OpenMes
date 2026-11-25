@@ -75,6 +75,7 @@ export default function WarehouseStock() {
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <Link href="/admin/warehouses/locations" className="btn-touch btn-secondary text-sm">库位</Link>
                         <Link href="/admin/warehouses" className="btn-touch btn-secondary text-sm">标签平衡</Link>
                         <Link href="/admin/coa" className="btn-touch btn-secondary text-sm">批次控制台</Link>
                     </div>
@@ -248,6 +249,7 @@ function StockTable({ rows, onOpen }) {
                                     : row.tracking === 'batch' ? row.tracking_label : '按汇总数量管理'}
                                 {row.next_expiry ? ` · 至 ${row.next_expiry}` : ''}
                             </div>
+                            {row.location_summary && <div className="mt-0.5 truncate text-[10px] text-om-faint">库位 {row.location_summary}</div>}
                         </td>
                         <td className="px-4 py-3">
                             <StatusPill status={row.status} label={row.status_label} />
@@ -282,6 +284,7 @@ function StockCard({ row, onOpen }) {
                     <div className="mt-0.5 text-[10px] text-om-faint">
                         {row.lots_count > 0 ? `可用 ${number(row.lots_available)} ${unit(row.uom)}` : row.tracking === 'batch' ? row.tracking_label : '按汇总数量管理'}
                     </div>
+                    {row.location_summary && <div className="mt-0.5 text-[10px] text-om-faint">库位 {row.location_summary}</div>}
                 </div>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
@@ -323,6 +326,12 @@ function StockDrawer({ stock, onClose }) {
                         <div className="text-[10px] text-om-faint">批次规则</div>
                         <div className="mt-1 text-xs font-bold text-om-ink">{stock.tracking_label}</div>
                     </div>
+                    {stock.location_summary && (
+                        <div className="col-span-2 border-t border-om-line2 pt-2">
+                            <div className="text-[10px] text-om-faint">库位</div>
+                            <div className="mt-1 font-mono text-xs font-bold text-om-ink">{stock.location_summary}</div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="border-t border-om-line2 px-4 py-3">
@@ -349,6 +358,7 @@ function StockDrawer({ stock, onClose }) {
                                         <div className="min-w-0">
                                             <div className="truncate font-mono text-[11px] font-bold text-om-ink">{lot.lot_number}</div>
                                             <div className="mt-0.5 text-[10px] text-om-faint">收货 {lot.received_at ?? '—'}{lot.expiry ? ` · 有效期 ${lot.expiry}` : ''}</div>
+                                            {lot.location_code && <div className="mt-0.5 text-[10px] text-om-faint">库位 {lot.location_code} · {lot.location_name}</div>}
                                         </div>
                                         <LotStatus lot={lot} />
                                     </div>

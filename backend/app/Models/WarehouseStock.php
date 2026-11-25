@@ -20,6 +20,7 @@ class WarehouseStock extends Model
 
     protected $fillable = [
         'warehouse_id',
+        'warehouse_location_id',
         'material_id',
         'product_type_id',
         'material_lot_id',
@@ -69,6 +70,12 @@ class WarehouseStock extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    /** Bin this balance sits in; null until the floor assigns one. */
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(WarehouseLocation::class, 'warehouse_location_id');
     }
 
     public function material(): BelongsTo

@@ -39,7 +39,7 @@ class WarehouseStockController extends Controller
             ->get(['id', 'code', 'name', 'kind']);
 
         $stockRows = WarehouseStock::query()
-            ->with(['warehouse', 'material.materialType', 'productType'])
+            ->with(['warehouse', 'location', 'material.materialType', 'productType'])
             ->orderBy('warehouse_id')
             ->orderBy('id')
             ->get();
@@ -47,6 +47,7 @@ class WarehouseStockController extends Controller
         $lots = MaterialLot::query()
             ->whereIn('warehouse_id', $stockRows->pluck('warehouse_id')->unique()->values())
             ->whereIn('material_id', $stockRows->pluck('material_id')->filter()->unique()->values())
+            ->with(['material:id,code,name', 'location:id,code,name,parent_id'])
             ->orderByDesc('received_at')
             ->orderByDesc('id')
             ->get();
@@ -129,6 +130,10 @@ class WarehouseStockController extends Controller
             ->sortBy(fn (MaterialLot $lot) => $lot->expiry_date->timestamp)
             ->first();
 
+        $stockLocations = $product
+            ? collect([$stock->location])->filter()
+            : $stockLots->pluck('location')->filter()->unique('id')->values();
+
         $status = match (true) {
             // A rejected/quarantine lot stays physically in the warehouse even
             // when the aggregate says zero: surface the quality hold first.
@@ -160,6 +165,8 @@ class WarehouseStockController extends Controller
             'lots_available' => round($availableOnLots, 3),
             'held_lots' => $heldLots->count(),
             'next_expiry' => $nextExpiry?->expiry_date?->toDateString(),
+            'location_count' => $stockLocations->count(),
+            'location_summary' => $stockLocations->isEmpty() ? null : $stockLocations->map(fn ($location) => $location->code)->implode(' · '),
             'status' => $status,
             'status_rank' => match ($status) {
                 'HOLD' => 0,
@@ -190,6 +197,8 @@ class WarehouseStockController extends Controller
                 'uom' => $lot->unit_of_measure,
                 'received_at' => $lot->received_at?->format('Y-m-d'),
                 'expiry' => $lot->expiry_date?->toDateString(),
+                'location_code' => $lot->location?->code,
+                'location_name' => $lot->location?->name,
                 'url' => "/admin/material-lots/{$lot->id}",
             ])->values(),
             'lots_url' => $material ? '/admin/material-lots' : null,
