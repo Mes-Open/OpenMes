@@ -371,7 +371,7 @@ export default function AppLayout({ children }) {
         <PageTitleContext.Provider value={pageTitleCtx}>
         {/* App-wide toast stack — the replacement for window.alert(). */}
         <ToastProvider dismissLabel={__('Close')}>
-        <div className="mes-shell flex h-screen overflow-hidden bg-om-bg">
+        <div className="mes-shell mes-admin-shell flex h-screen overflow-hidden bg-om-bg">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
                     <Sidebar

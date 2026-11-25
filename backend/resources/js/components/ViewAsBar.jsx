@@ -34,14 +34,14 @@ export default function ViewAsBar() {
         <div
             role="region"
             aria-label={__('View switcher')}
-            className={`shrink-0 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-1.5 border-b text-[12.5px] ${
+            className={`shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1 border-b text-[11.5px] ${
                 previewing
                     ? 'bg-om-downtime-bg border-om-downtime text-om-ink'
                     : 'bg-om-card border-om-line text-om-muted'
             }`}
         >
             <div className="flex items-center gap-2">
-                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('View')}</span>
+                <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-om-faint">{__('View')}</span>
                 <div className="inline-flex rounded-om-sm border border-om-line bg-om-bg p-0.5" role="group" aria-label={__('View as')}>
                     {VIEWS.map((v) => (
                         <button
@@ -49,7 +49,7 @@ export default function ViewAsBar() {
                             type="button"
                             aria-pressed={v.key === viewAs}
                             onClick={() => switchTo(v.key)}
-                            className={`px-2.5 py-1 rounded-om-sm font-medium transition-colors ${
+                            className={`h-6 px-2 rounded-om-sm font-medium transition-colors ${
                                 v.key === viewAs
                                     ? 'bg-[var(--mes-blue)] text-white'
                                     : 'text-om-muted hover:text-om-ink hover:bg-om-chip'

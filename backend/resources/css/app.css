@@ -387,7 +387,7 @@ html.dark {
 
 .mes-page {
     min-height: 100%;
-    padding: 18px 24px 36px;
+    padding: 14px 18px 28px;
     background: var(--mes-page);
     color: var(--mes-ink);
 }
@@ -401,7 +401,7 @@ html.dark {
     align-items: flex-start;
     justify-content: space-between;
     gap: 24px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
 }
 .mes-kicker {
     display: flex;
@@ -413,6 +413,21 @@ html.dark {
     letter-spacing: .02em;
 }
 .mes-kicker .sep { color: var(--mes-line); }
+/* The breadcrumb a MES page portals into the app header. Keeps the hierarchy
+   visible without spending a second row above the page heading. */
+.mes-head-trail {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    color: var(--om-faint);
+    font-size: 11px;
+    line-height: 16px;
+    white-space: nowrap;
+}
+.mes-head-trail span { overflow: hidden; text-overflow: ellipsis; }
+.mes-head-trail .sep { color: var(--om-line); }
 .mes-title-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
 .mes-title { font-size: 21px; line-height: 28px; font-weight: 700; letter-spacing: -.02em; color: var(--mes-ink); }
 .mes-subtitle { margin-top: 5px; max-width: 880px; color: var(--mes-muted); font-size: 12px; line-height: 20px; }
@@ -440,6 +455,9 @@ html.dark {
 .mes-btn-primary:hover { border-color: var(--mes-blue-hover); background: var(--mes-blue-hover); color: #fff; }
 .mes-btn-soft { border-color: var(--mes-line); background: var(--mes-panel-soft); color: var(--mes-muted); }
 .mes-btn-danger { border-color: var(--mes-red); background: var(--mes-panel); color: var(--mes-red); }
+/* The dark palette's blue is light enough that white text loses contrast. */
+html.dark .mes-shell .mes-btn-primary { color: #071425; }
+html.dark .mes-shell .mes-btn-primary:hover { color: #071425; }
 
 .mes-input, .mes-select {
     height: 32px;
@@ -682,3 +700,81 @@ html.dark .mes-shell .mes-nav-active { color: #071425; }
   .mes-resource-head { align-items: flex-start; }
   .mes-resource-head .mes-actions { justify-content: flex-start; }
 }
+
+/* ── MES controls, modals and drawers ──────────────────────────────────────
+   The shell's shared primitives are used by every CRUD form, not only the
+   warehouse screens. Compressing them here keeps create/edit dialogs at the
+   same density as the tables that open them. Scoped to the admin shell so the
+   operator screens keep their larger touch targets. */
+.mes-admin-shell input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not([type='hidden']),
+.mes-admin-shell select:not([multiple]) {
+  height: 32px;
+  min-height: 32px;
+  border: 1px solid var(--om-line);
+  border-radius: 3px;
+  background-color: var(--om-panel);
+  color: var(--om-ink);
+  padding: 0 9px;
+  font-size: 12px;
+  line-height: 30px;
+  box-shadow: none;
+}
+.mes-admin-shell textarea {
+  min-height: 64px;
+  border: 1px solid var(--om-line);
+  border-radius: 3px;
+  background-color: var(--om-panel);
+  color: var(--om-ink);
+  padding: 6px 9px;
+  font-size: 12px;
+  line-height: 18px;
+  box-shadow: none;
+  resize: vertical;
+}
+.mes-admin-shell input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not([type='hidden'])::placeholder,
+.mes-admin-shell textarea::placeholder { color: var(--om-faint); }
+.mes-admin-shell input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not([type='hidden']):focus,
+.mes-admin-shell select:focus,
+.mes-admin-shell textarea:focus {
+  border-color: var(--om-accent);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--om-accent-bg);
+}
+.mes-admin-shell input[type='checkbox'],
+.mes-admin-shell input[type='radio'] { accent-color: var(--om-accent); }
+.mes-admin-shell .form-label { margin-bottom: 5px; color: var(--om-muted); font-size: 11px; font-weight: 500; line-height: 16px; }
+.mes-admin-shell .form-input { min-height: 32px; }
+
+/* Shared Button sizes stay as-is for operator touch screens; only the admin
+   shell compacts them by their declared size. */
+.mes-admin-shell button[data-variant][data-size='sm'] { height: 26px; min-height: 26px; padding: 0 8px; font-size: 11px; }
+.mes-admin-shell button[data-variant][data-size='md'] { height: 32px; min-height: 32px; padding: 0 10px; font-size: 12px; }
+.mes-admin-shell button[data-variant][data-size='lg'] { height: 36px; min-height: 36px; padding: 0 12px; font-size: 13px; }
+
+/* Legacy admin buttons kept 44px touch sizing from Geist White. In the admin
+   shell they read as oversized next to 32px MES controls; operator screens do
+   not use these classes, so their touch targets are untouched. */
+.mes-admin-shell .btn-touch {
+  min-width: 0;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.mes-admin-shell .btn-secondary { border: 1px solid var(--om-line); background: var(--om-panel); color: var(--om-muted); }
+.mes-admin-shell .btn-secondary:hover { border-color: var(--om-accent); background: var(--om-panel); color: var(--om-accent); }
+.mes-admin-shell .btn-primary { background: var(--om-accent); color: #fff; }
+html.dark .mes-admin-shell .btn-primary,
+html.dark .mes-admin-shell .btn-accent { color: #071425; }
+html.dark .mes-admin-shell button[data-variant='primary'],
+html.dark .mes-admin-shell button[data-variant='accent'] { color: #071425; }
+
+.mes-admin-shell .mes-modal-head { padding: 10px 14px; }
+.mes-admin-shell .mes-modal-title { font-size: 14px; line-height: 20px; font-weight: 600; }
+.mes-admin-shell .mes-modal-sub { margin-top: 2px; font-size: 9.5px; line-height: 14px; }
+.mes-admin-shell .mes-modal-close { width: 24px; height: 24px; border-radius: 3px; color: var(--om-muted); }
+.mes-admin-shell .mes-modal-close:hover { background: var(--om-chip); color: var(--om-ink); }
+.mes-admin-shell .mes-modal-body { padding: 12px 14px; }
+.mes-admin-shell .mes-modal-foot { gap: 8px; padding: 10px 14px; background: var(--om-panel); }

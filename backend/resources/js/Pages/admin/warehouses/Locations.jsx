@@ -371,15 +371,15 @@ function MoveModal({ item, fromBin, locations, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="move-location-title" onClick={onClose}>
             <form onSubmit={submit} className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-t-om border border-om-line bg-om-card shadow-xl sm:rounded-om" onClick={(event) => event.stopPropagation()}>
-                <div className="flex items-start justify-between gap-3 border-b border-om-line2 px-4 py-3">
+                <div className="mes-modal-head flex items-start justify-between gap-3 border-b border-om-line2 px-4 py-3">
                     <div className="min-w-0">
-                        <h2 id="move-location-title" className="text-sm font-bold text-om-ink">调整库位 · {item.material_name}</h2>
-                        <p className="mt-0.5 truncate font-mono text-[10px] text-om-faint">{item.kind === 'product' ? `${item.material_code} · 成品` : item.kind === 'stock' ? `${item.material_code} · 库存行` : `${item.lot_number} · ${item.material_code}`}</p>
+                        <h2 id="move-location-title" className="mes-modal-title text-sm font-bold text-om-ink">调整库位 · {item.material_name}</h2>
+                        <p className="mes-modal-sub mt-0.5 truncate font-mono text-[10px] text-om-faint">{item.kind === 'product' ? `${item.material_code} · 成品` : item.kind === 'stock' ? `${item.material_code} · 库存行` : `${item.lot_number} · ${item.material_code}`}</p>
                     </div>
-                    <button type="button" onClick={onClose} className="btn-touch btn-secondary px-3 text-xs">关闭</button>
+                    <button type="button" onClick={onClose} aria-label="关闭" className="mes-modal-close flex size-7 shrink-0 items-center justify-center rounded-om-sm text-om-muted hover:bg-om-chip hover:text-om-ink"><Icon name="x" size={16} /></button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 px-4 py-4">
+                <div className="mes-modal-body grid grid-cols-2 gap-3 px-4 py-4">
                     <div>
                         <div className="text-[10px] text-om-faint">当前库位</div>
                         <div className="mt-1 font-mono text-sm font-bold text-om-ink">{fromBin.code} · {fromBin.name}</div>
@@ -416,7 +416,7 @@ function MoveModal({ item, fromBin, locations, onClose }) {
                     移库只改库位，不拆数量、不改库存余额。物料批仍保留原批号、状态和有效期；成品仍按汇总数量管理。
                 </div>
 
-                <div className="flex items-center justify-between gap-2 border-t border-om-line2 px-4 py-3">
+                <div className="mes-modal-foot flex items-center justify-between gap-2 border-t border-om-line2 px-4 py-3">
                     <span className="text-[10px] text-om-faint">会追加一条移库记录。</span>
                     <div className="flex gap-2">
                         <button type="button" onClick={onClose} className="btn-touch btn-secondary text-xs">取消</button>
@@ -495,15 +495,15 @@ function LocationModal({ editor, warehouses, locations, onClose }) {
     return (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="location-editor-title" onClick={onClose}>
             <form onSubmit={submit} className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-t-om border border-om-line bg-om-card shadow-xl sm:rounded-om" onClick={(event) => event.stopPropagation()}>
-                <div className="flex items-start justify-between gap-3 border-b border-om-line2 px-4 py-3">
+                <div className="mes-modal-head flex items-start justify-between gap-3 border-b border-om-line2 px-4 py-3">
                     <div className="min-w-0">
-                        <h2 id="location-editor-title" className="text-sm font-bold text-om-ink">{title}</h2>
-                        <p className="mt-0.5 text-[10px] text-om-faint">{isEdit ? '只改库位档案，不影响已放库存或库存数量。' : isZone ? '库区是库位的上一层，创建后再往里加库位。' : '库位编码会出现在库存台账和移库记录里。'}</p>
+                        <h2 id="location-editor-title" className="mes-modal-title text-sm font-bold text-om-ink">{title}</h2>
+                        <p className="mes-modal-sub mt-0.5 text-[10px] text-om-faint">{isEdit ? '只改库位档案，不影响已放库存或库存数量。' : isZone ? '库区是库位的上一层，创建后再往里加库位。' : '库位编码会出现在库存台账和移库记录里。'}</p>
                     </div>
-                    <button type="button" onClick={onClose} className="btn-touch btn-secondary px-3 text-xs">关闭</button>
+                    <button type="button" onClick={onClose} aria-label="关闭" className="mes-modal-close flex size-7 shrink-0 items-center justify-center rounded-om-sm text-om-muted hover:bg-om-chip hover:text-om-ink"><Icon name="x" size={16} /></button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 px-4 py-4">
+                <div className="mes-modal-body grid grid-cols-2 gap-3 px-4 py-4">
                     <label className="col-span-2 block">
                         <span className="mb-1 block text-[11px] font-bold text-om-muted">仓库</span>
                         <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} disabled={editor.mode !== 'create-zone'} className={`${INPUT} disabled:opacity-60`} required>
@@ -553,7 +553,7 @@ function LocationModal({ editor, warehouses, locations, onClose }) {
                     </div>
                 )}
 
-                <div className="flex items-center justify-between gap-2 border-t border-om-line2 px-4 py-3">
+                <div className="mes-modal-foot flex items-center justify-between gap-2 border-t border-om-line2 px-4 py-3">
                     <span className="text-[10px] text-om-faint">{isEdit ? '编码修改后不影响已有库存引用。' : '创建后可回到页面继续移库。'}</span>
                     <div className="flex gap-2">
                         <button type="button" onClick={onClose} className="btn-touch btn-secondary text-xs">取消</button>

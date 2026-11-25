@@ -1,5 +1,5 @@
 import React from 'react';
-import { PageTitleContext } from '../../layouts/AppLayout';
+import PageTitle from '../../components/PageTitle';
 
 /**
  * MES 工业台：面向国内制造企业的高密度工作台。
@@ -16,22 +16,21 @@ export function MesPage({ children, className = '' }) {
 }
 
 export function MesHeader({ breadcrumb = [], title, tag, description, meta, actions }) {
-    // A MES page brings its own breadcrumb and heading. Mark it so the desktop
-    // utility bar does not repeat the same trail above the page.
-    const { register } = React.useContext(PageTitleContext);
-    React.useEffect(() => register(), [register]);
-
     return (
         <div className="mes-page-head">
             <div className="min-w-0">
-                <div className="mes-kicker">
-                    {breadcrumb.map((item, index) => (
-                        <React.Fragment key={item}>
-                            {index > 0 && <span className="sep">/</span>}
-                            <span>{item}</span>
-                        </React.Fragment>
-                    ))}
-                </div>
+                {breadcrumb.length > 0 && (
+                    <PageTitle>
+                        <div className="mes-head-trail">
+                            {breadcrumb.map((item, index) => (
+                                <React.Fragment key={`${item}-${index}`}>
+                                    {index > 0 && <span className="sep">/</span>}
+                                    <span>{item}</span>
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    </PageTitle>
+                )}
                 <div className="mes-title-row">
                     <h1 className="mes-title">{title}</h1>
                     {tag && <MesTag tone={tag.tone ?? 'blue'}>{tag.label}</MesTag>}
