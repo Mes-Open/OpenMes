@@ -218,7 +218,7 @@ class WarehouseLocationController extends Controller
     public function move(Request $request)
     {
         $data = $request->validate([
-            'item_type' => 'required|in:material_lot,product_stock',
+            'item_type' => 'required|in:material_lot,material_stock,product_stock',
             'item_id' => 'required|integer|min:1',
             'to_location_id' => 'required|integer|exists:warehouse_locations,id',
             'note' => 'nullable|string|max:160',
@@ -260,6 +260,30 @@ class WarehouseLocationController extends Controller
                     'item_name' => $lot->material?->name ?? $lot->lot_number,
                     'quantity' => (float) $lot->quantity_available,
                     'unit_of_measure' => $lot->unit_of_measure,
+                ];
+            } elseif ($data['item_type'] === WarehouseLocationMove::ITEM_MATERIAL_STOCK) {
+                $stock = WarehouseStock::query()->whereKey($data['item_id'])->lockForUpdate()->first();
+
+                if (! $stock || $stock->warehouse_id !== $warehouseId || $stock->product_type_id !== null || $stock->material_id === null) {
+                    throw ValidationException::withMessages([
+                        'item_id' => '这个物料库存不属于目标仓库。',
+                    ]);
+                }
+
+                if (MaterialLot::query()->where('warehouse_id', $warehouseId)->where('material_id', $stock->material_id)->exists()) {
+                    throw ValidationException::withMessages([
+                        'item_id' => '这个物料已有批次库位，请在库位地图按批次调整。',
+                    ]);
+                }
+
+                $source = $stock->warehouse_location_id;
+                $snapshot = [
+                    'item_type' => WarehouseLocationMove::ITEM_MATERIAL_STOCK,
+                    'item_id' => $stock->id,
+                    'item_code' => $stock->material?->code,
+                    'item_name' => $stock->material?->name ?? '物料',
+                    'quantity' => (float) $stock->quantity,
+                    'unit_of_measure' => $stock->unit_of_measure,
                 ];
             } else {
                 $stock = WarehouseStock::query()->whereKey($data['item_id'])->lockForUpdate()->first();
@@ -304,7 +328,9 @@ class WarehouseLocationController extends Controller
             ]);
         });
 
-        return back()->with('success', '库位已调整，库存数量未变。');
+        return back()->with('success', $data['item_type'] === WarehouseLocationMove::ITEM_MATERIAL_STOCK
+            ? '库位已指定，库存数量未变。'
+            : '库位已调整，库存数量未变。');
     }
 
     public function moves(Request $request)
@@ -313,8 +339,9 @@ class WarehouseLocationController extends Controller
 
         $summary = [
             'total' => (clone $query)->count(),
-            'material_lot' => (clone $query)->where('item_type', 'material_lot')->count(),
-            'product_stock' => (clone $query)->where('item_type', 'product_stock')->count(),
+            'material_lot' => (clone $query)->where('item_type', WarehouseLocationMove::ITEM_MATERIAL_LOT)->count(),
+            'material_stock' => (clone $query)->where('item_type', WarehouseLocationMove::ITEM_MATERIAL_STOCK)->count(),
+            'product_stock' => (clone $query)->where('item_type', WarehouseLocationMove::ITEM_PRODUCT_STOCK)->count(),
             'operators' => (clone $query)->whereNotNull('moved_by')->distinct('moved_by')->count('moved_by'),
             'last_moved_at' => (clone $query)->max('moved_at'),
         ];
@@ -347,7 +374,11 @@ class WarehouseLocationController extends Controller
                 fputcsv($out, [
                     $move->moved_at?->format('Y-m-d H:i:s'),
                     $move->warehouse?->name,
-                    $move->item_type === 'material_lot' ? '物料批' : '成品库存',
+                    match ($move->item_type) {
+                        WarehouseLocationMove::ITEM_MATERIAL_LOT => '物料批',
+                        WarehouseLocationMove::ITEM_MATERIAL_STOCK => '物料库存',
+                        default => '成品库存',
+                    },
                     $move->item_code,
                     $move->item_name,
                     $move->quantity,
@@ -381,7 +412,7 @@ class WarehouseLocationController extends Controller
                 'movedBy:id,name,username',
             ])
             ->when($filters['warehouse'], fn ($query) => $query->where('warehouse_id', $filters['warehouse']))
-            ->when(in_array($filters['type'], ['material_lot', 'product_stock'], true), fn ($query) => $query->where('item_type', $filters['type']))
+            ->when(in_array($filters['type'], WarehouseLocationMove::ITEM_TYPES, true), fn ($query) => $query->where('item_type', $filters['type']))
             ->when($filters['q'] !== '', function ($query) use ($filters) {
                 $term = '%'.$filters['q'].'%';
                 $query->where(function ($query) use ($term) {
@@ -431,6 +462,14 @@ class WarehouseLocationController extends Controller
             ->orderBy('id')
             ->get();
 
+        $assignedMaterialStocks = WarehouseStock::query()
+            ->whereIn('warehouse_location_id', $locations->pluck('id'))
+            ->whereNull('product_type_id')
+            ->whereNotNull('material_id')
+            ->with('material:id,code,name')
+            ->orderBy('id')
+            ->get();
+
         $stocks = WarehouseStock::query()
             ->whereIn('warehouse_id', $warehouseIds)
             ->with([
@@ -444,6 +483,7 @@ class WarehouseLocationController extends Controller
 
         $lotsByLocation = $lots->groupBy('warehouse_location_id');
         $productsByLocation = $products->groupBy('warehouse_location_id');
+        $materialStocksByLocation = $assignedMaterialStocks->groupBy('warehouse_location_id');
         $stocksByWarehouse = $stocks->groupBy('warehouse_id');
         $locationsByWarehouse = $locations->groupBy('warehouse_id');
 
@@ -455,13 +495,15 @@ class WarehouseLocationController extends Controller
             $locationsByWarehouse,
             $lotsByLocation,
             $productsByLocation,
+            $materialStocksByLocation,
             $stocksByWarehouse,
             $locatedMaterialQuantity,
             $lots,
             $locations
         ) {
-            $warehouseLocations = $locationsByWarehouse->get($warehouse->id, collect())->map(function (WarehouseLocation $location) use ($lotsByLocation, $productsByLocation) {
+            $warehouseLocations = $locationsByWarehouse->get($warehouse->id, collect())->map(function (WarehouseLocation $location) use ($lotsByLocation, $productsByLocation, $materialStocksByLocation) {
                 $locationLots = $lotsByLocation->get($location->id, collect());
+                $locationMaterialStocks = $materialStocksByLocation->get($location->id, collect());
                 $locationProducts = $productsByLocation->get($location->id, collect());
 
                 $items = $locationLots->map(fn (MaterialLot $lot) => [
@@ -475,7 +517,18 @@ class WarehouseLocationController extends Controller
                     'status' => $lot->status,
                     'status_label' => self::LOT_STATUS_LABELS[$lot->status] ?? $lot->status,
                     'is_held' => in_array($lot->status, [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED], true),
-                ])->concat($locationProducts->map(fn (WarehouseStock $stock) => [
+                ])->concat($locationMaterialStocks->map(fn (WarehouseStock $stock) => [
+                    'key' => 'material-stock-'.$stock->id,
+                    'kind' => 'stock',
+                    'code' => $stock->material?->code ?? '—',
+                    'name' => $stock->material?->name ?? '—',
+                    'lot_number' => null,
+                    'quantity' => (float) $stock->quantity,
+                    'uom' => $stock->unit_of_measure,
+                    'status' => 'stock',
+                    'status_label' => '账面库存',
+                    'is_held' => false,
+                ]))->concat($locationProducts->map(fn (WarehouseStock $stock) => [
                     'key' => 'product-'.$stock->id,
                     'kind' => 'product',
                     'code' => $stock->productType?->code ?? '—',
@@ -521,14 +574,20 @@ class WarehouseLocationController extends Controller
                     $relatedLots = $lots
                         ->where('warehouse_id', $stock->warehouse_id)
                         ->where('material_id', $stock->material_id);
-                    $locationCodes = $relatedLots
-                        ->pluck('warehouse_location_id')
-                        ->filter()
-                        ->unique()
-                        ->map(fn ($id) => $locations->firstWhere('id', $id)?->code)
-                        ->filter()
-                        ->values()
-                        ->all();
+
+                    if ($relatedLots->isEmpty() && $stock->warehouse_location_id) {
+                        $located = $balance;
+                        $locationCodes = [$stock->location?->code];
+                    } else {
+                        $locationCodes = $relatedLots
+                            ->pluck('warehouse_location_id')
+                            ->filter()
+                            ->unique()
+                            ->map(fn ($id) => $locations->firstWhere('id', $id)?->code)
+                            ->filter()
+                            ->values()
+                            ->all();
+                    }
                 }
 
                 $variance = round($located - $balance, 3);
@@ -589,7 +648,7 @@ class WarehouseLocationController extends Controller
                 ->get($location->id, collect())
                 ->whereIn('status', [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED])
                 ->isNotEmpty())->count(),
-            'located_items' => $lots->count() + $products->count(),
+            'located_items' => $lots->count() + $products->count() + $assignedMaterialStocks->count(),
         ];
 
         return Inertia::render('admin/warehouses/LocationReconcile', [

@@ -19,10 +19,13 @@ class WarehouseLocationMove extends Model
 
     public const ITEM_MATERIAL_LOT = 'material_lot';
 
+    public const ITEM_MATERIAL_STOCK = 'material_stock';
+
     public const ITEM_PRODUCT_STOCK = 'product_stock';
 
     public const ITEM_TYPES = [
         self::ITEM_MATERIAL_LOT,
+        self::ITEM_MATERIAL_STOCK,
         self::ITEM_PRODUCT_STOCK,
     ];
 

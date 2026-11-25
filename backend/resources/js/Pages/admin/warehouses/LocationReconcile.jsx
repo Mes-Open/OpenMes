@@ -23,6 +23,10 @@ export default function LocationReconcile() {
     const { warehouses = [], summary = {}, filters = {} } = usePage().props;
     const [view, setView] = useState('location');
     const [onlyGap, setOnlyGap] = useState(false);
+    const [assign, setAssign] = useState(null);
+    const [assignTarget, setAssignTarget] = useState('');
+    const [assignNote, setAssignNote] = useState('');
+    const [assignErrors, setAssignErrors] = useState({});
     const activeWarehouse = filters.warehouse ? String(filters.warehouse) : '';
 
     const applyWarehouse = (id) => {
@@ -35,6 +39,36 @@ export default function LocationReconcile() {
 
     const gapCount = (summary.unlocated_lines ?? 0) + (summary.variance_lines ?? 0);
 
+    const openAssign = (item, warehouse) => {
+        setAssign({ item, warehouse });
+        setAssignTarget('');
+        setAssignNote('');
+        setAssignErrors({});
+    };
+
+    const closeAssign = () => {
+        setAssign(null);
+        setAssignTarget('');
+        setAssignNote('');
+        setAssignErrors({});
+    };
+
+    const submitAssign = (event) => {
+        event.preventDefault();
+        if (!assign || !assignTarget) return;
+
+        router.post('/admin/warehouses/locations/move', {
+            item_type: 'material_stock',
+            item_id: assign.item.id,
+            to_location_id: Number(assignTarget),
+            note: assignNote,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => closeAssign(),
+            onError: (errors) => setAssignErrors(errors ?? {}),
+        });
+    };
+
     return (
         <>
             <Head title="仓储 · 库位对账" />
@@ -46,7 +80,7 @@ export default function LocationReconcile() {
                             用账面库存行对照库位占用，看清哪些库存已经落到库位，哪些还留在仓库账面没有位置。
                         </p>
                         <p className="mt-2 text-xs text-om-faint">
-                            {warehouses.length} 个仓库 · {summary.located_items ?? 0} 项库位占用 · 只读核对，不改库存
+                            {warehouses.length} 个仓库 · {summary.located_items ?? 0} 项库位占用 · 核对库位，不改库存数量
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -89,15 +123,28 @@ export default function LocationReconcile() {
                 </div>
 
                 {view === 'location' ? (
-                    <LocationView warehouses={warehouses} />
+                    <LocationView warehouses={warehouses} onAssign={openAssign} />
                 ) : (
-                    <StockView warehouses={warehouses} onlyGap={onlyGap} />
+                    <StockView warehouses={warehouses} onlyGap={onlyGap} onAssign={openAssign} />
                 )}
 
                 <div className="rounded-om-sm border border-om-line bg-om-chip/40 px-4 py-3 text-xs leading-5 text-om-muted">
-                    对账口径：物料批按可用量计入库位，拒收批可用量为 0，但仍在库位上可见；成品库存按成品仓汇总行计入库位。这里不拆数量、不改库存余额。
+                    对账口径：物料批按可用量计入库位，拒收批可用量为 0，但仍在库位上可见；成品库存按成品仓汇总行计入库位。未指定库位可从本页指定；这里不拆数量、不改库存余额。
                 </div>
             </div>
+
+            {assign && (
+                <AssignDialog
+                    assign={assign}
+                    target={assignTarget}
+                    setTarget={setAssignTarget}
+                    note={assignNote}
+                    setNote={setAssignNote}
+                    errors={assignErrors}
+                    onClose={closeAssign}
+                    onSubmit={submitAssign}
+                />
+            )}
         </>
     );
 }
@@ -140,7 +187,7 @@ function ViewButton({ active, onClick, children }) {
     );
 }
 
-function LocationView({ warehouses }) {
+function LocationView({ warehouses, onAssign }) {
     return (
         <div className="space-y-6">
             {warehouses.map((warehouse) => (
@@ -155,7 +202,7 @@ function LocationView({ warehouses }) {
 
                     <div className="grid gap-3 xl:grid-cols-2">
                         {warehouse.locations.map((location) => <LocationCard key={location.id} location={location} />)}
-                        {warehouse.unassigned.length > 0 && <UnassignedCard warehouse={warehouse} />}
+                        {warehouse.unassigned.length > 0 && <UnassignedCard warehouse={warehouse} onAssign={onAssign} />}
                     </div>
                 </section>
             ))}
@@ -207,7 +254,7 @@ function LocationCard({ location }) {
     );
 }
 
-function UnassignedCard({ warehouse }) {
+function UnassignedCard({ warehouse, onAssign }) {
     return (
         <div className="overflow-hidden rounded-om-sm border border-dashed border-om-accent/40 bg-om-card">
             <div className="border-b border-om-line2 px-4 py-3">
@@ -226,7 +273,10 @@ function UnassignedCard({ warehouse }) {
                             <div className="truncate text-xs font-bold text-om-ink">{line.name}</div>
                             <div className="mt-0.5 truncate font-mono text-[10px] text-om-faint">{line.code} · 账面 {number(line.balance)} {line.uom}</div>
                         </div>
-                        <div className="shrink-0 text-right font-mono text-xs font-bold text-om-accent">{number(line.unlocated)} {line.uom}</div>
+                        <div className="shrink-0 text-right">
+                            <div className="font-mono text-xs font-bold text-om-accent">{number(line.unlocated)} {line.uom}</div>
+                            <button type="button" onClick={() => onAssign(line, warehouse)} className="mt-1 text-[10px] font-bold text-om-accent hover:underline">指定库位</button>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -237,7 +287,7 @@ function UnassignedCard({ warehouse }) {
     );
 }
 
-function StockView({ warehouses, onlyGap }) {
+function StockView({ warehouses, onlyGap, onAssign }) {
     const visible = (warehouse) => onlyGap
         ? warehouse.stock_lines.filter((line) => line.status !== 'OK')
         : warehouse.stock_lines;
@@ -268,7 +318,7 @@ function StockView({ warehouses, onlyGap }) {
                                     <StockTable lines={lines} />
                                 </div>
                                 <div className="divide-y divide-om-line2 lg:hidden">
-                                    {lines.map((line) => <StockCard key={line.id} line={line} />)}
+                                    {lines.map((line) => <StockCard key={line.id} line={line} warehouse={warehouse} onAssign={onAssign} />)}
                                 </div>
                             </>
                         )}
@@ -279,7 +329,7 @@ function StockView({ warehouses, onlyGap }) {
     );
 }
 
-function StockCard({ line }) {
+function StockCard({ line, warehouse, onAssign }) {
     return (
         <div className="px-4 py-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -304,6 +354,9 @@ function StockCard({ line }) {
                 )) : <span className="italic">未指定</span>}
                 {line.lot_count > 1 && <span>· {line.lot_count} 个批次</span>}
                 {line.held_lot_count > 0 && <span className="font-bold text-om-accent">· 冻结 {line.held_lot_count} 批</span>}
+                {line.kind === 'material' && line.status === 'UNLOCATED' && (
+                    <button type="button" onClick={() => onAssign(line, warehouse)} className="ml-auto text-[10px] font-bold text-om-accent hover:underline">指定库位</button>
+                )}
             </div>
         </div>
     );
@@ -364,6 +417,83 @@ function Figure({ label, value, accent }) {
         <div className="min-w-0">
             <div className="text-[9px] font-bold text-om-faint">{label}</div>
             <div className={`mt-0.5 truncate font-mono text-[11px] font-bold ${accent ? 'text-om-accent' : 'text-om-ink'}`}>{value}</div>
+        </div>
+    );
+}
+
+function AssignDialog({ assign, target, setTarget, note, setNote, errors, onClose, onSubmit }) {
+    const { item, warehouse } = assign;
+    const targets = warehouse.locations ?? [];
+    const error = errors.to_location_id || errors.item_id || errors.note;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="assign-location-title" onClick={onClose}>
+            <form onSubmit={onSubmit} className="max-h-[92vh] w-full max-w-[540px] overflow-y-auto rounded-t-om border border-om-line bg-om-card shadow-xl sm:rounded-om" onClick={(event) => event.stopPropagation()}>
+                <div className="flex items-start justify-between gap-3 border-b border-om-line2 px-4 py-3">
+                    <div className="min-w-0">
+                        <h2 id="assign-location-title" className="text-sm font-bold text-om-ink">指定库位 · {item.name}</h2>
+                        <p className="mt-0.5 truncate font-mono text-[10px] text-om-faint">{item.code} · {warehouse.name}</p>
+                    </div>
+                    <button type="button" onClick={onClose} className="btn-touch btn-secondary px-3 text-xs">关闭</button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 px-4 py-4">
+                    <div>
+                        <div className="text-[10px] text-om-faint">当前库位</div>
+                        <div className="mt-1 font-semibold text-sm text-om-accent">未指定</div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-[10px] text-om-faint">账面数量</div>
+                        <div className="mt-1 font-mono text-lg font-bold text-om-ink">{number(item.unlocated)} <span className="text-xs font-medium text-om-muted">{item.uom}</span></div>
+                    </div>
+                    <div className="col-span-2">
+                        <label className="block">
+                            <span className="mb-1 block text-[11px] font-bold text-om-muted">目标库位</span>
+                            <select
+                                value={target}
+                                onChange={(event) => setTarget(event.target.value)}
+                                className="h-10 w-full rounded-om-sm border border-om-line bg-om-card px-3 text-sm text-om-ink outline-none focus:border-om-accent"
+                                required
+                            >
+                                <option value="">选择同仓库位</option>
+                                {targets.map((location) => (
+                                    <option key={location.id} value={location.id}>
+                                        {location.code} · {location.name}{location.item_count > 0 ? ` · 已有 ${location.item_count} 项` : ' · 空'}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        {!targets.length && <div className="mt-1 text-[10px] text-om-accent">这个仓库还没有启用库位，请先在库位页新增。</div>}
+                    </div>
+                    <div className="col-span-2">
+                        <label className="block">
+                            <span className="mb-1 block text-[11px] font-bold text-om-muted">备注（可选）</span>
+                            <textarea
+                                rows={2}
+                                value={note}
+                                onChange={(event) => setNote(event.target.value)}
+                                placeholder="例如：糖浆整桶上架到辅料位"
+                                className="h-auto min-h-[68px] w-full resize-none rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-sm text-om-ink outline-none placeholder:text-om-faint focus:border-om-accent"
+                                maxLength={160}
+                            />
+                        </label>
+                    </div>
+                </div>
+
+                {error && <div className="mx-4 mb-4 rounded-om-sm border border-om-blocked/30 bg-om-blocked-bg px-3 py-2 text-[11px] text-om-blocked">{error}</div>}
+
+                <div className="mx-4 mb-4 rounded-om-sm border border-om-line bg-om-chip/30 px-3 py-2 text-[11px] leading-5 text-om-muted">
+                    只给这一行账面库存指定库位，不拆数量、不改库存余额。已有批次的物料请回库位地图按批次调整。
+                </div>
+
+                <div className="flex items-center justify-between gap-2 border-t border-om-line2 px-4 pt-3 pb-4">
+                    <span className="text-[10px] text-om-faint">会追加一条库位记录。</span>
+                    <div className="flex gap-2">
+                        <button type="button" onClick={onClose} className="btn-touch btn-secondary text-xs">取消</button>
+                        <button type="submit" disabled={!target} className="btn-touch btn-accent text-xs disabled:cursor-not-allowed disabled:opacity-50">确认指定</button>
+                    </div>
+                </div>
+            </form>
         </div>
     );
 }

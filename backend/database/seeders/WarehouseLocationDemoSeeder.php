@@ -144,6 +144,30 @@ class WarehouseLocationDemoSeeder extends Seeder
                 ->update(['warehouse_location_id' => $bin->id]);
         }
 
+        $stockRowAssignments = [
+            'NT-PKG-LID-700' => 'B-01',
+        ];
+
+        $locatedStockRows = 0;
+
+        foreach ($stockRowAssignments as $materialCode => $binCode) {
+            $bin = $bins->get($binCode);
+
+            if (! $bin) {
+                continue;
+            }
+
+            $stock = WarehouseStock::where('warehouse_id', $bin->warehouse_id)
+                ->whereNull('product_type_id')
+                ->whereHas('material', fn ($query) => $query->where('code', $materialCode))
+                ->first();
+
+            if ($stock) {
+                $stock->update(['warehouse_location_id' => $bin->id]);
+                $locatedStockRows++;
+            }
+        }
+
         if (! WarehouseLocationMove::where('warehouse_id', $warehouses->get('NT-WH-RM')->id)->exists()) {
             $lot = MaterialLot::where('lot_number', 'NT-RM-DONGFANG-20261124')->first();
             $mango = WarehouseStock::where('warehouse_id', $warehouses->get('NT-WH-FG')->id)
@@ -151,38 +175,60 @@ class WarehouseLocationDemoSeeder extends Seeder
                 ->with('productType')
                 ->get()
                 ->first(fn (WarehouseStock $stock) => $stock->productType?->code === 'NT-FG-MANGO-SAGO');
+            $lidStock = WarehouseStock::where('warehouse_id', $warehouses->get('NT-WH-RM')->id)
+                ->whereNull('product_type_id')
+                ->whereHas('material', fn ($query) => $query->where('code', 'NT-PKG-LID-700'))
+                ->with('material')
+                ->first();
 
-            if ($lot && $mango) {
-                WarehouseLocationMove::create([
-                    'warehouse_id' => $lot->warehouse_id,
-                    'from_location_id' => $bins->get('A-03')?->id,
-                    'to_location_id' => $bins->get('A-01')?->id,
-                    'item_type' => WarehouseLocationMove::ITEM_MATERIAL_LOT,
-                    'item_id' => $lot->id,
-                    'item_code' => trim(($lot->material?->code ?? '').' · '.$lot->lot_number, ' ·'),
-                    'item_name' => $lot->material?->name ?? $lot->lot_number,
-                    'quantity' => (float) $lot->quantity_available,
-                    'unit_of_measure' => $lot->unit_of_measure,
-                    'moved_at' => now()->subMinutes(40),
-                    'note' => '盘点结束，凤凰单丛回到叶类茶位',
-                ]);
+            $recordMove = function (string $type, $item, ?string $fromCode, string $toCode, int $minutesAgo, string $note) use ($bins) {
+                $toBin = $bins->get($toCode);
+                $fromBin = $fromCode ? $bins->get($fromCode) : null;
+
+                if (! $toBin || ! $item) {
+                    return;
+                }
+
+                $snapshot = match ($type) {
+                    WarehouseLocationMove::ITEM_MATERIAL_LOT => [
+                        'item_code' => trim(($item->material?->code ?? '').' · '.$item->lot_number, ' ·'),
+                        'item_name' => $item->material?->name ?? $item->lot_number,
+                        'quantity' => (float) $item->quantity_available,
+                        'unit_of_measure' => $item->unit_of_measure,
+                    ],
+                    WarehouseLocationMove::ITEM_MATERIAL_STOCK => [
+                        'item_code' => $item->material?->code,
+                        'item_name' => $item->material?->name ?? '物料',
+                        'quantity' => (float) $item->quantity,
+                        'unit_of_measure' => $item->unit_of_measure,
+                    ],
+                    default => [
+                        'item_code' => $item->productType?->code,
+                        'item_name' => $item->productType?->name ?? '成品',
+                        'quantity' => (float) $item->quantity,
+                        'unit_of_measure' => $item->unit_of_measure,
+                    ],
+                };
 
                 WarehouseLocationMove::create([
-                    'warehouse_id' => $mango->warehouse_id,
-                    'from_location_id' => $bins->get('FG-01')?->id,
-                    'to_location_id' => $bins->get('FG-02')?->id,
-                    'item_type' => WarehouseLocationMove::ITEM_PRODUCT_STOCK,
-                    'item_id' => $mango->id,
-                    'item_code' => $mango->productType?->code,
-                    'item_name' => $mango->productType?->name ?? '成品',
-                    'quantity' => (float) $mango->quantity,
-                    'unit_of_measure' => $mango->unit_of_measure,
-                    'moved_at' => now()->subMinutes(15),
-                    'note' => '复核完成，杨枝甘露回到常温成品位',
+                    'warehouse_id' => $toBin->warehouse_id,
+                    'from_location_id' => $fromBin?->id,
+                    'to_location_id' => $toBin->id,
+                    'item_type' => $type,
+                    'item_id' => $item->id,
+                    ...$snapshot,
+                    'moved_at' => now()->subMinutes($minutesAgo),
+                    'note' => $note,
                 ]);
-            }
+            };
+
+            $recordMove(WarehouseLocationMove::ITEM_MATERIAL_LOT, $lot, 'A-01', 'A-03', 60, '叶类茶集中到辅料位，等待盘点复核');
+            $recordMove(WarehouseLocationMove::ITEM_MATERIAL_LOT, $lot, 'A-03', 'A-01', 50, '盘点结束，凤凰单丛回到叶类茶位');
+            $recordMove(WarehouseLocationMove::ITEM_PRODUCT_STOCK, $mango, 'FG-02', 'FG-01', 20, '杨枝甘露临时移入冷藏位，等待发货复核');
+            $recordMove(WarehouseLocationMove::ITEM_PRODUCT_STOCK, $mango, 'FG-01', 'FG-02', 10, '复核完成，杨枝甘露回到常温成品位');
+            $recordMove(WarehouseLocationMove::ITEM_MATERIAL_STOCK, $lidStock, null, 'B-01', 5, '杯盖整箱上架到包材 B 区');
         }
 
-        $this->command?->info('Warehouse locations seeded: '.count($zones).' zones / '.$bins->count().' bins / '.$assigned.' lots + '.$locatedProducts.' products located');
+        $this->command?->info('Warehouse locations seeded: '.count($zones).' zones / '.$bins->count().' bins / '.$assigned.' lots + '.$locatedProducts.' products + '.$locatedStockRows.' stock rows located');
     }
 }

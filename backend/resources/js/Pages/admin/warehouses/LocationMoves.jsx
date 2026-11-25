@@ -5,6 +5,7 @@ import AppLayout from '../../../layouts/AppLayout';
 
 const TYPE = {
     material_lot: { label: '物料批', className: 'bg-om-accent/10 text-om-accent', short: '批' },
+    material_stock: { label: '物料库存', className: 'bg-om-chip text-om-muted', short: '料' },
     product_stock: { label: '成品库存', className: 'bg-om-chip text-om-muted', short: '成' },
 };
 
@@ -73,10 +74,10 @@ export default function LocationMoves() {
                     <div className="min-w-0">
                         <h1 className="text-2xl font-bold tracking-tight text-om-ink">移库记录</h1>
                         <p className="mt-1 max-w-[760px] text-sm leading-6 text-om-muted">
-                            这里只记录物料批和成品库存的整项库位调整：只改物理位置，不拆数量、不改库存余额。
+                            这里记录物料批、物料库存和成品库存的整项库位调整：只改物理位置，不拆数量、不改库存余额。
                         </p>
                         <p className="mt-2 text-xs text-om-faint">
-                            按筛选结果共 {summary.total ?? 0} 条 · 物料批 {summary.material_lot ?? 0} · 成品 {summary.product_stock ?? 0}
+                            按筛选结果共 {summary.total ?? 0} 条 · 物料批 {summary.material_lot ?? 0} · 物料库存 {summary.material_stock ?? 0} · 成品 {summary.product_stock ?? 0}
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -87,7 +88,7 @@ export default function LocationMoves() {
 
                 <div className="grid overflow-hidden rounded-om-sm border border-om-line bg-om-card sm:grid-cols-2 xl:grid-cols-4">
                     <Metric label="记录总数" value={summary.total ?? 0} sub="当前筛选范围" icon="history" tone="text-om-ink" />
-                    <Metric label="物料批移库" value={summary.material_lot ?? 0} sub="按批整项移动" icon="package" tone="text-om-accent" />
+                    <Metric label="物料移库" value={(summary.material_lot ?? 0) + (summary.material_stock ?? 0)} sub={`物料批 ${summary.material_lot ?? 0} · 库存行 ${summary.material_stock ?? 0}`} icon="package" tone="text-om-accent" />
                     <Metric label="成品库存移库" value={summary.product_stock ?? 0} sub="按成品汇总行移动" icon="boxes" tone="text-om-ink" />
                     <Metric label="操作人" value={summary.operators ?? 0} sub={`最近 ${formatLongDate(summary.last_moved_at)}`} icon="user-round" tone="text-om-ink" />
                 </div>
@@ -110,6 +111,7 @@ export default function LocationMoves() {
                         <span className="text-[11px] font-bold tracking-wide text-om-faint">类型</span>
                         <FilterButton active={!filters.type} onClick={() => apply({ type: '' })}>全部</FilterButton>
                         <FilterButton active={filters.type === 'material_lot'} onClick={() => apply({ type: 'material_lot' })}>物料批</FilterButton>
+                        <FilterButton active={filters.type === 'material_stock'} onClick={() => apply({ type: 'material_stock' })}>物料库存</FilterButton>
                         <FilterButton active={filters.type === 'product_stock'} onClick={() => apply({ type: 'product_stock' })}>成品库存</FilterButton>
                         {hasFilter && <button type="button" onClick={clear} className="text-xs font-bold text-om-muted hover:text-om-ink">清除筛选</button>}
                     </div>
