@@ -270,7 +270,7 @@ function CreateOrderModal({ suppliers, materials, onClose }) {
                             <div className="text-[12px] font-semibold text-[var(--mes-ink)]">订单明细</div>
                             <button type="button" onClick={addLine} className="mes-btn">加一行</button>
                         </div>
-                        <div className="mes-table-wrap">
+                        <div className="mes-table-wrap" style={{ overflow: 'hidden' }}>
                             <table className="mes-table w-full table-fixed" style={{ minWidth: 0 }}>
                                 <thead>
                                     <tr>
