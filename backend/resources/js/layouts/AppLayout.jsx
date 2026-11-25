@@ -212,9 +212,13 @@ function mergeModuleNav(moduleNav) {
         injected[key] = (list ?? []).map(moduleItemToChild);
     }
 
-    const base = ADMIN_GROUPS.map((g) => {
-        const extra = injected[g.key];
-        if (! extra?.length) return g;
+    const base = ADMIN_GROUPS.map(function injectGroup(g) {
+        const extra = injected[g.key] ?? [];
+        const children = (g.children ?? []).map((child) => (child.children ? injectGroup(child) : child));
+
+        if (! extra.length) {
+            return { ...g, children };
+        }
 
         // A core group a module injected into gets the module's tag on its
         // header too, so the marking is visible without expanding it. Derived
@@ -226,7 +230,7 @@ function mergeModuleNav(moduleNav) {
             ...g,
             badge: g.badge ?? extra.find((child) => child.badge)?.badge,
             match: groupMatch(g.match, extra),
-            children: mergeChildren(g.children, extra),
+            children: mergeChildren(children, extra),
         };
     });
 
@@ -1022,9 +1026,13 @@ function SubGroup({ group, path, showTab = () => true }) {
             </button>
             {open && (
                 <div className="ml-3 mt-0.5 space-y-0.5 border-l border-om-line2 pl-3">
-                    {group.children.filter((child) => showTab(child.tab)).map((child) => (
-                        <ChildLink key={child.href} child={child} path={path} dot="sm" />
-                    ))}
+                    {group.children.filter((child) => showTab(child.tab)).map((child) =>
+                        child.children ? (
+                            <SubGroup key={child.key} group={child} path={path} showTab={showTab} />
+                        ) : (
+                            <ChildLink key={child.href} child={child} path={path} dot="sm" />
+                        ),
+                    )}
                 </div>
             )}
         </div>
