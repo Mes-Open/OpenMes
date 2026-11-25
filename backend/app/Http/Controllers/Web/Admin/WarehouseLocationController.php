@@ -302,4 +302,138 @@ class WarehouseLocationController extends Controller
 
         return back()->with('success', '库位已调整，库存数量未变。');
     }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'warehouse_id' => 'required|integer|exists:warehouses,id',
+            'kind' => 'required|in:zone,bin',
+            'parent_id' => 'nullable|integer|exists:warehouse_locations,id',
+            'code' => 'required|string|max:50',
+            'name' => 'required|string|max:100',
+            'description' => 'nullable|string|max:200',
+            'sort_order' => 'nullable|integer|min:0|max:999',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $warehouse = Warehouse::query()->whereKey($data['warehouse_id'])->where('is_active', true)->first();
+
+        if (! $warehouse) {
+            throw ValidationException::withMessages(['warehouse_id' => '这个仓库不存在或已停用。']);
+        }
+
+        $parent = $this->resolveParent($data);
+        $this->assertUniqueCode($warehouse->id, $data['code']);
+
+        $location = WarehouseLocation::create([
+            'warehouse_id' => $warehouse->id,
+            'parent_id' => $parent?->id,
+            'kind' => $data['kind'],
+            'code' => trim($data['code']),
+            'name' => trim($data['name']),
+            'description' => filled($data['description'] ?? null) ? trim($data['description']) : null,
+            'sort_order' => (int) ($data['sort_order'] ?? 0),
+            'is_active' => (bool) ($data['is_active'] ?? true),
+        ]);
+
+        return back()->with('success', ($location->kind === WarehouseLocation::KIND_ZONE ? '库区' : '库位').'已创建。');
+    }
+
+    public function update(Request $request, WarehouseLocation $location)
+    {
+        $data = $request->validate([
+            'kind' => 'required|in:zone,bin',
+            'parent_id' => 'nullable|integer|exists:warehouse_locations,id',
+            'code' => 'required|string|max:50',
+            'name' => 'required|string|max:100',
+            'description' => 'nullable|string|max:200',
+            'sort_order' => 'nullable|integer|min:0|max:999',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        if ($data['kind'] !== $location->kind) {
+            throw ValidationException::withMessages(['kind' => '库区与库位不能互相转换，请新建一条。']);
+        }
+
+        $parent = $this->resolveParent($data, $location);
+        $this->assertUniqueCode($location->warehouse_id, $data['code'], $location->id);
+
+        $isActive = (bool) ($data['is_active'] ?? true);
+
+        if (! $isActive) {
+            $this->assertCanDeactivate($location);
+        }
+
+        $location->update([
+            'parent_id' => $parent?->id,
+            'code' => trim($data['code']),
+            'name' => trim($data['name']),
+            'description' => filled($data['description'] ?? null) ? trim($data['description']) : null,
+            'sort_order' => (int) ($data['sort_order'] ?? 0),
+            'is_active' => $isActive,
+        ]);
+
+        return back()->with('success', ($location->kind === WarehouseLocation::KIND_ZONE ? '库区' : '库位').'已更新。');
+    }
+
+    private function resolveParent(array $data, ?WarehouseLocation $location = null): ?WarehouseLocation
+    {
+        if ($data['kind'] === WarehouseLocation::KIND_ZONE) {
+            return null;
+        }
+
+        $parent = WarehouseLocation::query()
+            ->whereKey($data['parent_id'] ?? null)
+            ->first();
+
+        if (! $parent || $parent->kind !== WarehouseLocation::KIND_ZONE) {
+            throw ValidationException::withMessages(['parent_id' => '库位必须挂在一个库区下。']);
+        }
+
+        $warehouseId = $location?->warehouse_id ?? ($data['warehouse_id'] ?? null);
+
+        if ($warehouseId && (int) $parent->warehouse_id !== (int) $warehouseId) {
+            throw ValidationException::withMessages(['parent_id' => '库区与库位必须属于同一个仓库。']);
+        }
+
+        return $parent;
+    }
+
+    private function assertUniqueCode(int $warehouseId, string $code, ?int $ignoreId = null): void
+    {
+        $duplicate = WarehouseLocation::withTrashed()
+            ->where('warehouse_id', $warehouseId)
+            ->whereNull('deleted_at')
+            ->where('code', trim($code))
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages(['code' => '同一仓库下已有这个库位编码。']);
+        }
+    }
+
+    private function assertCanDeactivate(WarehouseLocation $location): void
+    {
+        if ($location->children()->where('is_active', true)->exists()) {
+            throw ValidationException::withMessages(['is_active' => '这个库区下还有启用中的子库位，先停用子库位。']);
+        }
+
+        $occupiedLot = MaterialLot::query()
+            ->where('warehouse_location_id', $location->id)
+            ->where(function ($query) {
+                $query->where('quantity_available', '>', 0)
+                    ->orWhereIn('status', [MaterialLot::STATUS_QUARANTINE, MaterialLot::STATUS_REJECTED]);
+            })
+            ->exists();
+
+        $occupiedProduct = WarehouseStock::query()
+            ->where('warehouse_location_id', $location->id)
+            ->whereNotNull('product_type_id')
+            ->exists();
+
+        if ($occupiedLot || $occupiedProduct) {
+            throw ValidationException::withMessages(['is_active' => '这个库位还有库存，不能停用。']);
+        }
+    }
 }

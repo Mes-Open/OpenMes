@@ -1003,6 +1003,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/warehouses/stock', [\App\Http\Controllers\Web\Admin\WarehouseStockController::class, 'index'])->name('warehouses.stock.index');
         Route::get('/warehouses/locations', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'index'])->name('warehouses.locations.index');
         Route::post('/warehouses/locations/move', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'move'])->name('warehouses.locations.move');
+        Route::post('/warehouses/locations', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'store'])->name('warehouses.locations.store');
+        Route::put('/warehouses/locations/{location}', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'update'])->whereNumber('location')->name('warehouses.locations.update');
         Route::get('/warehouses/label-balance/{batch}/slip', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'slip'])->whereNumber('batch')->name('warehouses.label-balance.slip');
         Route::post('/warehouses/label-balance/{batch}', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'store'])->name('warehouses.label-balance.store');
         // ── Gate 6: Costing ───────────────────────────────────────────────────

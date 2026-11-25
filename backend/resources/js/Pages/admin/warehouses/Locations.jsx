@@ -32,6 +32,7 @@ export default function WarehouseLocations() {
     const { locations = [], moves = [], summary = {}, warehouses = [], filters = {} } = usePage().props;
     const activeWarehouse = String(filters.warehouse ?? '');
     const [moveItem, setMoveItem] = useState(null);
+    const [editor, setEditor] = useState(null);
 
     const apply = (warehouse) => {
         const params = warehouse ? { warehouse } : {};
@@ -61,13 +62,20 @@ export default function WarehouseLocations() {
                     <div className="min-w-0">
                         <h1 className="text-2xl font-bold tracking-tight text-om-ink">库位</h1>
                         <p className="mt-1 max-w-[760px] text-sm leading-6 text-om-muted">
-                            按仓库的库区与库位看物料批和成品占用。可以把一项库存整项移到同仓另一个库位；只改位置、不动数量，并保留调整记录。
+                            按仓库维护库区与库位，并查看物料批和成品占用；可以把一项库存整项移到同仓另一个库位，只改位置、不动数量，并保留调整记录。
                         </p>
                         <p className="mt-2 text-xs text-om-faint">
                             {summary.zones ?? 0} 个库区 · {summary.bins ?? 0} 个库位 · 已定位库存 {summary.located_items ?? 0} 项
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setEditor({ mode: 'create-zone', warehouseId: activeWarehouse || warehouses[0]?.id || null })}
+                            className="btn-touch btn-accent text-sm"
+                        >
+                            新增库区
+                        </button>
                         <Link href="/admin/warehouses/stock" className="btn-touch btn-secondary text-sm">库存台账</Link>
                         <Link href="/admin/warehouses" className="btn-touch btn-secondary text-sm">标签平衡</Link>
                     </div>
@@ -110,7 +118,16 @@ export default function WarehouseLocations() {
                                 </div>
                                 <span className="text-[11px] text-om-muted">{warehouse.zones.length} 个库区</span>
                             </div>
-                            {warehouse.zones.map((zone) => <ZoneCard key={zone.id} zone={zone} onMove={(item, bin) => setMoveItem({ item, bin })} />)}
+                            {warehouse.zones.map((zone) => (
+                                <ZoneCard
+                                    key={zone.id}
+                                    zone={zone}
+                                    onMove={(item, bin) => setMoveItem({ item, bin })}
+                                    onEdit={() => setEditor({ mode: 'edit', location: zone })}
+                                    onAddBin={() => setEditor({ mode: 'create-bin', parent: zone })}
+                                    onEditBin={(bin) => setEditor({ mode: 'edit', location: bin })}
+                                />
+                            ))}
                         </div>
                     ))
                 )}
@@ -137,6 +154,15 @@ export default function WarehouseLocations() {
                     fromBin={moveItem.bin}
                     locations={locations}
                     onClose={() => setMoveItem(null)}
+                />
+            )}
+
+            {editor && (
+                <LocationModal
+                    editor={editor}
+                    warehouses={warehouses}
+                    locations={locations}
+                    onClose={() => setEditor(null)}
                 />
             )}
         </>
@@ -169,7 +195,7 @@ function Metric({ label, value, sub, tone, icon }) {
     );
 }
 
-function ZoneCard({ zone, onMove }) {
+function ZoneCard({ zone, onMove, onEdit, onAddBin, onEditBin }) {
     const qtyByUom = {};
     zone.bins.forEach((bin) => {
         Object.entries(bin.available_by_uom ?? {}).forEach(([uom, qty]) => {
@@ -191,6 +217,10 @@ function ZoneCard({ zone, onMove }) {
                             <h3 className="text-sm font-bold text-om-ink">{zone.name}</h3>
                         </div>
                         {zone.description && <p className="mt-1 text-[11px] leading-4 text-om-muted">{zone.description}</p>}
+                        <div className="mt-1.5 flex items-center gap-3 text-[10px]">
+                            <button type="button" onClick={onEdit} className="font-bold text-om-muted hover:text-om-ink">编辑库区</button>
+                            <button type="button" onClick={onAddBin} className="font-bold text-om-accent hover:underline">+ 库位</button>
+                        </div>
                     </div>
                     <div className="text-right text-[10px] leading-4 text-om-muted">
                         <div>{zone.bins.length} 个库位 · 已占用 {occupied} 个{held > 0 ? ` · 冻结 ${held}` : ''}</div>
@@ -200,13 +230,16 @@ function ZoneCard({ zone, onMove }) {
             </div>
 
             <div className="divide-y divide-om-line2">
-                {zone.bins.map((bin) => <BinRow key={bin.id} bin={bin} onMove={onMove} />)}
+                {zone.bins.length === 0 && (
+                    <div className="px-4 py-4 text-[11px] text-om-faint">这个库区还没有库位，点上方“+ 库位”添加。</div>
+                )}
+                {zone.bins.map((bin) => <BinRow key={bin.id} bin={bin} onMove={onMove} onEdit={() => onEditBin(bin)} />)}
             </div>
         </div>
     );
 }
 
-function BinRow({ bin, onMove }) {
+function BinRow({ bin, onMove, onEdit }) {
     const meta = BIN_STATUS[bin.status] ?? BIN_STATUS.EMPTY;
     return (
         <div className={`px-4 py-3 ${bin.status === 'HOLD' ? 'bg-om-blocked-bg/10' : ''}`}>
@@ -224,6 +257,7 @@ function BinRow({ bin, onMove }) {
                 <div className="shrink-0 text-right">
                     <div className="text-[10px] text-om-faint">库位内</div>
                     <div className="font-mono text-[11px] font-bold text-om-ink">{bin.lots_count} 项</div>
+                    <button type="button" onClick={onEdit} className="mt-1 text-[10px] font-bold text-om-muted hover:text-om-ink">编辑</button>
                 </div>
             </div>
 
@@ -381,6 +415,141 @@ function MoveModal({ item, fromBin, locations, onClose }) {
                         <button type="submit" disabled={processing} className="btn-touch btn-accent text-xs">
                             {processing ? '移库中…' : '确认移库'}
                         </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    );
+}
+
+function LocationModal({ editor, warehouses, locations, onClose }) {
+    const location = editor.location ?? null;
+    const isEdit = editor.mode === 'edit';
+    const isZone = isEdit ? location?.kind === 'zone' : editor.mode === 'create-zone';
+    const kind = isZone ? 'zone' : 'bin';
+
+    const [warehouseId, setWarehouseId] = useState(String(location?.warehouse_id ?? editor.parent?.warehouse_id ?? editor.warehouseId ?? warehouses[0]?.id ?? ''));
+    const [parentId, setParentId] = useState(String(location?.parent_id ?? editor.parent?.id ?? ''));
+    const [code, setCode] = useState(location?.code ?? '');
+    const [name, setName] = useState(location?.name ?? '');
+    const [description, setDescription] = useState(location?.description ?? '');
+    const [sortOrder, setSortOrder] = useState(String(location?.sort_order ?? 0));
+    const [active, setActive] = useState(location?.is_active ?? true);
+    const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState(null);
+
+    const parentOptions = locations.filter((item) => item.kind === 'zone' && String(item.warehouse_id) === String(warehouseId) && (!isEdit || item.id !== location?.id));
+
+    const title = isEdit ? `编辑${isZone ? '库区' : '库位'} · ${location?.code ?? ''}` : isZone ? '新增库区' : `新增库位 · ${editor.parent?.name ?? ''}`;
+
+    const submit = (event) => {
+        event.preventDefault();
+        if (!code.trim() || !name.trim()) {
+            setError('库位编码和名称不能为空。');
+            return;
+        }
+        if (!isZone && !parentId) {
+            setError('新增库位必须选择一个所属库区。');
+            return;
+        }
+
+        setProcessing(true);
+        setError(null);
+
+        const payload = {
+            warehouse_id: Number(warehouseId),
+            kind,
+            parent_id: isZone ? null : Number(parentId),
+            code: code.trim(),
+            name: name.trim(),
+            description: description.trim(),
+            sort_order: Number(sortOrder || 0),
+            is_active: Boolean(active),
+        };
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => onClose(),
+            onError: (errors) => {
+                setError(Object.values(errors)[0] ?? '保存失败，请检查编码或所属库区。');
+                setProcessing(false);
+            },
+            onFinish: () => setProcessing(false),
+        };
+
+        if (isEdit) {
+            router.put(`/admin/warehouses/locations/${location.id}`, payload, options);
+        } else {
+            router.post('/admin/warehouses/locations', payload, options);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="location-editor-title" onClick={onClose}>
+            <form onSubmit={submit} className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-t-om border border-om-line bg-om-card shadow-xl sm:rounded-om" onClick={(event) => event.stopPropagation()}>
+                <div className="flex items-start justify-between gap-3 border-b border-om-line2 px-4 py-3">
+                    <div className="min-w-0">
+                        <h2 id="location-editor-title" className="text-sm font-bold text-om-ink">{title}</h2>
+                        <p className="mt-0.5 text-[10px] text-om-faint">{isEdit ? '只改库位档案，不影响已放库存或库存数量。' : isZone ? '库区是库位的上一层，创建后再往里加库位。' : '库位编码会出现在库存台账和移库记录里。'}</p>
+                    </div>
+                    <button type="button" onClick={onClose} className="btn-touch btn-secondary px-3 text-xs">关闭</button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 px-4 py-4">
+                    <label className="col-span-2 block">
+                        <span className="mb-1 block text-[11px] font-bold text-om-muted">仓库</span>
+                        <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} disabled={editor.mode !== 'create-zone'} className={`${INPUT} disabled:opacity-60`} required>
+                            {warehouses.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.code}</option>)}
+                        </select>
+                    </label>
+
+                    {!isZone && (
+                        <label className="col-span-2 block">
+                            <span className="mb-1 block text-[11px] font-bold text-om-muted">所属库区</span>
+                            <select value={parentId} onChange={(event) => setParentId(event.target.value)} className={INPUT} required>
+                                <option value="">选择库区</option>
+                                {parentOptions.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}
+                            </select>
+                        </label>
+                    )}
+
+                    <label className="block">
+                        <span className="mb-1 block text-[11px] font-bold text-om-muted">编码</span>
+                        <input value={code} onChange={(event) => setCode(event.target.value)} maxLength={50} required placeholder={isZone ? 'NT-LOC-RM-C' : 'A-05'} className={INPUT} />
+                    </label>
+                    <label className="block">
+                        <span className="mb-1 block text-[11px] font-bold text-om-muted">名称</span>
+                        <input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} required placeholder={isZone ? '原料 C 区' : '辅料暂存位'} className={INPUT} />
+                    </label>
+                    <label className="col-span-2 block">
+                        <span className="mb-1 block text-[11px] font-bold text-om-muted">说明（可选）</span>
+                        <textarea rows={2} value={description} onChange={(event) => setDescription(event.target.value)} maxLength={200} placeholder="例如：只放常温包材，靠近收货口" className={`${INPUT} h-auto min-h-[62px] resize-none py-2`} />
+                    </label>
+                    <label className="block">
+                        <span className="mb-1 block text-[11px] font-bold text-om-muted">排序</span>
+                        <input type="number" min="0" max="999" value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} className={INPUT} />
+                    </label>
+                    {isEdit && (
+                        <label className="flex items-end gap-2 pb-2">
+                            <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-4 w-4 rounded border-om-line accent-om-accent" />
+                            <span className="text-[11px] font-bold text-om-muted">{`启用这个${isZone ? '库区' : '库位'}`}</span>
+                        </label>
+                    )}
+                </div>
+
+                {error && <div className="mx-4 mb-4 rounded-om-sm border border-om-blocked/30 bg-om-blocked-bg px-3 py-2 text-[11px] text-om-blocked">{error}</div>}
+
+                {isEdit && !active && (
+                    <div className="mx-4 mb-4 rounded-om-sm border border-om-downtime/30 bg-om-downtime-bg px-3 py-2 text-[11px] text-om-downtime">
+                        停用后会从库位页隐藏；仍有库存或有启用中的子库位时，系统会拒绝停用。
+                    </div>
+                )}
+
+                <div className="flex items-center justify-between gap-2 border-t border-om-line2 px-4 py-3">
+                    <span className="text-[10px] text-om-faint">{isEdit ? '编码修改后不影响已有库存引用。' : '创建后可回到页面继续移库。'}</span>
+                    <div className="flex gap-2">
+                        <button type="button" onClick={onClose} className="btn-touch btn-secondary text-xs">取消</button>
+                        <button type="submit" disabled={processing} className="btn-touch btn-accent text-xs">{processing ? '保存中…' : '保存'}</button>
                     </div>
                 </div>
             </form>
