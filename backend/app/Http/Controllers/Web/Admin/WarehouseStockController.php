@@ -134,6 +134,12 @@ class WarehouseStockController extends Controller
             ? collect([$stock->location])->filter()
             : $stockLots->pluck('location')->filter()->unique('id')->values();
 
+        // A material without lots has no batch-level location to read, so fall
+        // back to the row-level bin set from the reconciliation page.
+        if (! $product && $stockLocations->isEmpty() && $stock->location) {
+            $stockLocations = collect([$stock->location]);
+        }
+
         $status = match (true) {
             // A rejected/quarantine lot stays physically in the warehouse even
             // when the aggregate says zero: surface the quality hold first.
