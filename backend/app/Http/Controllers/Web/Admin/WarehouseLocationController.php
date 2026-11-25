@@ -307,6 +307,94 @@ class WarehouseLocationController extends Controller
         return back()->with('success', '库位已调整，库存数量未变。');
     }
 
+    public function moves(Request $request)
+    {
+        [$query, $filters] = $this->moveQuery($request);
+
+        $summary = [
+            'total' => (clone $query)->count(),
+            'material_lot' => (clone $query)->where('item_type', 'material_lot')->count(),
+            'product_stock' => (clone $query)->where('item_type', 'product_stock')->count(),
+            'operators' => (clone $query)->whereNotNull('moved_by')->distinct('moved_by')->count('moved_by'),
+            'last_moved_at' => (clone $query)->max('moved_at'),
+        ];
+
+        $moves = $query
+            ->orderByDesc('moved_at')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return Inertia::render('admin/warehouses/LocationMoves', [
+            'moves' => $moves,
+            'summary' => $summary,
+            'warehouses' => Warehouse::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+            'filters' => $filters,
+        ]);
+    }
+
+    public function exportMoves(Request $request)
+    {
+        [$query, $filters] = $this->moveQuery($request);
+        $moves = $query->orderByDesc('moved_at')->orderByDesc('id')->get();
+
+        return response()->streamDownload(function () use ($moves) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['移库时间', '仓库', '类型', '对象编码', '对象名称', '数量', '单位', '原库位', '目标库位', '操作人', '备注']);
+
+            foreach ($moves as $move) {
+                fputcsv($out, [
+                    $move->moved_at?->format('Y-m-d H:i:s'),
+                    $move->warehouse?->name,
+                    $move->item_type === 'material_lot' ? '物料批' : '成品库存',
+                    $move->item_code,
+                    $move->item_name,
+                    $move->quantity,
+                    $move->unit_of_measure,
+                    $move->fromLocation?->code,
+                    $move->toLocation?->code,
+                    $move->movedBy?->name,
+                    $move->note,
+                ]);
+            }
+
+            fclose($out);
+        }, 'location-moves-'.now()->format('Ymd-Hi').'.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    private function moveQuery(Request $request): array
+    {
+        $filters = [
+            'warehouse' => (int) $request->query('warehouse', 0) ?: '',
+            'type' => (string) $request->query('type', ''),
+            'q' => trim((string) $request->query('q', '')),
+        ];
+
+        $query = WarehouseLocationMove::query()
+            ->with([
+                'warehouse:id,code,name',
+                'fromLocation:id,code,name',
+                'toLocation:id,code,name',
+                'movedBy:id,name,username',
+            ])
+            ->when($filters['warehouse'], fn ($query) => $query->where('warehouse_id', $filters['warehouse']))
+            ->when(in_array($filters['type'], ['material_lot', 'product_stock'], true), fn ($query) => $query->where('item_type', $filters['type']))
+            ->when($filters['q'] !== '', function ($query) use ($filters) {
+                $term = '%'.$filters['q'].'%';
+                $query->where(function ($query) use ($term) {
+                    $query->where('item_code', 'like', $term)
+                        ->orWhere('item_name', 'like', $term)
+                        ->orWhere('note', 'like', $term)
+                        ->orWhereHas('movedBy', fn ($query) => $query->where('name', 'like', $term)->orWhere('username', 'like', $term));
+                });
+            });
+
+        return [$query, $filters];
+    }
+
     public function label(WarehouseLocation $location)
     {
         abort_unless($location->kind === WarehouseLocation::KIND_BIN, 404);

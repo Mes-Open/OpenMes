@@ -147,7 +147,10 @@ export default function WarehouseLocations() {
                                 <h2 className="text-sm font-bold text-om-ink">最近移库</h2>
                                 <p className="mt-0.5 text-[10px] text-om-faint">只记录位置变化，库存数量不变。</p>
                             </div>
-                            <span className="text-[10px] text-om-muted">{moves.length} 条</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[10px] text-om-muted">{moves.length} 条</span>
+                                <Link href={`/admin/warehouses/locations/moves${activeWarehouse ? `?warehouse=${activeWarehouse}` : ''}`} className="text-[10px] font-bold text-om-accent hover:underline">全部记录 →</Link>
+                            </div>
                         </div>
                         <div className="divide-y divide-om-line2">
                             {moves.map((move) => <MoveRow key={move.id} move={move} />)}
