@@ -29,9 +29,23 @@ const qtyText = (qtyByUom) => {
     return entries.length ? entries.map(([uom, qty]) => `${number(qty)} ${unit(uom)}`).join(' · ') : '—';
 };
 
+const includesQuery = (values, query) => {
+    const q = String(query ?? '').trim().toLowerCase();
+    return q ? values.some((value) => value != null && String(value).toLowerCase().includes(q)) : false;
+};
+const itemMatchesQuery = (item, query) => includesQuery([
+    item.material_name, item.material_code, item.lot_number,
+], query);
+const binMatchesQuery = (bin, query) => includesQuery([
+    bin.code, bin.name, bin.description,
+    ...(bin.lots ?? []).flatMap((item) => [item.material_name, item.material_code, item.lot_number]),
+], query);
+
 export default function WarehouseLocations() {
     const { locations = [], moves = [], summary = {}, warehouses = [], filters = {} } = usePage().props;
     const activeWarehouse = String(filters.warehouse ?? '');
+    const [query, setQuery] = useState('');
+    const [binStatus, setBinStatus] = useState('ALL');
     const [moveItem, setMoveItem] = useState(null);
     const [editor, setEditor] = useState(null);
 
@@ -40,20 +54,39 @@ export default function WarehouseLocations() {
         router.get('/admin/warehouses/locations', params, { preserveState: true, replace: true });
     };
 
+    const clearFilters = () => {
+        setQuery('');
+        setBinStatus('ALL');
+        if (activeWarehouse) apply('');
+    };
+
     const grouped = warehouses
         .filter((warehouse) => !activeWarehouse || String(warehouse.id) === activeWarehouse)
         .map((warehouse) => ({
             ...warehouse,
             zones: locations
                 .filter((location) => location.warehouse_id === warehouse.id && location.kind === 'zone')
-                .map((zone) => ({
-                    ...zone,
-                    bins: locations.filter((location) => location.warehouse_id === warehouse.id && location.kind === 'bin' && location.parent_id === zone.id),
-                })),
+                .map((zone) => {
+                    const zoneHit = includesQuery([zone.code, zone.name, zone.description], query);
+                    const bins = locations
+                        .filter((location) => location.warehouse_id === warehouse.id && location.kind === 'bin' && location.parent_id === zone.id)
+                        .filter((bin) => binStatus === 'ALL' || bin.status === binStatus)
+                        .filter((bin) => !query.trim() || zoneHit || binMatchesQuery(bin, query));
+
+                    return { ...zone, zoneHit, bins };
+                })
+                .filter((zone) => zone.bins.length > 0 || (binStatus === 'ALL' && (!query.trim() || zone.zoneHit)))
+                .map(({ zoneHit, ...zone }) => zone),
         }))
         .filter((warehouse) => warehouse.zones.length > 0);
 
-    const hasFilter = Boolean(activeWarehouse);
+    const hasFilter = Boolean(activeWarehouse) || Boolean(query.trim()) || binStatus !== 'ALL';
+    const visibleBins = grouped.reduce((total, warehouse) => total + warehouse.zones.reduce((sum, zone) => sum + zone.bins.length, 0), 0);
+    const visibleOccupied = grouped.reduce((total, warehouse) => total + warehouse.zones.reduce((sum, zone) => sum + zone.bins.filter((bin) => bin.status !== 'EMPTY').length, 0), 0);
+    const visibleItems = grouped.reduce((total, warehouse) => total + warehouse.zones.reduce((sum, zone) => sum + zone.bins.reduce((n, bin) => n + Number(bin.lots_count ?? 0), 0), 0), 0);
+    const matchedItems = grouped.reduce((total, warehouse) => total + warehouse.zones.reduce((sum, zone) => sum + zone.bins.reduce((n, bin) => n + (bin.lots ?? []).filter((item) => itemMatchesQuery(item, query)).length, 0), 0), 0);
+    const itemLabel = query.trim() && matchedItems > 0 ? '匹配库存项' : '库存项';
+    const itemCount = query.trim() && matchedItems > 0 ? matchedItems : visibleItems;
 
     return (
         <>
@@ -92,17 +125,39 @@ export default function WarehouseLocations() {
                                 <option value="">全部仓库</option>
                                 {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}
                             </select>
-                            {hasFilter && <button type="button" onClick={() => apply('')} className="mes-btn">清除筛选</button>}
-                            <div className="push text-[11px] text-[var(--mes-faint)]">
-                                库位 <b className="font-mono text-[var(--mes-ink)]">{summary.bins ?? 0}</b> 个 · 已占用 <b className="font-mono text-[var(--mes-green)]">{summary.occupied_bins ?? 0}</b> 个
+                            <label className="mes-label">状态</label>
+                            <select value={binStatus} onChange={(event) => setBinStatus(event.target.value)} className="mes-select w-[130px]">
+                                <option value="ALL">全部状态</option>
+                                <option value="OCCUPIED">有料</option>
+                                <option value="HOLD">冻结 / 待处理</option>
+                                <option value="EMPTY">空库位</option>
+                            </select>
+                            <input
+                                type="search"
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                placeholder="搜索库位、物料、批号"
+                                aria-label="搜索库位、物料或批号"
+                                className="mes-input w-[240px] flex-1"
+                            />
+                            {hasFilter && <button type="button" onClick={clearFilters} className="mes-btn">清除筛选</button>}
+                            <div className="push whitespace-nowrap text-[11px] text-[var(--mes-faint)]">
+                                当前库位 <b className="font-mono text-[var(--mes-ink)]">{visibleBins}</b> 个 · 已占用 <b className="font-mono text-[var(--mes-green)]">{visibleOccupied}</b> 个 · {itemLabel} <b className="font-mono text-[var(--mes-ink)]">{itemCount}</b>
                             </div>
                         </div>
                     </div>
 
                     {grouped.length === 0 ? (
                         <div className="mes-panel mes-empty">
-                            <strong>当前仓库还没有库位层级</strong>
-                            库位会在仓库收货或成品入库时使用；这里只显示已登记的库区与库位。
+                            <strong>{hasFilter ? '没有匹配的库位或物料' : '当前仓库还没有库位层级'}</strong>
+                            {hasFilter ? (
+                                <>
+                                    换个关键字或状态，或者清除筛选查看全部库位。
+                                    <div className="mt-3"><button type="button" onClick={clearFilters} className="mes-btn">清除筛选</button></div>
+                                </>
+                            ) : (
+                                '库位会在仓库收货或成品入库时使用；这里只显示已登记的库区与库位。'
+                            )}
                         </div>
                     ) : (
                         grouped.map((warehouse) => (
@@ -115,6 +170,7 @@ export default function WarehouseLocations() {
                                     <ZoneCard
                                         key={zone.id}
                                         zone={zone}
+                                        query={query}
                                         onMove={(item, bin) => setMoveItem({ item, bin })}
                                         onEdit={() => setEditor({ mode: 'edit', location: zone })}
                                         onAddBin={() => setEditor({ mode: 'create-bin', parent: zone })}
@@ -192,7 +248,7 @@ function Metric({ label, value, sub, tone, icon }) {
     );
 }
 
-function ZoneCard({ zone, onMove, onEdit, onAddBin, onEditBin }) {
+function ZoneCard({ zone, query = '', onMove, onEdit, onAddBin, onEditBin }) {
     const [expanded, setExpanded] = useState({});
     const qtyByUom = {};
     zone.bins.forEach((bin) => {
@@ -239,7 +295,12 @@ function ZoneCard({ zone, onMove, onEdit, onAddBin, onEditBin }) {
                         )}
                         {zone.bins.map((bin) => {
                             const meta = BIN_STATUS[bin.status] ?? BIN_STATUS.EMPTY;
-                            const open = Boolean(expanded[bin.id]);
+                            const matchingItems = query.trim() ? (bin.lots ?? []).filter((item) => itemMatchesQuery(item, query)) : [];
+                            const autoOpen = matchingItems.length > 0;
+                            const open = autoOpen || Boolean(expanded[bin.id]);
+                            const description = matchingItems.length > 0
+                                ? `匹配：${matchingItems.slice(0, 2).map((item) => item.material_name).join('、')}${matchingItems.length > 2 ? ` +${matchingItems.length - 2}` : ''}`
+                                : (bin.description || '—');
                             return (
                                 <React.Fragment key={bin.id}>
                                     <tr id={`bin-${bin.id}`} className={bin.status === 'HOLD' ? 'is-alert scroll-mt-20' : 'scroll-mt-20'}>
@@ -257,10 +318,11 @@ function ZoneCard({ zone, onMove, onEdit, onAddBin, onEditBin }) {
                                         </td>
                                         <td className="num">{bin.lots_count} <span className="text-[10px] text-[var(--mes-muted)]">项</span></td>
                                         <td className="num">{qtyText(bin.available_by_uom)}</td>
-                                        <td className="truncate text-[10px] text-[var(--mes-muted)]">{bin.description || '—'}</td>
+                                        <td className={`truncate text-[10px] ${matchingItems.length > 0 ? 'font-semibold text-om-accent' : 'text-[var(--mes-muted)]'}`} title={description}>{description}</td>
                                         <td>
                                             <div className="flex flex-wrap items-center gap-2">
-                                                {bin.lots_count > 0 && <button type="button" onClick={() => toggle(bin.id)} className="mes-link">{open ? '收起' : '展开'}</button>}
+                                                {bin.lots_count > 0 && !autoOpen && <button type="button" onClick={() => toggle(bin.id)} className="mes-link">{open ? '收起' : '展开'}</button>}
+                                                {autoOpen && <span className="text-[10px] font-semibold text-om-accent">自动展开</span>}
                                                 <button type="button" onClick={() => onEditBin(bin)} className="mes-link">编辑</button>
                                                 <a href={`/admin/warehouses/locations/${bin.id}/label`} target="_blank" rel="noreferrer" className="mes-link">标签</a>
                                             </div>
@@ -270,13 +332,16 @@ function ZoneCard({ zone, onMove, onEdit, onAddBin, onEditBin }) {
                                         <tr className="mes-subrow"><td /><td colSpan={5}>空库位，等待收料或成品入库。</td></tr>
                                     )}
                                     {open && bin.lots.map((item) => (
-                                        <tr key={item.id} className="mes-subrow">
+                                        <tr key={item.id} className="mes-subrow" style={autoOpen && itemMatchesQuery(item, query) ? { background: 'var(--om-accent-bg)' } : undefined}>
                                             <td><span className="pl-5 text-[var(--mes-faint)]">└</span></td>
                                             <td><MesTag tone={item.status === 'rejected' || item.status === 'expired' ? 'red' : item.status === 'quarantine' ? 'orange' : item.status === 'released' ? 'green' : 'gray'}>{item.status_label}</MesTag></td>
                                             <td colSpan={2}>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0">
-                                                        <div className="truncate font-semibold text-[var(--mes-ink)]">{item.material_name}</div>
+                                                        <div className="flex min-w-0 items-center gap-1.5">
+                                                            <span className="truncate font-semibold text-[var(--mes-ink)]">{item.material_name}</span>
+                                                            {autoOpen && itemMatchesQuery(item, query) && <span className="mes-tag mes-tag-blue shrink-0">匹配</span>}
+                                                        </div>
                                                         <div className="truncate code">{item.kind === 'product' ? `${item.material_code} · 成品` : item.kind === 'stock' ? item.material_code : `${item.lot_number} · ${item.material_code}`}</div>
                                                     </div>
                                                     <div className="shrink-0 text-right font-mono text-[12px] font-bold text-[var(--mes-ink)]">
