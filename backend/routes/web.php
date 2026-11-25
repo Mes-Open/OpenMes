@@ -1000,6 +1000,7 @@ Route::middleware('auth')->group(function () {
         // batch. A variance writes a FAIL LABEL_BALANCE check, which the existing
         // G09 release gate reads before allowing the batch to be released.
         Route::get('/warehouses', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'index'])->name('warehouses.index');
+        Route::get('/warehouses/label-balance/{batch}/slip', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'slip'])->whereNumber('batch')->name('warehouses.label-balance.slip');
         Route::post('/warehouses/label-balance/{batch}', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'store'])->name('warehouses.label-balance.store');
         // ── Gate 6: Costing ───────────────────────────────────────────────────
         // Cost Sources

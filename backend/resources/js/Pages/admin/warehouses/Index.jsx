@@ -248,6 +248,7 @@ function DesktopTable({ rows, onRecord }) {
                             </div>
                             <div className="mt-1.5 flex items-center gap-2">
                                 <Link href={row.coa_url} className="text-[11px] font-bold text-om-accent hover:underline">查看批次</Link>
+                                <Link href={row.slip_url} className="text-[11px] font-bold text-om-muted hover:text-om-ink">打印领用单</Link>
                                 {!row.released && (
                                     <button type="button" onClick={() => onRecord(row)} className="text-[11px] font-bold text-om-muted hover:text-om-ink">
                                         登记
@@ -296,6 +297,7 @@ function MobileRow({ row, onRecord }) {
             </div>
             <div className="mt-2 flex items-center gap-3">
                 <Link href={row.coa_url} className="text-[11px] font-bold text-om-accent hover:underline">查看批次</Link>
+                <Link href={row.slip_url} className="text-[11px] font-bold text-om-muted hover:text-om-ink">打印领用单</Link>
                 {!row.released && <button type="button" onClick={() => onRecord(row)} className="text-[11px] font-bold text-om-muted hover:text-om-ink">登记标签平衡</button>}
                 {row.released && <span className="text-[10px] font-bold text-om-faint">已放行，只读</span>}
             </div>

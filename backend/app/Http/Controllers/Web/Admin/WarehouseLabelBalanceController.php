@@ -137,11 +137,7 @@ class WarehouseLabelBalanceController extends Controller
             ? round($counts['issued'] - $counts['consumed'] - $counts['scrapped'] - $counts['returned'], 3)
             : null;
 
-        $gate = match (true) {
-            ! $counts => 'MISSING',
-            $check?->status === BatchReleaseCheck::STATUS_PASS && abs($variance) < 0.0001 => 'PASS',
-            default => 'BLOCK',
-        };
+        $gate = $this->gate($check, $counts);
 
         return [
             'id' => $batch->id,
@@ -166,7 +162,51 @@ class WarehouseLabelBalanceController extends Controller
             'evidence' => $check?->evidence,
             'notes' => data_get($check?->metadata, 'notes'),
             'coa_url' => "/admin/coa/{$batch->id}",
+            'slip_url' => "/admin/warehouses/label-balance/{$batch->id}/slip",
         ];
+    }
+
+    public function slip(Batch $batch)
+    {
+        $batch->loadMissing(['workOrder.productType', 'workOrder.customer']);
+
+        $check = BatchReleaseCheck::query()
+            ->where('batch_id', $batch->id)
+            ->where('check_type', BatchReleaseCheck::TYPE_LABEL_BALANCE)
+            ->with('checkedBy')
+            ->orderByDesc('checked_at')
+            ->orderByDesc('id')
+            ->first();
+
+        $counts = $this->counts($check);
+        $gate = $this->gate($check, $counts);
+        $variance = $counts
+            ? round($counts['issued'] - $counts['consumed'] - $counts['scrapped'] - $counts['returned'], 3)
+            : null;
+
+        return view('admin.warehouses.label-slip', [
+            'batch' => $batch,
+            'counts' => $counts,
+            'variance' => $variance,
+            'gate' => $gate,
+            'check' => $check,
+            'notes' => data_get($check?->metadata, 'notes'),
+            'generatedAt' => now(),
+            'slipNo' => 'LB-'.$batch->batch_number.'-'.now()->format('Ymd'),
+        ]);
+    }
+
+    private function gate(?BatchReleaseCheck $check, ?array $counts): string
+    {
+        if (! $counts) {
+            return 'MISSING';
+        }
+
+        $variance = round($counts['issued'] - $counts['consumed'] - $counts['scrapped'] - $counts['returned'], 3);
+
+        return $check?->status === BatchReleaseCheck::STATUS_PASS && abs($variance) < 0.0001
+            ? 'PASS'
+            : 'BLOCK';
     }
 
     /**
