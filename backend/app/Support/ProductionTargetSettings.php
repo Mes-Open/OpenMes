@@ -46,8 +46,32 @@ class ProductionTargetSettings
         }
     }
 
+    /**
+     * The value that applies where the request is. An installed module may
+     * narrow it through the `settings.value` filter — e.g. one plant of
+     * several running to its own target. Without one this is the installation
+     * value.
+     */
     private static function read(string $key, float $default): float
     {
+        $value = self::installationValue($key, $default);
+        $scoped = app(\App\Extension\FilterRegistry::class)->filter('settings.value', $value, ['key' => $key]);
+
+        return is_numeric($scoped) && $scoped >= 0 && $scoped <= 100 ? (float) $scoped : $value;
+    }
+
+    /**
+     * The installation's own value, before any module narrows it — what the
+     * Settings page shows and saves.
+     */
+    public static function installationValue(string $key, ?float $default = null): float
+    {
+        $default ??= match ($key) {
+            self::SCRAP_KEY => self::DEFAULT_MAX_SCRAP,
+            self::FPY_KEY => self::DEFAULT_MIN_FPY,
+            default => throw new \InvalidArgumentException("Unknown production target [{$key}]."),
+        };
+
         $raw = DB::table('system_settings')->where('key', $key)->value('value');
         $value = $raw === null ? null : json_decode($raw, true);
 

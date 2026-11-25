@@ -31,7 +31,7 @@ export function moduleFieldInitial(hooks, name) {
     return Object.fromEntries(
         moduleFieldsFor(hooks, name).map((field) => [
             field.name,
-            field.value ?? (field.type === 'checkbox' ? false : ''),
+            field.value ?? (field.type === 'checkbox' ? false : field.type === 'checkbox-group' ? [] : ''),
         ]),
     );
 }

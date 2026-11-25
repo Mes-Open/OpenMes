@@ -2,6 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Badge, Button, Checkbox, ConfirmDialog, InlineAlert, TextField, useToast } from '@openmes/ui';
 import { apiCall, apiGet } from '../../lib/http';
 import { __ } from '../../lib/i18n';
+import ModuleFields from '../../components/ModuleFields';
+import { moduleFieldInitial, moduleFieldsFor } from '../../lib/moduleFields';
+
+/** Where an installed module hangs its own fields on the key form. */
+const FIELDS_HOOK = 'display.settings.api_keys.form.fields';
 
 /**
  * ERP integration API keys (machine-to-machine, scoped) — the credentials for
@@ -10,7 +15,7 @@ import { __ } from '../../lib/i18n';
  * fetch and stays on the page, so feedback is a toast, not a flash.
  * The plaintext key is shown once, right after creation.
  */
-export default function ErpApiKeys({ scopes = [] }) {
+export default function ErpApiKeys({ scopes = [], hooks = {} }) {
     const toast = useToast();
     const [keys, setKeys] = useState(null);
     const [loadError, setLoadError] = useState(false);
@@ -22,6 +27,7 @@ export default function ErpApiKeys({ scopes = [] }) {
     const [revealed, setRevealed] = useState(null); // { name, key }
     const [copied, setCopied] = useState(false);
     const [deleting, setDeleting] = useState(null);
+    const [moduleValues, setModuleValues] = useState(() => moduleFieldInitial(hooks, FIELDS_HOOK));
 
     const scopeLabel = (value) => scopes.find((s) => s.value === value)?.label ?? value;
 
@@ -50,6 +56,7 @@ export default function ErpApiKeys({ scopes = [] }) {
         setName('');
         setSelected([]);
         setErrors({});
+        setModuleValues(moduleFieldInitial(hooks, FIELDS_HOOK));
     }
 
     async function create(e) {
@@ -65,13 +72,17 @@ export default function ErpApiKeys({ scopes = [] }) {
 
         setProcessing(true);
         try {
-            const res = await apiCall('/settings/api-keys', 'POST', { name: name.trim(), scopes: selected });
+            const res = await apiCall('/settings/api-keys', 'POST', { name: name.trim(), scopes: selected, ...moduleValues });
             const body = await res.json().catch(() => ({}));
             if (res.status === 422) {
                 const errs = body?.errors ?? {};
                 setErrors({
                     name: errs.name?.[0],
                     scopes: Object.entries(errs).find(([k]) => k.startsWith('scopes'))?.[1]?.[0],
+                    // A module's own fields carry their errors under their own keys.
+                    ...Object.fromEntries(moduleFieldsFor(hooks, FIELDS_HOOK)
+                        .filter((f) => errs[f.name]?.[0])
+                        .map((f) => [f.name, errs[f.name][0]])),
                 });
                 return;
             }
@@ -188,6 +199,15 @@ export default function ErpApiKeys({ scopes = [] }) {
                         </div>
                         {errors.scopes && <p className="mt-2 text-[12px] text-om-blocked">{errors.scopes}</p>}
                     </fieldset>
+                    <div className="mt-4">
+                        <ModuleFields
+                            hooks={hooks}
+                            name={FIELDS_HOOK}
+                            values={moduleValues}
+                            errors={errors}
+                            onChange={(field, v) => setModuleValues((cur) => ({ ...cur, [field]: v }))}
+                        />
+                    </div>
                     <div className="flex items-center gap-2 mt-4">
                         <Button type="submit" variant="accent" loading={processing}>
                             {__('Create')}
@@ -221,6 +241,9 @@ export default function ErpApiKeys({ scopes = [] }) {
                                 <div className="flex flex-wrap gap-1 mt-1.5">
                                     {(k.scopes ?? []).map((s) => (
                                         <Badge key={s} title={scopeLabel(s)}>{s}</Badge>
+                                    ))}
+                                    {(k.labels ?? []).map((l) => (
+                                        <Badge key={`label-${l}`}>{l}</Badge>
                                     ))}
                                 </div>
                             </div>

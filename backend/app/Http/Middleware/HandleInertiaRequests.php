@@ -108,6 +108,12 @@ class HandleInertiaRequests extends Middleware
             // line" button would only land back where the operator already is.
             'operatorCanSwitchLine' => fn () => $user !== null
                 && $user->lines()->where('is_active', true)->count() > 1,
+            // Which part of the installation the user is looking at, when a
+            // module divides it into scopes (plants, …) — the header switcher.
+            // Null without such a module, and then the header shows nothing.
+            'scopeSwitcher' => fn () => $user
+                ? app(\App\Extension\Contracts\ScopeProvider::class)->switcher($user)
+                : null,
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),
             // i18n: the active locale + the switcher's options. The frontend

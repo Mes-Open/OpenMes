@@ -75,6 +75,9 @@ class HookRegistry
         'component', 'props', 'slot',
         'title', 'metric', 'body', 'href', 'external', 'tone',
         'name', 'type', 'label', 'value', 'options', 'placeholder', 'help', 'required',
+        // The record column a field mirrors, so a list page's drawer can read
+        // the stored value off a synced row (see admin/lines/fields.js).
+        'column',
     ];
 
     /**
@@ -84,7 +87,7 @@ class HookRegistry
      * contribution naming anything else is dropped rather than guessed at — a
      * page that renders an unknown control is how a typo becomes a broken form.
      */
-    private const FIELD_TYPES = ['text', 'select', 'checkbox'];
+    private const FIELD_TYPES = ['text', 'select', 'checkbox', 'checkbox-group'];
 
     /**
      * Contribute to a hook point.

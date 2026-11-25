@@ -41,6 +41,11 @@ describe('moduleFieldInitial', () => {
             .toEqual({ module_example_flag: false });
     });
 
+    it('seeds a checkbox group as an empty list', () => {
+        expect(moduleFieldInitial({ [HOOK]: [{ name: 'module_example_ids', type: 'checkbox-group' }] }, HOOK))
+            .toEqual({ module_example_ids: [] });
+    });
+
     it('adds nothing on an install with no modules', () => {
         expect(moduleFieldInitial({}, HOOK)).toEqual({});
     });

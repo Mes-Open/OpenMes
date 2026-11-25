@@ -5,7 +5,7 @@ import ResourceForm from '../../../components/ResourceForm';
 import { lineFields, lineInitial } from './fields';
 
 export default function LineEdit() {
-    const { line, warehouses = [] } = usePage().props;
+    const { line, warehouses = [], hooks = {} } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={`Edit ${line.name}`} />
@@ -13,8 +13,8 @@ export default function LineEdit() {
             <ResourceForm
                 action={`/admin/lines/${line.id}`}
                 method="put"
-                fields={lineFields(warehouses)}
-                initial={lineInitial(line)}
+                fields={lineFields(warehouses, hooks)}
+                initial={lineInitial(line, hooks)}
                 submitLabel="Save Changes"
                 cancelHref="/admin/lines"
             />

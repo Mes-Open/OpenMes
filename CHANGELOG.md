@@ -9,6 +9,25 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- **Extension points for dividing one installation into scopes (several plants).** Core
+  still has no notion of a plant. A module can now answer a new `ScopeProvider` contract
+  (`App\Extension\Contracts`); without one, nothing changes. The contract covers:
+  - the header switcher (`scopeSwitcher` page prop);
+  - narrowing synced-collection snapshots;
+  - partitioned live channels. A changed row is also published on
+    `col.{tenant}@{partition}.{collection}`. A row that moves out of a partition is
+    deleted there.
+
+  Also new:
+  - module form fields on the production-line form and the ERP API key form, through the
+    same hooks as the user form (`display.admin.lines.form.fields`,
+    `validation.admin.lines`, `persist.admin.lines`,
+    `display.settings.api_keys.form.fields`, `validation.api_keys`, `persist.api_keys`,
+    plus `api_keys.labels` for tags on a key's row);
+  - a `checkbox-group` module field type;
+  - a `settings.value` filter on the production targets (scrap rate, first-pass yield).
+    Settings → System keeps editing the installation's own values.
+
 - **Separate operator and machine time per operation (#400).** A running step now records
   operator (labor) time and machine time independently. On the operator panel, the operator
   taps **Clock on** / **Clock off**, and **Start machine** / **Stop machine** for the

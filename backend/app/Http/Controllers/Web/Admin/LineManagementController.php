@@ -40,7 +40,52 @@ class LineManagementController extends Controller
             // queries only run once someone opens it — most visits never do.
             'warehouses' => Inertia::optional(fn () => $this->warehouseOptions()),
             'customFields' => Inertia::optional(fn () => app(CustomFieldService::class)->clientConfig('line')),
+            'hooks' => Inertia::optional(fn () => $this->moduleFields()),
         ]);
+    }
+
+    /** Where an installed module hangs its own fields on the line form. */
+    private const FIELDS_HOOK = 'display.admin.lines.form.fields';
+
+    /** Fired after a line is saved, inside the same transaction. */
+    private const SAVED_HOOK = 'persist.admin.lines';
+
+    /**
+     * Fields installed modules contribute to the line form, as data that core
+     * renders (a module installed from a ZIP cannot ship JSX). `{}` without any.
+     *
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private function moduleFields(?Line $line = null): array
+    {
+        return app(\App\Extension\HookRegistry::class)->renderMany([self::FIELDS_HOOK], ['line' => $line]);
+    }
+
+    /**
+     * Save the line's own columns and hand the module fields to whoever
+     * contributed them, as one unit of work.
+     */
+    private function persist(array $validated, string $action, ?Line $line = null): Line
+    {
+        // A module's keys are `module_<name>_<field>` (AllowsModuleFields) — they
+        // are not columns of this table and must not reach the model.
+        $own = array_filter($validated, fn ($key) => ! str_starts_with((string) $key, 'module_'), ARRAY_FILTER_USE_KEY);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($own, $validated, $action, $line) {
+            if ($line === null) {
+                $line = Line::create($own);
+            } else {
+                $line->update($own);
+            }
+
+            app(\App\Extension\HookRegistry::class)->dispatch(self::SAVED_HOOK, [
+                'action' => $action,
+                'line' => $line,
+                'input' => $validated,
+            ]);
+
+            return $line;
+        });
     }
 
     /**
@@ -51,6 +96,7 @@ class LineManagementController extends Controller
         return Inertia::render('admin/lines/Create', [
             'warehouses' => $this->warehouseOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
+            'hooks' => $this->moduleFields(),
         ]);
     }
 
@@ -82,7 +128,7 @@ class LineManagementController extends Controller
             $validated['custom_fields'] = $cf->fromRequest($request, 'line') ?: null;
         }
 
-        Line::create($validated);
+        $this->persist($validated, 'store');
 
         return $this->saved($request, redirect()->route('admin.lines.index'), 'Production line created successfully.');
     }
@@ -222,6 +268,7 @@ class LineManagementController extends Controller
             'line' => $line->only('id', 'code', 'name', 'description', 'warehouse_id', 'is_active', 'custom_fields'),
             'warehouses' => $this->warehouseOptions(),
             'customFields' => app(CustomFieldService::class)->clientConfig('line'),
+            'hooks' => $this->moduleFields($line),
         ]);
     }
 
@@ -238,7 +285,7 @@ class LineManagementController extends Controller
             $validated['custom_fields'] = $cf->fromRequest($request, 'line', $line->custom_fields) ?: null;
         }
 
-        $line->update($validated);
+        $this->persist($validated, 'update', $line);
 
         return $this->saved($request, redirect()->route('admin.lines.index'), 'Production line updated successfully.');
     }

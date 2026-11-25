@@ -14,6 +14,18 @@ use Illuminate\Http\JsonResponse;
  */
 class ApiKeyController extends Controller
 {
+    /** Where an installed module hangs its own fields on the key form. */
+    public const FIELDS_HOOK = 'display.settings.api_keys.form.fields';
+
+    /** Fired after a key is saved, inside the same transaction. */
+    private const SAVED_HOOK = 'persist.api_keys';
+
+    /** A module's keys are `module_<name>_<field>`; they are not columns. */
+    private static function ownColumns(array $data): array
+    {
+        return array_filter($data, fn ($key) => ! str_starts_with((string) $key, 'module_'), ARRAY_FILTER_USE_KEY);
+    }
+
     private function present(ApiKey $key): array
     {
         return [
@@ -27,6 +39,10 @@ class ApiKeyController extends Controller
             'last_used_at' => $key->last_used_at?->toIso8601String(),
             'expires_at' => $key->expires_at?->toIso8601String(),
             'created_at' => $key->created_at?->toIso8601String(),
+            // Short facts an installed module wants shown on the key's row,
+            // e.g. "Site: North". Plain strings; the page renders them as tags.
+            'labels' => array_values(array_map('strval', (array) app(\App\Extension\FilterRegistry::class)
+                ->filter('api_keys.labels', [], ['apiKey' => $key]))),
         ];
     }
 
@@ -43,7 +59,12 @@ class ApiKeyController extends Controller
         $data = $request->validated();
         $data['is_active'] = $request->boolean('is_active', true);
 
-        [$key, $plaintext] = ApiKey::issue($data);
+        [$key, $plaintext] = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+            [$key, $plaintext] = ApiKey::issue(self::ownColumns($data));
+            app(\App\Extension\HookRegistry::class)->dispatch(self::SAVED_HOOK, ['action' => 'store', 'apiKey' => $key, 'input' => $data]);
+
+            return [$key->fresh(), $plaintext];
+        });
 
         // The plaintext secret is surfaced here and nowhere else — the caller
         // must store it now; only its SHA-256 hash is retained server-side.
@@ -58,7 +79,10 @@ class ApiKeyController extends Controller
         $data = $request->validated();
         $data['is_active'] = $request->boolean('is_active', $apiKey->is_active);
 
-        $apiKey->update($data);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($apiKey, $data) {
+            $apiKey->update(self::ownColumns($data));
+            app(\App\Extension\HookRegistry::class)->dispatch(self::SAVED_HOOK, ['action' => 'update', 'apiKey' => $apiKey, 'input' => $data]);
+        });
 
         return response()->json(['data' => $this->present($apiKey->fresh())]);
     }
