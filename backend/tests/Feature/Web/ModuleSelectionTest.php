@@ -4,6 +4,7 @@ namespace Tests\Feature\Web;
 
 use App\Models\User;
 use App\Support\ModuleRegistry;
+use App\Support\TabRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -51,23 +52,26 @@ class ModuleSelectionTest extends TestCase
 
     public function test_disabled_module_route_returns_404(): void
     {
-        // HR enabled → reachable.
+        // HR enabled → its worker master is reachable.
+        $this->actingAs($this->admin)->get('/admin/workers')->assertOk();
 
         $this->disableModule('hr');
 
-        // HR disabled → 404 (gone), not 403.
+        // HR disabled → the module route is gone, not merely forbidden.
+        $this->actingAs($this->admin)->get('/admin/workers')->assertNotFound();
     }
 
-    public function test_employee_scheduling_is_gated_by_the_hr_module(): void
+    public function test_employee_scheduling_belongs_to_the_core_schedule_area(): void
     {
-        // HR enabled → employee scheduling (under the core Schedule area) is reachable.
+        // Employee scheduling is labour planning under the core Schedule area.
         $this->actingAs($this->admin)->get('/admin/schedule/employees')->assertOk();
+        $this->assertSame('schedule', TabRegistry::tabForPath('/admin/schedule/employees'));
 
+        // Switching the optional HR module off removes the HR master-data
+        // screens, but it must not remove the scheduling screen itself.
         $this->disableModule('hr');
 
-        // HR disabled → the employee sub-page 404s, even though Schedule is core…
-        $this->actingAs($this->admin)->get('/admin/schedule/employees')->assertNotFound();
-        // …while the Schedule planner itself stays reachable.
+        $this->actingAs($this->admin)->get('/admin/schedule/employees')->assertOk();
         $this->actingAs($this->admin)->get('/admin/schedule')->assertOk();
     }
 
