@@ -275,7 +275,9 @@ function UnassignedCard({ warehouse, onAssign }) {
                         </div>
                         <div className="shrink-0 text-right">
                             <div className="font-mono text-xs font-bold text-om-accent">{number(line.unlocated)} {line.uom}</div>
-                            <button type="button" onClick={() => onAssign(line, warehouse)} className="mt-1 text-[10px] font-bold text-om-accent hover:underline">指定库位</button>
+                            {line.lot_count === 0
+                                ? <button type="button" onClick={() => onAssign(line, warehouse)} className="mt-1 text-[10px] font-bold text-om-accent hover:underline">指定库位</button>
+                                : <div className="mt-1 text-[10px] text-om-faint">按批次调整</div>}
                         </div>
                     </div>
                 ))}
@@ -355,7 +357,9 @@ function StockCard({ line, warehouse, onAssign }) {
                 {line.lot_count > 1 && <span>· {line.lot_count} 个批次</span>}
                 {line.held_lot_count > 0 && <span className="font-bold text-om-accent">· 冻结 {line.held_lot_count} 批</span>}
                 {line.kind === 'material' && line.status === 'UNLOCATED' && (
-                    <button type="button" onClick={() => onAssign(line, warehouse)} className="ml-auto text-[10px] font-bold text-om-accent hover:underline">指定库位</button>
+                    line.lot_count === 0
+                        ? <button type="button" onClick={() => onAssign(line, warehouse)} className="ml-auto text-[10px] font-bold text-om-accent hover:underline">指定库位</button>
+                        : <span className="ml-auto text-[10px] text-om-faint">按批次调整</span>
                 )}
             </div>
         </div>
