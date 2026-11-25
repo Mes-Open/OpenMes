@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Icon } from '@openmes/ui';
 import AppLayout from '../../../layouts/AppLayout';
 import { MesHeader, MesPage, MesSection, MesStats, MesTag } from '../../../Components/mes/MesUI';
@@ -33,7 +33,7 @@ const lotMatches = (row, query) => {
 
 export default function PurchasingReceipts() {
     const page = usePage();
-    const { receipts = [], pendingLots = [], summary = {}, warehouses = [], materials = [], filters = {} } = page.props;
+    const { receipts = [], pendingLots = [], summary = {}, warehouses = [], materialWarehouses = [], materials = [], purchaseOrders = [], selectedPurchaseOrder = null, filters = {} } = page.props;
     const timezone = page.props.timezone;
     const activeWarehouse = String(filters.warehouse ?? '');
     const [query, setQuery] = useState('');
@@ -61,14 +61,15 @@ export default function PurchasingReceipts() {
                     breadcrumb={['采购与来料', '到货登记']}
                     title="到货登记"
                     tag={{ label: '收货 · 待检 · 批次', tone: 'blue' }}
-                    description="登记原料、包材的手工到货，核对最近收货流水和仍处在待检 / 冻结状态的物料批次。手工到货只记库存流水，不会自动生成批次。"
-                    meta={`${summary.active_materials ?? 0} 个启用物料 · ${warehouses.length} 个启用仓库 · 最近流水按到货时间倒序`}
+                    description="按采购订单收货，直接形成仓储入库并派发来料检验；无订单的零星到货仍可用手工登记。手工到货只记库存流水，不会自动生成批次。"
+                    meta={`${purchaseOrders.length} 张待收采购订单 · ${summary.active_materials ?? 0} 个启用物料 · ${warehouses.length} 个启用仓库`}
                     actions={(
                         <>
                             <button type="button" onClick={() => setShowReceipt(true)} disabled={!materials.length} className="mes-btn mes-btn-primary">
                                 登记到货
                             </button>
-                            <Link href="/admin/materials" className="mes-btn">物料档案</Link>
+                            <Link href="/admin/purchasing/orders" className="mes-btn">采购订单</Link>
+                            <Link href="/admin/purchasing/reconciliation" className="mes-btn">供应商对账</Link>
                             <Link href="/admin/warehouses/stock" className="mes-btn">库存台账</Link>
                         </>
                     )}
@@ -90,6 +91,13 @@ export default function PurchasingReceipts() {
                         { label: '待检批次', value: number(summary.pending_lots ?? 0), sub: '状态为“已收货”的物料批', tone: (summary.pending_lots ?? 0) > 0 ? 'var(--mes-orange)' : 'var(--mes-green)' },
                         { label: '冻结批次', value: number(summary.hold_lots ?? 0), sub: '等待质量处理，不可领用', tone: (summary.hold_lots ?? 0) > 0 ? 'var(--mes-red)' : 'var(--mes-green)' },
                     ]} />
+
+                    <OrderReceiptPanel
+                        purchaseOrders={purchaseOrders}
+                        selectedOrder={selectedPurchaseOrder}
+                        warehouses={materialWarehouses}
+                        activePurchaseOrder={String(filters.purchase_order ?? '')}
+                    />
 
                     <div className="mes-panel">
                         <div className="mes-filterbar">
@@ -228,6 +236,184 @@ export default function PurchasingReceipts() {
                 />
             )}
         </>
+    );
+}
+
+function OrderReceiptPanel({ purchaseOrders, selectedOrder, warehouses, activePurchaseOrder }) {
+    const [quantities, setQuantities] = useState({});
+    const [warehouseId, setWarehouseId] = useState(String(warehouses[0]?.id ?? ''));
+    const [reference, setReference] = useState('');
+    const [errors, setErrors] = useState({});
+    const [processing, setProcessing] = useState(false);
+
+    useEffect(() => {
+        setQuantities({});
+        setErrors({});
+        setProcessing(false);
+    }, [selectedOrder?.id]);
+
+    const chooseOrder = (value) => {
+        router.get('/admin/purchasing/receipts', value ? { purchase_order: value } : {}, { preserveState: true, replace: true });
+    };
+    const setQuantity = (lineId, value) => {
+        setQuantities((current) => ({ ...current, [lineId]: value }));
+    };
+    const lineRows = selectedOrder?.lines ?? [];
+    const enteredTotal = lineRows.reduce((sum, line) => sum + Number(quantities[line.id] || 0), 0);
+    const canSubmit = Boolean(selectedOrder?.can_receive && warehouseId && reference.trim() && enteredTotal > 0 && !processing);
+
+    const submit = (event) => {
+        event.preventDefault();
+        if (!selectedOrder || !canSubmit) return;
+        setErrors({});
+        setProcessing(true);
+
+        const lines = lineRows
+            .filter((line) => Number(quantities[line.id] || 0) > 0)
+            .map((line) => ({
+                purchase_order_line_id: line.id,
+                quantity: quantities[line.id],
+            }));
+
+        router.post('/admin/purchasing/receipts/order', {
+            purchase_order_id: selectedOrder.id,
+            warehouse_id: Number(warehouseId),
+            reference,
+            lines,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setReference('');
+                setQuantities({});
+            },
+            onError: (nextErrors) => {
+                setErrors(nextErrors);
+            },
+            onFinish: () => setProcessing(false),
+        });
+    };
+
+    return (
+        <MesSection
+            title="按采购订单收货"
+            meta={selectedOrder ? `${selectedOrder.number} · ${selectedOrder.supplier_name} · ${lineRows.length} 行待收` : '选择采购订单后按行登记到货，过账即形成仓储入库'}
+            actions={(<Link href="/admin/purchasing/orders" className="mes-btn">采购订单台账</Link>)}
+        >
+            <div className="grid gap-3 px-3 py-3">
+                <div className="flex flex-wrap items-end gap-2">
+                    <label className="grid gap-1 text-[11px] text-[var(--mes-muted)]">
+                        <span>采购订单</span>
+                        <select value={activePurchaseOrder} onChange={(event) => chooseOrder(event.target.value)} className="mes-select w-[300px]">
+                            <option value="">选择待收采购订单</option>
+                            {purchaseOrders.map((order) => (
+                                <option key={order.id} value={order.id}>
+                                    {order.number} · {order.supplier_name}{order.expected_at ? ` · 预计 ${order.expected_at}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    {selectedOrder && (
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--mes-muted)]">
+                            <MesTag tone={selectedOrder.can_receive ? 'blue' : 'gray'}>{selectedOrder.can_receive ? '待收' : '不可收货'}</MesTag>
+                            <span>下单 {selectedOrder.ordered_at || '—'}</span>
+                            <span>预计 {selectedOrder.expected_at || '—'}</span>
+                            <span>待收 <b className="font-mono text-[var(--mes-ink)]">{number(selectedOrder.remaining_quantity)}</b></span>
+                        </div>
+                    )}
+                </div>
+
+                {!selectedOrder ? (
+                    <div className="mes-empty">
+                        <strong>先选择一张采购订单</strong>
+                        选中后可按订单行填写到货数量，提交会生成仓储入库单并自动派发来料检验；没有采购订单的零星到货请用右上角“登记到货”。
+                    </div>
+                ) : (
+                    <form onSubmit={submit} className="grid gap-3">
+                        {!selectedOrder.can_receive && (
+                            <div className="border-l-2 border-l-[var(--mes-orange)] bg-[var(--mes-chip)] px-3 py-2 text-[11px] text-[var(--mes-muted)]">
+                                该订单已收齐或已关闭，不能再登记到货。请在采购订单台账中核对状态。
+                            </div>
+                        )}
+
+                        <div className="mes-table-wrap">
+                            <table className="mes-table w-full table-fixed" style={{ minWidth: 0 }}>
+                                <thead>
+                                    <tr>
+                                        <th>物料</th>
+                                        <th className="w-[66px] num">订购</th>
+                                        <th className="w-[58px] num">已收</th>
+                                        <th className="w-[58px] num">待收</th>
+                                        <th className="w-[104px] num">本次到货</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {lineRows.map((line) => (
+                                        <tr key={line.id}>
+                                            <td>
+                                                <div className="font-medium text-[var(--mes-ink)]">{line.material_name}</div>
+                                                <div className="mt-0.5 font-mono text-[10px] text-[var(--mes-faint)]">{line.material_code || '—'}</div>
+                                            </td>
+                                            <td className="num font-mono">{number(line.quantity_ordered)} <span className="text-[10px] text-[var(--mes-faint)]">{unit(line.unit_of_measure)}</span></td>
+                                            <td className="num font-mono text-[var(--mes-muted)]">{number(line.quantity_received)}</td>
+                                            <td className="num font-mono font-semibold text-[var(--mes-ink)]">{number(line.quantity_remaining)}</td>
+                                            <td>
+                                                <div className="flex items-center gap-1.5">
+                                                    <input
+                                                        type="number"
+                                                        min="0.001"
+                                                        step="0.001"
+                                                        max={line.quantity_remaining > 0 ? line.quantity_remaining : undefined}
+                                                        value={quantities[line.id] ?? ''}
+                                                        onChange={(event) => setQuantity(line.id, event.target.value)}
+                                                        placeholder="0"
+                                                        disabled={line.quantity_remaining <= 0 || !selectedOrder.can_receive}
+                                                        className="mes-input w-full max-w-[118px] text-right font-mono"
+                                                        aria-label={`${line.material_name} 本次到货数量`}
+                                                    />
+                                                    <span className="text-[10px] text-[var(--mes-faint)]">{unit(line.unit_of_measure)}</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="grid gap-1 text-[12px] text-[var(--mes-muted)]">
+                                <span>收货仓库</span>
+                                <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="mes-select w-full" required>
+                                    {warehouses.map((warehouse) => (
+                                        <option key={warehouse.id} value={warehouse.id}>{warehouse.code} · {warehouse.name}</option>
+                                    ))}
+                                </select>
+                                {errors.warehouse_id && <span className="text-[10px] text-[var(--mes-red)]">{errors.warehouse_id}</span>}
+                            </label>
+                            <label className="grid gap-1 text-[12px] text-[var(--mes-muted)]">
+                                <span>供方送货单号</span>
+                                <input type="text" maxLength={120} value={reference} onChange={(event) => setReference(event.target.value)} className="mes-input w-full" placeholder="送货单 / 到货单编号" required />
+                                {errors.reference && <span className="text-[10px] text-[var(--mes-red)]">{errors.reference}</span>}
+                            </label>
+                        </div>
+
+                        {(errors.lines || errors.purchase_order_id || errors.error) && (
+                            <div className="text-[11px] text-[var(--mes-red)]">
+                                {errors.lines || errors.purchase_order_id || errors.error}
+                            </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--mes-line)] pt-3">
+                            <div className="text-[11px] text-[var(--mes-muted)]">
+                                本次合计 <b className="font-mono text-[var(--mes-ink)]">{number(enteredTotal)}</b> · 过账后更新仓库库存并派发来料检验
+                            </div>
+                            <button type="submit" className="mes-btn mes-btn-primary" disabled={!canSubmit}>
+                                {processing ? '入账中…' : '确认收货入账'}
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </div>
+        </MesSection>
     );
 }
 

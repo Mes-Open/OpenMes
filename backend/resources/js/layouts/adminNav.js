@@ -107,7 +107,9 @@ export const ADMIN_GROUPS = [
         match: ['/admin/purchasing', '/admin/net-requirements', '/admin/companies'],
         children: [
             { label: '净需求与缺口', href: '/admin/net-requirements', match: ['/admin/net-requirements'], tab: 'advanced_reports', lucide: 'clipboard-list' },
+            { label: '采购订单', href: '/admin/purchasing/orders', match: ['/admin/purchasing/orders'], tab: 'purchasing', lucide: 'file-text' },
             { label: '到货登记', href: '/admin/purchasing/receipts', match: ['/admin/purchasing/receipts'], tab: 'purchasing', lucide: 'package-check' },
+            { label: '供应商对账', href: '/admin/purchasing/reconciliation', match: ['/admin/purchasing/reconciliation'], tab: 'purchasing', lucide: 'scale' },
             { label: '供应商与往来单位', href: '/admin/companies', match: ['/admin/companies'], tab: 'companies', lucide: 'building-2' },
         ],
     },

@@ -18,6 +18,7 @@ class StockDocumentLine extends Model
 
     protected $fillable = [
         'stock_document_id',
+        'purchase_order_line_id',
         'material_id',
         'product_type_id',
         'material_lot_id',
@@ -42,6 +43,11 @@ class StockDocumentLine extends Model
     public function stockDocument(): BelongsTo
     {
         return $this->belongsTo(StockDocument::class);
+    }
+
+    public function purchaseOrderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class);
     }
 
     public function material(): BelongsTo

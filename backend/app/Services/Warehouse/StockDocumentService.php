@@ -404,6 +404,7 @@ class StockDocumentService
         return [
             'material_id' => $isMaterial ? ($line['material_id'] ?? null) : null,
             'product_type_id' => $isMaterial ? null : ($line['product_type_id'] ?? null),
+            'purchase_order_line_id' => $isMaterial ? ($line['purchase_order_line_id'] ?? null) : null,
             'material_lot_id' => $isMaterial ? ($line['material_lot_id'] ?? null) : null,
             'lot_number' => $line['lot_number'] ?? null,
             'quantity' => abs((float) ($line['quantity'] ?? 0)),

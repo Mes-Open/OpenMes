@@ -28,6 +28,8 @@ use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\PalletController as AdminPalletController;
 use App\Http\Controllers\Web\Admin\PriorityRuleController;
 use App\Http\Controllers\Web\Admin\ProductionCostReportController;
+use App\Http\Controllers\Web\Admin\PurchaseOrderController;
+use App\Http\Controllers\Web\Admin\PurchaseReconciliationController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\ScheduleController;
 use App\Http\Controllers\Web\Admin\SchedulePlannerController;
@@ -557,6 +559,14 @@ Route::middleware('auth')->group(function () {
         // arrival.
         Route::get('/purchasing/receipts', [MaterialReceiptController::class, 'index'])->name('purchasing.receipts.index');
         Route::post('/purchasing/receipts', [MaterialReceiptController::class, 'store'])->name('purchasing.receipts.store');
+        Route::post('/purchasing/receipts/order', [MaterialReceiptController::class, 'storeOrder'])->name('purchasing.receipts.order');
+
+        // Purchase commitments and supplier reconciliation.
+        Route::get('/purchasing/orders', [PurchaseOrderController::class, 'index'])->name('purchasing.orders.index');
+        Route::post('/purchasing/orders', [PurchaseOrderController::class, 'store'])->name('purchasing.orders.store');
+        Route::post('/purchasing/orders/{purchaseOrder}/close', [PurchaseOrderController::class, 'close'])->name('purchasing.orders.close');
+        Route::get('/purchasing/reconciliation', [PurchaseReconciliationController::class, 'index'])->name('purchasing.reconciliation.index');
+        Route::get('/purchasing/reconciliation/export', [PurchaseReconciliationController::class, 'export'])->name('purchasing.reconciliation.export');
 
         // Schedule (planner is the main view; list is a secondary overview)
         Route::get('/schedule/list', [ScheduleController::class, 'index'])->name('schedule.list');
