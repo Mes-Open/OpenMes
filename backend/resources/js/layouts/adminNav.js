@@ -221,7 +221,8 @@ export const ADMIN_GROUPS = [
             { label: 'Material Lots', href: '/admin/material-lots', match: ['/admin/material-lots'], tab: 'materials', lucide: 'layers' },
             // Finished goods leave the plant on pallets: closing, quality and shipping live here.
             { label: 'Pallets', href: '/admin/pallets', match: ['/admin/pallets'], tab: 'packaging', lucide: 'container' },
-            { label: '标签平衡', href: '/admin/warehouses', match: ['/admin/warehouses'], tab: 'warehouse', lucide: 'scale' },
+            { label: '库存台账', href: '/admin/warehouses/stock', match: ['/admin/warehouses/stock'], tab: 'warehouse', lucide: 'archive' },
+            { label: '标签平衡', href: '/admin/warehouses', match: ['/admin/warehouses'], exact: true, tab: 'warehouse', lucide: 'scale' },
         ],
     },
     {
