@@ -28,6 +28,7 @@ export default function LocationReconcile() {
     const [assignNote, setAssignNote] = useState('');
     const [assignErrors, setAssignErrors] = useState({});
     const activeWarehouse = filters.warehouse ? String(filters.warehouse) : '';
+    const exportHref = `/admin/warehouses/locations/reconcile?export=1${activeWarehouse ? `&warehouse=${activeWarehouse}` : ''}`;
 
     const applyWarehouse = (id) => {
         if (id) {
@@ -86,6 +87,7 @@ export default function LocationReconcile() {
                     <div className="flex flex-wrap items-center gap-2">
                         <Link href="/admin/warehouses/locations" className="btn-touch btn-secondary text-sm">库位地图</Link>
                         <Link href="/admin/warehouses/stock" className="btn-touch btn-secondary text-sm">库存台账</Link>
+                        <a href={exportHref} className="btn-touch btn-secondary text-sm">导出 CSV</a>
                     </div>
                 </div>
 

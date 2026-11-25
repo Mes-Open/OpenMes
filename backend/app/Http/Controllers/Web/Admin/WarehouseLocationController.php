@@ -651,10 +651,55 @@ class WarehouseLocationController extends Controller
             'located_items' => $lots->count() + $products->count() + $assignedMaterialStocks->count(),
         ];
 
+        if ($request->boolean('export')) {
+            return $this->exportReconcileCsv($rows);
+        }
+
         return Inertia::render('admin/warehouses/LocationReconcile', [
             'warehouses' => $rows,
             'summary' => $summary,
             'filters' => ['warehouse' => $warehouseId ?: ''],
+        ]);
+    }
+
+    private function exportReconcileCsv($rows)
+    {
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['仓库', '库存行 ID', '类型', '编码', '名称', '账面数量', '单位', '库位合计', '差异', '未定位', '状态', '库位编码', '批次数', '冻结批次数']);
+
+            $statusLabels = [
+                'OK' => '已对平',
+                'UNLOCATED' => '未指定库位',
+                'PARTIAL' => '部分定位',
+                'OVER' => '超出账面',
+            ];
+
+            foreach ($rows as $warehouse) {
+                foreach ($warehouse['stock_lines'] as $line) {
+                    fputcsv($out, [
+                        $warehouse['name'],
+                        $line['id'],
+                        $line['kind'] === 'product' ? '成品' : '物料库存',
+                        $line['code'],
+                        $line['name'],
+                        $line['balance'],
+                        $line['uom'],
+                        $line['located'],
+                        $line['variance'],
+                        $line['unlocated'],
+                        $statusLabels[$line['status']] ?? $line['status'],
+                        implode(' / ', $line['location_codes']),
+                        $line['lot_count'],
+                        $line['held_lot_count'],
+                    ]);
+                }
+            }
+
+            fclose($out);
+        }, 'location-reconcile-'.now()->format('Ymd-Hi').'.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 
