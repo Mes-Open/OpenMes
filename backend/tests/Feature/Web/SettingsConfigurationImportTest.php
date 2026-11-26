@@ -147,6 +147,21 @@ class SettingsConfigurationImportTest extends TestCase
         $this->assertSame(1, DB::table('line_product_type')->where(['line_id' => $line->id, 'product_type_id' => $product->id])->count());
     }
 
+    public function test_the_shipping_and_lot_switches_travel_with_the_file(): void
+    {
+        // A fresh install has no row for them yet: the import must still take them.
+        $keys = ['damaged_pallets_cannot_ship', 'ship_requires_release', 'batch_lot_manual_entry'];
+        DB::table('system_settings')->whereIn('key', $keys)->delete();
+
+        $this->actingAs($this->admin)->post(route('settings.import'), ['settings_file' => $this->file([
+            'system_settings' => array_fill_keys($keys, true),
+        ])])->assertSessionHas('success');
+
+        foreach ($keys as $key) {
+            $this->assertTrue(json_decode(DB::table('system_settings')->where('key', $key)->value('value') ?? 'null'), $key);
+        }
+    }
+
     public function test_settings_follow_the_forms_rules_and_references_never_borrow_unrelated_rows(): void
     {
         // A routing deleted and re-created under the same name: the live row is the one the file updates.

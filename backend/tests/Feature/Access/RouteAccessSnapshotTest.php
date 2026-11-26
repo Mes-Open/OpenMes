@@ -148,8 +148,6 @@ class RouteAccessSnapshotTest extends TestCase
         'PATCH api/v1/issues/{issue}',
         // A session (SPA cookie) user has a TransientToken, which cannot be deleted.
         'POST api/auth/refresh',
-        // template_id is nullable but read as a required array key.
-        'POST packaging/labels/print-multiple',
     ];
 
     private string $storageDir;

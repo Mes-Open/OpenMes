@@ -93,6 +93,16 @@ class PalletConditionTest extends TestCase
         $this->assertSame($this->operator->id, $event->user_id);
     }
 
+    public function test_a_re_route_before_the_first_move_does_not_turn_the_receipt_into_a_move(): void
+    {
+        $pallet = Pallet::factory()->closed()->create(['location' => 'LINE-1']);
+        app(\App\Services\Logistics\PalletMovementService::class)->assignDestination($pallet, 'WH-01', null, $this->admin);
+
+        $this->move($pallet, ['damaged' => '1', 'condition_note' => 'Torn stretch wrap'])->assertSessionHasNoErrors();
+
+        $this->assertSame(PalletConditionEvent::SOURCE_RECEIPT, PalletConditionEvent::sole()->source);
+    }
+
     public function test_damage_found_on_a_later_move_is_recorded_as_a_move(): void
     {
         $pallet = Pallet::factory()->closed()->create(['location' => 'LINE-1']);

@@ -21,6 +21,7 @@ use App\Services\WorkOrder\WorkOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -133,6 +134,34 @@ class BatchLotRulesTest extends TestCase
             $second->refresh()->update(['lot_number' => 'CAP-0001']);
             $this->assertSame('CAP-0001', $second->fresh()->lot_number);
         }
+    }
+
+    public function test_a_lot_is_stored_trimmed_so_padding_cannot_dodge_the_check(): void
+    {
+        $service = app(WorkOrderService::class);
+        $first = $service->createBatch($this->workOrder(), 10, null, '  CAP-0009 ');
+        $this->assertSame('CAP-0009', $first->fresh()->lot_number);
+
+        $this->expectException(ValidationException::class);
+        $service->createBatch($this->workOrder(), 10, null, 'CAP-0009');
+    }
+
+    public function test_the_unique_index_can_be_created_once_duplicates_are_fixed(): void
+    {
+        // As after the migration met duplicates: no index, two live batches on one LOT.
+        DB::statement('DROP INDEX IF EXISTS batches_lot_number_unique');
+        $a = app(WorkOrderService::class)->createBatch($this->workOrder(), 10, null, 'DUP-1');
+        $b = app(WorkOrderService::class)->createBatch($this->workOrder(), 10, null, 'DUP-2');
+        DB::table('batches')->where('id', $b->id)->update(['lot_number' => 'DUP-1']);
+
+        $this->artisan('batches:lot-unique-index')->expectsOutputToContain('DUP-1')->assertFailed();
+        $this->assertFalse(Schema::hasIndex('batches', 'batches_lot_number_unique'));
+
+        DB::table('batches')->where('id', $b->id)->update(['lot_number' => 'DUP-2']);
+        $this->artisan('batches:lot-unique-index')->assertSuccessful();
+        $this->assertTrue(Schema::hasIndex('batches', 'batches_lot_number_unique'));
+        $this->artisan('batches:lot-unique-index')->expectsOutputToContain('already exists')->assertSuccessful();
+        $this->assertNotNull($a->fresh());
     }
 
     public function test_hand_typed_lots_can_be_switched_off(): void

@@ -81,53 +81,106 @@ class ProcessTemplateChangePropagator
     public function refreshNotStarted(ProcessTemplate $template, ?User $user = null): int
     {
         $moved = 0;
+        $failed = [];
 
-        foreach ($this->candidates($template)->pluck('id') as $id) {
-            $moved += DB::transaction(function () use ($id, $template, $user) {
-                // Same lock createBatch() and change requests take, so no batch is
-                // created from — and no change applied over — a half-written snapshot.
-                $workOrder = WorkOrder::whereKey($id)->lockForUpdate()->first();
-                if (! $workOrder || ! in_array($workOrder->status, self::NOT_STARTED_STATUSES, true)) {
-                    return 0;
-                }
+        // One order's bad data must not keep the orders after it on the old
+        // template: each order is its own transaction, a failure is logged and
+        // the loop goes on. The failures are thrown together at the end, so the
+        // queued job retries them; orders already moved find nothing new then.
+        foreach ($this->candidates($template)->orderBy('id')->pluck('id') as $id) {
+            try {
+                $moved += $this->refreshOrder($id, $template, $user);
+            } catch (\Throwable $e) {
+                $failed[] = $id;
+                Log::error('Work order could not be moved onto the edited process template', [
+                    'process_template_id' => $template->id,
+                    'work_order_id' => $id,
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+        }
 
-                // Lock the batches and their steps too, then decide: a step started
-                // concurrently either committed first (seen here, order skipped) or
-                // waits until this refresh is done.
-                $batches = Batch::where('work_order_id', $workOrder->id)->lockForUpdate()->get();
-                BatchStep::whereIn('batch_id', $batches->modelKeys())->lockForUpdate()->get();
-                if (! $this->isNotStarted($workOrder, $batches)) {
-                    return 0;
-                }
-
-                $current = $template->fresh();
-                if (! $current) {
-                    return 0; // template deleted meanwhile: nothing to move onto
-                }
-
-                $previous = $workOrder->process_snapshot ?? [];
-                $snapshot = $this->rebuild($workOrder, $previous, $current);
-                if ($snapshot === null || $snapshot == $previous) {
-                    return 0;
-                }
-
-                $version = $this->snapshots->createVersion(
-                    $workOrder,
-                    $snapshot,
-                    ChangeEffectivePoint::Immediate,
-                    user: $user,
-                    reason: WorkOrderSnapshot::REASON_TEMPLATE_EDITED,
-                );
-
-                foreach ($batches->where('status', Batch::STATUS_PENDING) as $batch) {
-                    $this->regenerate($batch, $previous, $snapshot, $version->version);
-                }
-
-                return 1;
-            });
+        if ($failed !== []) {
+            throw new \RuntimeException(sprintf(
+                'Process template %d: %d work order(s) could not be refreshed (ids: %s).',
+                $template->id,
+                count($failed),
+                implode(', ', $failed),
+            ));
         }
 
         return $moved;
+    }
+
+    /** Move one not-started order onto the template; 1 when it was moved, 0 otherwise. */
+    private function refreshOrder(int $id, ProcessTemplate $template, ?User $user): int
+    {
+        return DB::transaction(function () use ($id, $template, $user) {
+            // Same lock createBatch() and change requests take, so no batch is
+            // created from — and no change applied over — a half-written snapshot.
+            $workOrder = WorkOrder::whereKey($id)->lockForUpdate()->first();
+            if (! $workOrder || ! in_array($workOrder->status, self::NOT_STARTED_STATUSES, true)) {
+                return 0;
+            }
+
+            // Lock the batches and their steps too, then decide: a step started
+            // concurrently either committed first (seen here, order skipped) or
+            // waits until this refresh is done.
+            $batches = Batch::where('work_order_id', $workOrder->id)->lockForUpdate()->get();
+            BatchStep::whereIn('batch_id', $batches->modelKeys())->lockForUpdate()->get();
+            if (! $this->isNotStarted($workOrder, $batches)) {
+                return 0;
+            }
+
+            $current = $template->fresh();
+            if (! $current) {
+                return 0; // template deleted meanwhile: nothing to move onto
+            }
+
+            $previous = $workOrder->process_snapshot ?? [];
+            $snapshot = $this->rebuild($workOrder, $previous, $current);
+            if ($snapshot === null || $this->sameSnapshot($snapshot, $previous)) {
+                return 0;
+            }
+
+            $version = $this->snapshots->createVersion(
+                $workOrder,
+                $snapshot,
+                ChangeEffectivePoint::Immediate,
+                user: $user,
+                reason: WorkOrderSnapshot::REASON_TEMPLATE_EDITED,
+            );
+
+            foreach ($batches->where('status', Batch::STATUS_PENDING) as $batch) {
+                $this->regenerate($batch, $previous, $snapshot, $version->version);
+            }
+
+            return 1;
+        });
+    }
+
+    /**
+     * Strict comparison of two snapshots, as they would be stored: both go through
+     * JSON (as the column does) and keys are sorted (jsonb does not keep their
+     * order). A loose `==` would treat null and 0, or "" and null, as no change.
+     */
+    private function sameSnapshot(array $a, array $b): bool
+    {
+        return $this->normalizedSnapshot($a) === $this->normalizedSnapshot($b);
+    }
+
+    private function normalizedSnapshot(array $snapshot): mixed
+    {
+        $sort = function (mixed $value) use (&$sort): mixed {
+            if (! is_array($value)) {
+                return $value;
+            }
+            ksort($value);
+
+            return array_map($sort, $value);
+        };
+
+        return $sort(json_decode(json_encode($snapshot), true));
     }
 
     /**
@@ -139,7 +192,12 @@ class ProcessTemplateChangePropagator
      */
     public function orderCounts(ProcessTemplate $template): array
     {
-        $orders = $this->openOrders($template)->with('batches:id,work_order_id,status,produced_qty')->get();
+        // Only the columns the split needs: the process snapshot JSON of every open
+        // order is not loaded on each view of the template page.
+        $orders = $this->openOrders($template)
+            ->select(['id', 'status', 'produced_qty'])
+            ->with('batches:id,work_order_id,status,produced_qty')
+            ->get();
         $executed = $this->executedBatchIds($orders->flatMap->batches->pluck('id')->all());
         $allocated = $this->allocatedOrderIds($orders->modelKeys());
 

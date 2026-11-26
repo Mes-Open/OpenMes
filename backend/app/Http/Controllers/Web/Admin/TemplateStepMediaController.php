@@ -8,6 +8,7 @@ use App\Models\ProcessTemplate;
 use App\Models\ProductType;
 use App\Models\TemplateStepMedia;
 use App\Services\Media\ImageSanitizer;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -114,20 +115,29 @@ class TemplateStepMediaController extends Controller
         ]);
     }
 
-    /** Whether a non-terminal order the user may view carries this media in its snapshot. */
+    /**
+     * Whether a non-terminal order the user may view carries this media in its
+     * snapshot. Orders are read in chunks and the scan stops at the first match;
+     * the answer is cached briefly, because a video or a large PDF is fetched in
+     * many Range requests.
+     */
     private function stillReleasedTo(TemplateStepMedia $media, ?\App\Models\User $user): bool
     {
         if (! $user) {
             return false;
         }
 
-        return \App\Models\WorkOrder::query()
-            ->whereNotIn('status', \App\Models\WorkOrder::TERMINAL_STATUSES)
-            ->where('process_snapshot->template_id', $media->process_template_id)
-            ->get()
-            ->contains(fn (\App\Models\WorkOrder $order) => collect($order->process_snapshot['steps'] ?? [])
-                ->contains(fn (array $step) => in_array($media->id, array_map('intval', array_column($step['media'] ?? [], 'id')), true))
-                && $user->can('view', $order));
+        return Cache::remember(
+            "template-step-media:{$media->id}:released-to:{$user->id}",
+            now()->addMinute(),
+            fn () => \App\Models\WorkOrder::query()
+                ->whereNotIn('status', \App\Models\WorkOrder::TERMINAL_STATUSES)
+                ->where('process_snapshot->template_id', $media->process_template_id)
+                ->lazyById(100)
+                ->contains(fn (\App\Models\WorkOrder $order) => collect($order->process_snapshot['steps'] ?? [])
+                    ->contains(fn (array $step) => in_array($media->id, array_map('intval', array_column($step['media'] ?? [], 'id')), true))
+                    && $user->can('view', $order)),
+        );
     }
 
     /** Server-generated private path; never the client filename. */

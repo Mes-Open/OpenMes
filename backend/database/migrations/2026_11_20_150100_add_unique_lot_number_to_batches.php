@@ -13,8 +13,8 @@ return new class extends Migration
      * A database that already holds the same LOT on two live batches cannot take
      * the index: the migration then leaves it out and logs the LOTs, and the
      * application-level check (Batch saving) still refuses new duplicates. Fix
-     * the listed batches and run `php artisan migrate:refresh --path` of this
-     * file, or create the index by hand.
+     * the listed batches and run `php artisan batches:lot-unique-index`, which
+     * creates the index.
      */
     public function up(): void
     {
@@ -26,7 +26,7 @@ return new class extends Migration
             ->pluck('lot_number');
 
         if ($duplicates->isNotEmpty()) {
-            Log::warning('batches.lot_number unique index not created: LOT used by more than one batch', [
+            Log::warning('batches.lot_number unique index not created: LOT used by more than one batch. Fix them, then run php artisan batches:lot-unique-index', [
                 'lots' => $duplicates->take(50)->all(),
             ]);
 

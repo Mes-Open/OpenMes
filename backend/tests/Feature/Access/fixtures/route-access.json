@@ -8561,9 +8561,9 @@
         "POST packaging/labels/print-multiple": {
             "payload": true,
             "guest": "login",
-            "Admin": "error",
-            "Supervisor": "error",
-            "Operator": "error",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "allow",
             "no-role": "deny"
         },
         "POST packaging/packing-steps/{batchStep}/start": {

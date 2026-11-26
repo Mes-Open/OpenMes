@@ -12,6 +12,7 @@ use App\Models\PalletConditionEvent;
 use App\Models\WorkOrder;
 use App\Services\Logistics\PalletConditionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PalletController extends Controller
@@ -63,7 +64,12 @@ class PalletController extends Controller
     public function update(PalletRequest $request, Pallet $pallet)
     {
         try {
-            $pallet->update($request->payload());
+            // On the row as it is now, under a lock: the ship gates in Pallet::saving
+            // read the condition and quality status from this model, and a pallet
+            // marked damaged on the move terminal after the drawer opened must not
+            // ship on the stale copy. PalletConditionService::record takes the same lock.
+            DB::transaction(fn () => Pallet::whereKey($pallet->getKey())->lockForUpdate()->firstOrFail()
+                ->update($request->payload()));
         } catch (\DomainException $e) {
             // Quality ship-gate (#106) rejected the closed → shipped transition.
             // Answer as a validation error on the field that caused it: a flash

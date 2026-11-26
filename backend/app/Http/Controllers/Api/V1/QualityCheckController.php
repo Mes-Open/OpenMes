@@ -9,7 +9,6 @@ use App\Models\Batch;
 use App\Models\QualityCheckTemplate;
 use App\Services\Production\QualityCheckService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class QualityCheckController extends Controller
 {

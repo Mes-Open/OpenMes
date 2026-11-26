@@ -140,3 +140,27 @@ export function mergeSupervisorItems(groups, items, toChild) {
         };
     });
 }
+
+/**
+ * Drop sidebar entries whose href an install hides (`moduleNav.hidden`, filter
+ * `nav.hidden`). A group left without children disappears with them.
+ *
+ * A node with an `href` and no children renders as a flat link — a module group
+ * that is a single screen comes as `{ href, children: [] }` — so it is a link
+ * here too: hidden when its href is listed, kept otherwise. Only a group that
+ * had children and lost them all disappears.
+ */
+export function withoutHidden(nodes, hidden) {
+    if (! Array.isArray(hidden) || hidden.length === 0) {
+        return nodes;
+    }
+
+    const isLink = (node) => ! node.children?.length;
+
+    return nodes
+        .filter((node) => ! (node.href && isLink(node) && hidden.includes(node.href)))
+        .map((node) => (node.children?.length
+            ? { ...node, children: withoutHidden(node.children, hidden) }
+            : node))
+        .filter((node) => isLink(node) ? (node.href || ! node.children) : node.children.length > 0);
+}

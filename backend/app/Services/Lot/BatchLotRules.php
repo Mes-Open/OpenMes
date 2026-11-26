@@ -27,6 +27,7 @@ class BatchLotRules
 
     public function creating(Batch $batch): void
     {
+        $this->normalize($batch);
         $this->assertUnique($batch);
 
         if ($batch->expiry_date === null && $batch->work_order_id) {
@@ -40,12 +41,16 @@ class BatchLotRules
     public function updating(Batch $batch): void
     {
         if ($batch->isDirty('lot_number')) {
+            $this->normalize($batch);
+        }
+        if ($batch->isDirty('lot_number')) {
             $this->assertUnique($batch);
         }
     }
 
     public function restoring(Batch $batch): void
     {
+        $this->normalize($batch);
         $this->assertUnique($batch);
     }
 
@@ -61,11 +66,34 @@ class BatchLotRules
         return $value === null ? true : (bool) json_decode($value, true);
     }
 
+    /**
+     * Store the LOT as it is compared: trimmed, and empty as no LOT. Otherwise
+     * " LOT1" would pass the check against "LOT1" and sit next to it, since the
+     * unique index compares the stored value.
+     */
+    private function normalize(Batch $batch): void
+    {
+        if (is_string($batch->lot_number)) {
+            $lot = trim($batch->lot_number);
+            $batch->lot_number = $lot === '' ? null : $lot;
+        }
+    }
+
     private function assertUnique(Batch $batch): void
     {
         $lot = trim((string) $batch->lot_number);
         if ($lot === '') {
             return;
+        }
+
+        // Two saves of the same LOT in concurrent transactions would both pass
+        // the lookup below. On PostgreSQL a transaction-scoped advisory lock on
+        // the LOT makes the second wait until the first commits, so it sees the
+        // first batch. It matters when the unique index is missing (the
+        // migration skips it over existing duplicates); with the index the
+        // database refuses the second row anyway.
+        if (DB::transactionLevel() > 0 && DB::connection()->getDriverName() === 'pgsql') {
+            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['batch-lot:'.$lot]);
         }
 
         $other = Batch::with('workOrder:id,order_no')

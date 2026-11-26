@@ -66,7 +66,15 @@ class PalletMovementService
                 $arrivedAt = null;
             }
 
-            $firstMove = ! PalletMovement::where('pallet_id', $locked->id)->exists();
+            // Receipt = the first physical move. A re-route (assignDestination)
+            // also writes a ledger row, with the same from and to location, so
+            // those rows do not count.
+            $firstMove = ! PalletMovement::where('pallet_id', $locked->id)
+                ->where(fn ($q) => $q
+                    ->whereColumn('from_location', '!=', 'to_location')
+                    ->orWhere(fn ($qq) => $qq->whereNull('from_location')->whereNotNull('to_location'))
+                    ->orWhere(fn ($qq) => $qq->whereNotNull('from_location')->whereNull('to_location')))
+                ->exists();
 
             $locked->update([
                 'location' => $toLocation,

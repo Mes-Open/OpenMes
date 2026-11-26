@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { Link, router, usePage } from '@inertiajs/react';
 import { ICONS, ICON_LUCIDE, ADMIN_LINKS, ADMIN_GROUPS } from './adminNav';
 import { SUPERVISOR_LINKS, SUPERVISOR_GROUPS } from './supervisorNav';
-import { byOrder, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems } from '../lib/navMerge';
+import { byOrder, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems, withoutHidden } from '../lib/navMerge';
 import { filterNavItems, flattenNavItems, groupVisible, searchResultKeys } from '../lib/navSearch';
 import LiveAlertCount from '../components/LiveAlertCount';
 import ViewAsBar from '../components/ViewAsBar';
@@ -293,23 +293,6 @@ export const PAGE_TITLE_SLOT = '[data-page-title-slot]';
  * supervisor tree. `viewAs` is sent to Admins only, and the supervisor routes
  * admit Admins, so every entry in that tree still opens.
  */
-/**
- * Drop sidebar entries whose href an install hides (`moduleNav.hidden`, filter
- * `nav.hidden`). A group left without children disappears with them.
- */
-function withoutHidden(nodes, hidden) {
-    if (! Array.isArray(hidden) || hidden.length === 0) {
-        return nodes;
-    }
-
-    return nodes
-        .filter((node) => ! (node.href && ! node.children && hidden.includes(node.href)))
-        .map((node) => (node.children
-            ? { ...node, children: withoutHidden(node.children, hidden) }
-            : node))
-        .filter((node) => ! node.children || node.children.length > 0);
-}
-
 function useNavTree() {
     const page = usePage();
     const isAdmin = page.props.auth?.user?.roles?.includes('Admin');

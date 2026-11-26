@@ -105,6 +105,35 @@ class TemplateChangeSafetyTest extends TestCase
             && $context['process_template_id'] === $this->template->id)->once();
     }
 
+    public function test_one_failing_order_does_not_keep_the_next_ones_on_the_old_template(): void
+    {
+        $later = $this->order('WO-NEW-2');
+        app(\App\Services\WorkOrder\WorkOrderService::class)->createBatch($later, 10);
+        $this->assertGreaterThan($this->notStarted->id, $later->id);
+
+        Queue::fake();
+        BomItem::factory()->create(['process_template_id' => $this->template->id]);
+
+        // The first order (lowest id) cannot take its new version.
+        WorkOrderSnapshot::creating(function (WorkOrderSnapshot $version) {
+            if ($version->work_order_id === $this->notStarted->id) {
+                throw new \RuntimeException('bad data on this order');
+            }
+        });
+        Log::spy();
+
+        try {
+            app(\App\Services\ProcessTemplate\ProcessTemplateChangePropagator::class)->refreshNotStarted($this->template->fresh());
+            $this->fail('the failure was swallowed, so the queued job would not retry it');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString((string) $this->notStarted->id, $e->getMessage());
+        }
+
+        $this->assertSame(2, (int) $later->fresh()->snapshot_version, 'the order after the failing one was still moved');
+        $this->assertSame(1, (int) $this->notStarted->fresh()->snapshot_version);
+        Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => ($context['work_order_id'] ?? null) === $this->notStarted->id)->once();
+    }
+
     public function test_api_reorder_reaches_not_started_orders(): void
     {
         Sanctum::actingAs($this->admin);

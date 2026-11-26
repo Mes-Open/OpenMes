@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { byOrder, DEFAULT_MODULE_ORDER, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems } from './navMerge';
+import { byOrder, DEFAULT_MODULE_ORDER, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems, withoutHidden } from './navMerge';
 
 /**
  * Where a module's menu contributions land in the sidebar.
@@ -161,5 +161,42 @@ describe('mergeSupervisorItems', () => {
 
     it('returns the groups unchanged without module links', () => {
         expect(mergeSupervisorItems(groups, undefined, toChild)).toEqual(groups);
+    });
+});
+
+/**
+ * `nav.hidden` takes built-in links out of the sidebar. A module group that is a
+ * single screen arrives as `{ href, children: [] }` and renders as a flat link:
+ * it must survive another module hiding something, and be hideable itself.
+ */
+describe('withoutHidden', () => {
+    const tree = [
+        { key: 'production', children: [{ href: '/admin/a' }, { href: '/admin/b' }] },
+        { key: 'module:single', href: '/admin/single', children: [] },
+        { key: 'module:only-a', children: [{ href: '/admin/a' }] },
+    ];
+
+    it('returns the tree unchanged when nothing is hidden', () => {
+        expect(withoutHidden(tree, [])).toBe(tree);
+        expect(withoutHidden(tree, undefined)).toBe(tree);
+    });
+
+    it('drops a hidden child and a group left with no children', () => {
+        const result = withoutHidden(tree, ['/admin/a']);
+
+        expect(result.map((g) => g.key)).toEqual(['production', 'module:single']);
+        expect(result[0].children).toEqual([{ href: '/admin/b' }]);
+    });
+
+    it('keeps a single-screen module group when another link is hidden', () => {
+        expect(withoutHidden(tree, ['/admin/b']).map((g) => g.key)).toContain('module:single');
+    });
+
+    it('hides a single-screen module group by its href', () => {
+        expect(withoutHidden(tree, ['/admin/single']).map((g) => g.key)).not.toContain('module:single');
+    });
+
+    it('hides a plain link without children', () => {
+        expect(withoutHidden([{ href: '/x' }, { href: '/y' }], ['/x'])).toEqual([{ href: '/y' }]);
     });
 });
