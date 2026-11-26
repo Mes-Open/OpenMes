@@ -76,7 +76,7 @@ export default function ScheduleIndex() {
 
     return (
         <>
-            <Head title="Production Schedule" />
+            <Head title={__('Production Schedule')} />
             <div>
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">

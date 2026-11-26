@@ -3,6 +3,7 @@ import { __ } from '../../../lib/i18n';
 /** Localized display label for a material-lot status enum value. */
 export function materialLotStatusLabel(status) {
     const labels = {
+        available: __('Available'),
         received: __('Received'),
         quarantine: __('Quarantine'),
         released: __('Released'),
@@ -48,6 +49,7 @@ export function materialLotFields(materials, sources, statuses) {
             required: true,
             options: statuses.map((s) => ({ value: s, label: materialLotStatusLabel(s) })),
         },
+        { name: 'supplier_name', label: __('Supplier') },
         { name: 'supplier_lot_no', label: __('Supplier Lot #') },
         { name: 'supplier_reference', label: __('Supplier Ref') },
         {
@@ -106,6 +108,7 @@ export function materialLotInitial(record) {
             manufacturing_date: '',
             expiry_date: '',
             status: 'received',
+            supplier_name: '',
             supplier_lot_no: '',
             supplier_reference: '',
             source_container_no: '',
@@ -123,6 +126,7 @@ export function materialLotInitial(record) {
         manufacturing_date: (record.manufacturing_date ?? '').slice(0, 10),
         expiry_date: (record.expiry_date ?? '').slice(0, 10),
         status: record.status ?? 'received',
+        supplier_name: record.supplier_name ?? '',
         supplier_lot_no: record.supplier_lot_no ?? '',
         supplier_reference: record.supplier_reference ?? '',
         source_container_no: record.source_container_no ?? '',

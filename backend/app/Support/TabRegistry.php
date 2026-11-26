@@ -19,7 +19,7 @@ class TabRegistry
     private const TABS = [
         'dashboard' => ['label' => 'Dashboard', 'prefixes' => ['/admin/dashboard']],
         'alerts' => ['label' => 'Alerts', 'prefixes' => ['/admin/alerts']],
-        'schedule' => ['label' => 'Schedule', 'prefixes' => ['/admin/schedule']],
+        'schedule' => ['label' => 'Schedule', 'prefixes' => ['/admin/schedule', '/admin/schedule/employees']],
         // The shop-floor order screens, and only those. Supervisors hold this tab:
         // production stops and change requests (#182) are raised and reviewed from
         // the work-order pages, so gating them behind Admin would leave the people
@@ -34,6 +34,10 @@ class TabRegistry
         // control without also inheriting the customer list, the priority rules
         // and the CSV importer.
         'order_data' => ['label' => 'Customers & order data', 'prefixes' => ['/admin/customers', '/admin/priority-rules']],
+        // Supplier receiving (#purchasing-workbench). Own tab so a purchasing
+        // clerk can register arrivals without inheriting the whole warehouse
+        // or material master. The route lives under /admin/purchasing.
+        'purchasing' => ['label' => 'Purchasing & receiving', 'prefixes' => ['/admin/purchasing']],
         // The unified importer (Admin → Import): product types, materials, work
         // orders and recipes from one screen. Its own tab so a planner can be
         // given it without the user/log pages the `admin` tab unlocks.
@@ -71,9 +75,12 @@ class TabRegistry
         ]],
         // Customer/supplier companies (render under the Production nav group).
         'companies' => ['label' => 'Companies', 'prefixes' => ['/admin/companies']],
-        // Issues + quality reason codes (render under the Production nav group).
+        // Issues + quality reason codes + controlled COA release (render under the Production nav group).
         'quality' => ['label' => 'Issues & reasons', 'prefixes' => [
-            '/admin/issues', '/admin/scrap-reasons', '/admin/downtime-reasons',
+            '/admin/issues', '/admin/scrap-reasons', '/admin/downtime-reasons', '/admin/quality', '/admin/tea-bases', '/admin/flower-lots', '/admin/blend-formulas', '/admin/sensory', '/admin/coa',
+            '/admin/inspection-plans', '/admin/quality-control-triggers',
+            '/admin/supplier-quality',
+            '/admin/customer-flavor-standards',
         ]],
         'structure' => ['label' => 'Structure', 'prefixes' => [
             '/admin/sites', '/admin/areas', '/admin/factories', '/admin/divisions',
@@ -82,14 +89,12 @@ class TabRegistry
         'hr' => ['label' => 'HR', 'prefixes' => [
             '/admin/workers', '/admin/worker-absences', '/admin/personnel-classes', '/admin/crews',
             '/admin/crew-break-windows', '/admin/skills', '/admin/wage-groups',
-            // Employee scheduling is labour planning — gated by HR, even though it
-            // lives under the (core) Schedule area. Longer than the 'schedule'
-            // prefix, so tabForPath's most-specific match routes it here.
-            '/admin/schedule/employees',
+            // Employee scheduling now belongs to the planning tab; HR owns the
+            // worker master and labour configuration behind it.
         ]],
         'maintenance' => ['label' => 'Maintenance', 'prefixes' => [
-            '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/cost-sources',
-            '/admin/inspection-plans', '/admin/quality-control-triggers',
+            '/admin/maintenance-events', '/admin/maintenance-schedules', '/admin/tools', '/admin/calibrations', '/admin/cost-sources',
+            '/admin/inspection-plans',
             '/admin/quality-tasks', '/admin/oee',
         ]],
         // Its own tab rather than a corner of Maintenance: the shift monitor is

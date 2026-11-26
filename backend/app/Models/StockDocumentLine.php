@@ -18,6 +18,7 @@ class StockDocumentLine extends Model
 
     protected $fillable = [
         'stock_document_id',
+        'purchase_order_line_id',
         'material_id',
         'product_type_id',
         'material_lot_id',
@@ -44,6 +45,11 @@ class StockDocumentLine extends Model
         return $this->belongsTo(StockDocument::class);
     }
 
+    public function purchaseOrderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class);
+    }
+
     public function material(): BelongsTo
     {
         return $this->belongsTo(Material::class);
@@ -52,6 +58,12 @@ class StockDocumentLine extends Model
     public function productType(): BelongsTo
     {
         return $this->belongsTo(ProductType::class);
+    }
+
+    /** The inbound inspection dispatched for this receipt line, if any. */
+    public function inspection(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Inspection::class, 'stock_document_line_id');
     }
 
     public function materialLot(): BelongsTo

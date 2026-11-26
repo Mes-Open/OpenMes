@@ -22,11 +22,14 @@ use App\Http\Controllers\Web\Admin\MaintenanceEventController;
 // Gate 2 — Company structure
 use App\Http\Controllers\Web\Admin\MaterialLotController as AdminMaterialLotController;
 use App\Http\Controllers\Web\Admin\MaterialManagementController;
+use App\Http\Controllers\Web\Admin\MaterialReceiptController;
 use App\Http\Controllers\Web\Admin\ModulesController as AdminModulesController;
 use App\Http\Controllers\Web\Admin\OeeController as AdminOeeController;
 use App\Http\Controllers\Web\Admin\PalletController as AdminPalletController;
 use App\Http\Controllers\Web\Admin\PriorityRuleController;
 use App\Http\Controllers\Web\Admin\ProductionCostReportController;
+use App\Http\Controllers\Web\Admin\PurchaseOrderController;
+use App\Http\Controllers\Web\Admin\PurchaseReconciliationController;
 use App\Http\Controllers\Web\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Web\Admin\ScheduleController;
 use App\Http\Controllers\Web\Admin\SchedulePlannerController;
@@ -44,6 +47,7 @@ use App\Http\Controllers\Web\Admin\WorkOrderManagementController as AdminWorkOrd
 use App\Http\Controllers\Web\Admin\WorkstationTypeController;
 // Materials & BOM
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\CoaVerificationController;
 use App\Http\Controllers\Web\IssueManagementController;
 use App\Http\Controllers\Web\Logistics\PalletMovementController;
 use App\Http\Controllers\Web\Operator\BatchController as OperatorBatchController;
@@ -151,6 +155,11 @@ Route::get('/offline', function () {
 Route::get('/locale/{locale}', function (string $locale) {
     if (array_key_exists($locale, config('app.available_locales', []))) {
         session(['locale' => $locale]);
+
+        // Also persist outside the session: routing-level errors (bare 404s)
+        // happen before StartSession, and the error page still needs the
+        // viewer's chosen locale to render translated copy.
+        return back()->withCookie(cookie()->forever('openmes_locale', $locale));
     }
 
     return back();
@@ -168,6 +177,17 @@ Route::middleware('guest')->group(function () {
 // 2FA challenge routes (no auth middleware — user is mid-login)
 Route::get('/2fa/challenge', [\App\Http\Controllers\Web\TwoFactorChallengeController::class, 'show'])->name('two-factor.challenge');
 Route::post('/2fa/challenge', [\App\Http\Controllers\Web\TwoFactorChallengeController::class, 'verify'])->name('two-factor.verify')->middleware('throttle:5,1');
+
+// Public COA verification: the token is the authorization. No admin navigation,
+// no internal IDs, and never cached as an internal document page.
+Route::get('/verify/coa/{token}', [CoaVerificationController::class, 'show'])
+    ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:60,1')
+    ->name('coa.verify');
+Route::get('/verify/coa/{token}/pdf', [CoaVerificationController::class, 'pdf'])
+    ->where('token', '[a-f0-9]{64}')
+    ->middleware('throttle:30,1')
+    ->name('coa.verify.pdf');
 
 // Authenticated routes
 Route::middleware('auth')->group(function () {
@@ -533,6 +553,21 @@ Route::middleware('auth')->group(function () {
         Route::get('/update/status', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'status'])->name('update.status');
         Route::get('/update/history', [\App\Http\Controllers\Web\Admin\UpdateController::class, 'history'])->name('update.history');
 
+        // Purchasing & receiving workbench. Manual receipts post through the
+        // same service as the material page but stay scoped to the purchasing
+        // tab; a clerk does not need the whole material master to register an
+        // arrival.
+        Route::get('/purchasing/receipts', [MaterialReceiptController::class, 'index'])->name('purchasing.receipts.index');
+        Route::post('/purchasing/receipts', [MaterialReceiptController::class, 'store'])->name('purchasing.receipts.store');
+        Route::post('/purchasing/receipts/order', [MaterialReceiptController::class, 'storeOrder'])->name('purchasing.receipts.order');
+
+        // Purchase commitments and supplier reconciliation.
+        Route::get('/purchasing/orders', [PurchaseOrderController::class, 'index'])->name('purchasing.orders.index');
+        Route::post('/purchasing/orders', [PurchaseOrderController::class, 'store'])->name('purchasing.orders.store');
+        Route::post('/purchasing/orders/{purchaseOrder}/close', [PurchaseOrderController::class, 'close'])->name('purchasing.orders.close');
+        Route::get('/purchasing/reconciliation', [PurchaseReconciliationController::class, 'index'])->name('purchasing.reconciliation.index');
+        Route::get('/purchasing/reconciliation/export', [PurchaseReconciliationController::class, 'export'])->name('purchasing.reconciliation.export');
+
         // Schedule (planner is the main view; list is a secondary overview)
         Route::get('/schedule/list', [ScheduleController::class, 'index'])->name('schedule.list');
         Route::get('/schedule', [SchedulePlannerController::class, 'index'])->name('schedule');
@@ -764,6 +799,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('material-lots', AdminMaterialLotController::class);
         Route::post('/material-lots/{materialLot}/hold', [AdminMaterialLotController::class, 'hold'])->name('material-lots.hold');
         Route::post('/material-lots/{materialLot}/release', [AdminMaterialLotController::class, 'release'])->name('material-lots.release');
+        Route::post('/material-lots/{materialLot}/dispose', [AdminMaterialLotController::class, 'dispose'])->name('material-lots.dispose');
 
         // ── Material Traceability / Genealogy (React/Inertia — ported from develop Blade) ──
         Route::get('/traceability', [\App\Http\Controllers\Web\Admin\TraceabilityController::class, 'index'])->name('traceability.index');
@@ -777,6 +813,60 @@ Route::middleware('auth')->group(function () {
         // Batch Reports
         Route::get('/batches/{batch}/report', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'show'])->name('batch-report');
         Route::get('/batches/{batch}/report/pdf', [\App\Http\Controllers\Web\Admin\BatchReportController::class, 'pdf'])->name('batch-report.pdf');
+        Route::get('/batches/{batch}/coa/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('batch-report.coa');
+
+        // Incoming inspection plans (QA-configurable, versioned)
+        Route::get('/supplier-quality', [\App\Http\Controllers\Web\Admin\SupplierQualityController::class, 'index'])->name('supplier-quality.index');
+
+        Route::get('/inspection-plans', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'index'])->name('inspection-plans.index');
+        Route::post('/inspection-plans', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'store'])->name('inspection-plans.store');
+        Route::post('/inspection-plans/dispatch', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'dispatch'])->name('inspection-plans.dispatch');
+        Route::put('/inspection-plans/{inspectionPlan}', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'update'])->name('inspection-plans.update');
+        Route::post('/inspection-plans/{inspectionPlan}/publish', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'publish'])->name('inspection-plans.publish');
+        Route::delete('/inspection-plans/{inspectionPlan}', [\App\Http\Controllers\Web\Admin\InspectionPlanController::class, 'destroy'])->name('inspection-plans.destroy');
+
+        // COA & release workbench
+        // 客户风味标准：COA 规格的真正来源（检验模板只回答“怎么检”）。
+        Route::get('/customer-flavor-standards', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'index'])->name('customer-flavor-standards.index');
+        Route::post('/customer-flavor-standards', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'store'])->name('customer-flavor-standards.store');
+        Route::put('/customer-flavor-standards/{customerFlavorStandard}', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'update'])->name('customer-flavor-standards.update');
+        Route::delete('/customer-flavor-standards/{customerFlavorStandard}', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'destroy'])->name('customer-flavor-standards.destroy');
+        Route::post('/customer-flavor-standards/{customerFlavorStandard}/toggle-status', [\App\Http\Controllers\Web\Admin\CustomerFlavorStandardController::class, 'toggleStatus'])->name('customer-flavor-standards.toggle-status');
+
+        Route::get('/calibrations', [\App\Http\Controllers\Web\Admin\CalibrationController::class, 'index'])->name('calibrations.index');
+
+        Route::get('/quality', [\App\Http\Controllers\Web\Admin\QualityConsoleController::class, 'index'])->name('quality.index');
+        Route::get('/tea-bases', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'index'])->name('tea-bases.index');
+        Route::get('/tea-bases/{teaBase}', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'show'])->name('tea-bases.show');
+        Route::post('/tea-bases/{teaBase}/freeze', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'freeze'])->name('tea-bases.freeze');
+        Route::post('/tea-bases/{teaBase}/unfreeze', [\App\Http\Controllers\Web\Admin\TeaBaseController::class, 'unfreeze'])->name('tea-bases.unfreeze');
+        Route::get('/flower-lots', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'index'])->name('flower-lots.index');
+        Route::get('/flower-lots/{flowerLot}', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'show'])->name('flower-lots.show');
+        Route::post('/flower-lots/{flowerLot}/mark-available', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'markAvailable'])->name('flower-lots.mark-available');
+        Route::post('/flower-lots/{flowerLot}/allocate', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'allocate'])->name('flower-lots.allocate');
+        Route::post('/flower-lots/{flowerLot}/dispose', [\App\Http\Controllers\Web\Admin\FlowerLotController::class, 'dispose'])->name('flower-lots.dispose');
+        Route::get('/blend-formulas', [\App\Http\Controllers\Web\Admin\BlendFormulaController::class, 'index'])->name('blend-formulas.index');
+        Route::get('/blend-formulas/{blendFormula}', [\App\Http\Controllers\Web\Admin\BlendFormulaController::class, 'show'])->name('blend-formulas.show');
+        Route::post('/blend-formulas/{blendFormula}/duplicate', [\App\Http\Controllers\Web\Admin\BlendFormulaController::class, 'duplicate'])->name('blend-formulas.duplicate');
+        Route::post('/blend-formulas/{blendFormula}/freeze', [\App\Http\Controllers\Web\Admin\BlendFormulaController::class, 'freeze'])->name('blend-formulas.freeze');
+        Route::get('/sensory', [\App\Http\Controllers\Web\Admin\SensoryController::class, 'index'])->name('sensory.index');
+        Route::post('/sensory/{sensoryEvaluation}', [\App\Http\Controllers\Web\Admin\SensoryController::class, 'submit'])->name('sensory.submit');
+        Route::get('/coa', [\App\Http\Controllers\Web\Admin\CoaController::class, 'index'])->name('coa.index');
+        Route::get('/coa/{batch}/pdf', [\App\Http\Controllers\Web\Admin\CoaController::class, 'pdf'])->name('coa.pdf');
+        Route::get('/coa/{batch}', [\App\Http\Controllers\Web\Admin\CoaController::class, 'show'])->name('coa.show');
+        Route::post('/coa/{batch}/weighings', [\App\Http\Controllers\Web\Admin\CoaController::class, 'recordWeighing'])->name('coa.weighings.store');
+        Route::post('/coa/{batch}/lab-tests', [\App\Http\Controllers\Web\Admin\CoaController::class, 'recordLabTest'])->name('coa.lab-tests.store');
+        Route::post('/coa/{batch}/lab-tests/{labTest}/attachment', [\App\Http\Controllers\Web\Admin\CoaController::class, 'uploadLabAttachment'])->name('coa.lab-tests.attachment.store');
+        Route::get('/coa/{batch}/lab-tests/{labTest}/attachment', [\App\Http\Controllers\Web\Admin\CoaController::class, 'downloadLabAttachment'])->name('coa.lab-tests.attachment');
+        Route::post('/coa/{batch}/checks', [\App\Http\Controllers\Web\Admin\CoaController::class, 'recordCheck'])->name('coa.checks.store');
+        Route::post('/coa/{batch}/release', [\App\Http\Controllers\Web\Admin\CoaController::class, 'release'])->name('coa.release');
+        Route::post('/coa/{batch}/draft', [\App\Http\Controllers\Web\Admin\CoaController::class, 'draft'])->name('coa.draft');
+        Route::post('/coa/{batch}/inspect-sign', [\App\Http\Controllers\Web\Admin\CoaController::class, 'inspectionSign'])->name('coa.inspect-sign');
+        Route::post('/coa/{batch}/submit', [\App\Http\Controllers\Web\Admin\CoaController::class, 'submit'])->name('coa.submit');
+        Route::post('/coa/{batch}/approve', [\App\Http\Controllers\Web\Admin\CoaController::class, 'approve'])->name('coa.approve');
+        Route::post('/coa/{batch}/issue', [\App\Http\Controllers\Web\Admin\CoaController::class, 'issue'])->name('coa.issue');
+        Route::post('/coa/{batch}/void', [\App\Http\Controllers\Web\Admin\CoaController::class, 'void'])->name('coa.void');
+        Route::post('/coa/{batch}/reissue', [\App\Http\Controllers\Web\Admin\CoaController::class, 'reissue'])->name('coa.reissue');
 
         // Materials Management
         Route::resource('material-types', \App\Http\Controllers\Web\Admin\MaterialTypeController::class)->except(['show']);
@@ -924,6 +1014,22 @@ Route::middleware('auth')->group(function () {
         // generates (material releases, product receipts). Gated by the
         // `warehouse` module via the tab.access middleware on this group.
 
+        // P1 label balance: issued / consumed / scrapped / returned labels per
+        // batch. A variance writes a FAIL LABEL_BALANCE check, which the existing
+        // G09 release gate reads before allowing the batch to be released.
+        Route::get('/warehouses', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'index'])->name('warehouses.index');
+        Route::get('/warehouses/stock', [\App\Http\Controllers\Web\Admin\WarehouseStockController::class, 'index'])->name('warehouses.stock.index');
+        Route::get('/warehouses/locations', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'index'])->name('warehouses.locations.index');
+        Route::get('/warehouses/locations/reconcile', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'reconcile'])->name('warehouses.locations.reconcile');
+        Route::get('/warehouses/locations/labels', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'labels'])->name('warehouses.locations.labels');
+        Route::get('/warehouses/locations/moves', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'moves'])->name('warehouses.locations.moves.index');
+        Route::get('/warehouses/locations/moves/export', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'exportMoves'])->name('warehouses.locations.moves.export');
+        Route::get('/warehouses/locations/{location}/label', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'label'])->whereNumber('location')->name('warehouses.locations.label');
+        Route::post('/warehouses/locations/move', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'move'])->name('warehouses.locations.move');
+        Route::post('/warehouses/locations', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'store'])->name('warehouses.locations.store');
+        Route::put('/warehouses/locations/{location}', [\App\Http\Controllers\Web\Admin\WarehouseLocationController::class, 'update'])->whereNumber('location')->name('warehouses.locations.update');
+        Route::get('/warehouses/label-balance/{batch}/slip', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'slip'])->whereNumber('batch')->name('warehouses.label-balance.slip');
+        Route::post('/warehouses/label-balance/{batch}', [\App\Http\Controllers\Web\Admin\WarehouseLabelBalanceController::class, 'store'])->name('warehouses.label-balance.store');
         // ── Gate 6: Costing ───────────────────────────────────────────────────
         // Cost Sources
         Route::resource('cost-sources', CostSourceController::class)->except(['show']);

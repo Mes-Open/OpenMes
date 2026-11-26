@@ -15,9 +15,14 @@ import { __ } from '../lib/i18n';
  * fewer rights, or a missing button for a missing permission.
  */
 const VIEWS = [
-    { key: 'admin', label: 'Administrator' },
-    { key: 'supervisor', label: 'Supervisor' },
-    { key: 'operator', label: 'Operator' },
+    { key: 'admin', label: '管理员' },
+    { key: 'planner', label: '计划' },
+    { key: 'purchasing', label: '采购' },
+    { key: 'quality', label: '品控' },
+    { key: 'production', label: '生产' },
+    { key: 'warehouse', label: '仓管' },
+    { key: 'supervisor', label: '主管' },
+    { key: 'operator', label: '操作工' },
 ];
 
 export default function ViewAsBar() {
@@ -34,14 +39,14 @@ export default function ViewAsBar() {
         <div
             role="region"
             aria-label={__('View switcher')}
-            className={`shrink-0 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-1.5 border-b text-[12.5px] ${
+            className={`shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1 border-b text-[11.5px] ${
                 previewing
                     ? 'bg-om-downtime-bg border-om-downtime text-om-ink'
                     : 'bg-om-card border-om-line text-om-muted'
             }`}
         >
             <div className="flex items-center gap-2">
-                <span className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint">{__('View')}</span>
+                <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-om-faint">{__('View')}</span>
                 <div className="inline-flex rounded-om-sm border border-om-line bg-om-bg p-0.5" role="group" aria-label={__('View as')}>
                     {VIEWS.map((v) => (
                         <button
@@ -49,9 +54,9 @@ export default function ViewAsBar() {
                             type="button"
                             aria-pressed={v.key === viewAs}
                             onClick={() => switchTo(v.key)}
-                            className={`px-2.5 py-1 rounded-om-sm font-medium transition-colors ${
+                            className={`h-6 px-2 rounded-om-sm font-medium transition-colors ${
                                 v.key === viewAs
-                                    ? 'bg-om-ink text-om-on-ink'
+                                    ? 'bg-[var(--mes-blue)] text-white'
                                     : 'text-om-muted hover:text-om-ink hover:bg-om-chip'
                             }`}
                         >

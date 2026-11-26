@@ -102,7 +102,7 @@ function DashboardBody({
     return (
         // AppLayout's <main> has no padding of its own; the page brings it, as
         // in the mockup (32/40 px), tighter on phones.
-        <div className="max-w-7xl mx-auto flex flex-col gap-8 px-4 py-6 sm:px-6 lg:px-10 lg:pt-8 lg:pb-12">
+        <div className="max-w-[1600px] mx-auto flex flex-col gap-4 px-3 py-3 sm:px-4 lg:px-4 lg:pt-3 lg:pb-8">
             <OverviewHeader shift={overview?.shift} liveOk={liveOk} />
 
             <OverviewGrid overview={overview} />
@@ -124,7 +124,7 @@ function DashboardBody({
                     <p className="text-om-muted text-sm mb-4">{__('Connecting to live sync…')}</p>
                 )}
 
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-4">
                     {showWidget('kpi_cards') && (
                         <Section order={order.kpi_cards}>
                             <KpiCards stats={stats} selectedLineId={selectedLineId} />
@@ -202,10 +202,10 @@ function DashboardBody({
 function Last30Header({ selectedLineId, onLineChange, lines }) {
     const selectedLine = lines.find((l) => String(l.id) === String(selectedLineId));
     return (
-        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="mb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
-                <h2 id="dashboard-last-30-days" className="text-[18px] font-semibold text-om-ink">{__('Last 30 days')}</h2>
-                <p className="text-om-muted mt-1 text-sm">
+                <h2 id="dashboard-last-30-days" className="text-[14px] font-semibold text-om-ink">{__('Last 30 days')}</h2>
+                <p className="text-om-muted mt-0.5 text-[11px]">
                     {selectedLine ? (
                         <>— <span className="font-medium text-om-accent">{selectedLine.name}</span></>
                     ) : (

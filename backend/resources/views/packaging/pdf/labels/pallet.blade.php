@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Pallet Labels</title>
+    <title>托盘标签</title>
     @include('packaging.pdf.labels._styles', ['widthMm' => $widthMm, 'heightMm' => $heightMm])
 </head>
 <body>

@@ -1,7 +1,7 @@
+import { __ } from '../../../../lib/i18n';
 import { useForm } from '@inertiajs/react';
 import { Button, Checkbox, Dropdown } from '@openmes/ui';
 import { Field, Section } from '../ui';
-import { __ } from '../../../../lib/i18n';
 
 /**
  * Shared create/edit form for MachineConnection (protocol=mqtt) + MqttConnection config.
@@ -46,8 +46,8 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
     return (
         <form onSubmit={submit} className="space-y-6">
             {/* General */}
-            <Section title="General">
-                <Field label="Name" required error={errors.name}>
+            <Section title={__('General')}>
+                <Field label={__('Name')} required error={errors.name}>
                     <input
                         type="text"
                         value={data.name}
@@ -56,7 +56,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         className="form-input w-full"
                     />
                 </Field>
-                <Field label="Description" error={errors.description}>
+                <Field label={__('Description')} error={errors.description}>
                     <textarea
                         value={data.description}
                         onChange={(e) => setData('description', e.target.value)}
@@ -64,7 +64,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         className="form-input w-full"
                     />
                 </Field>
-                <Field label="Assigned line" error={errors.line_id}>
+                <Field label={__('Assigned line')} error={errors.line_id}>
                     {/* Named directly: the hint below makes two children, so Field cannot. */}
                     <Dropdown
                         aria-label={__('Assigned line')}
@@ -88,10 +88,10 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
             </Section>
 
             {/* Broker */}
-            <Section title="Broker">
+            <Section title={__('Broker')}>
                 <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-2">
-                        <Field label="Host" required error={errors.broker_host}>
+                        <Field label={__('Host')} required error={errors.broker_host}>
                             <input
                                 type="text"
                                 value={data.broker_host}
@@ -103,7 +103,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         </Field>
                     </div>
                     <div>
-                        <Field label="Port" required error={errors.broker_port}>
+                        <Field label={__('Port')} required error={errors.broker_port}>
                             <input
                                 type="number"
                                 value={data.broker_port}
@@ -116,7 +116,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                         </Field>
                     </div>
                 </div>
-                <Field label="Client ID" error={errors.client_id}>
+                <Field label={__('Client ID')} error={errors.client_id}>
                     <input
                         type="text"
                         value={data.client_id}
@@ -128,9 +128,9 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
             </Section>
 
             {/* Authentication */}
-            <Section title="Authentication">
+            <Section title={__('Authentication')}>
                 <div className="grid grid-cols-2 gap-4">
-                    <Field label="Username" error={errors.username}>
+                    <Field label={__('Username')} error={errors.username}>
                         <input
                             type="text"
                             value={data.username}
@@ -162,14 +162,14 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
             </Section>
 
             {/* TLS */}
-            <Section title="TLS / Security">
+            <Section title={__('TLS / Security')}>
                 <Checkbox
                     checked={data.use_tls}
                     onChange={(next) => setData('use_tls', next)}
                     label={__('Enable TLS (port 8883)')}
                 />
                 {data.use_tls && (
-                    <Field label="CA Certificate (PEM)" error={errors.ca_cert}>
+                    <Field label={__('CA Certificate (PEM)')} error={errors.ca_cert}>
                         <textarea
                             value={data.ca_cert}
                             onChange={(e) => setData('ca_cert', e.target.value)}
@@ -182,9 +182,9 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
             </Section>
 
             {/* Advanced */}
-            <Section title="Advanced">
+            <Section title={__('Advanced')}>
                 <div className="grid grid-cols-2 gap-4">
-                    <Field label="QoS default" error={errors.qos_default}>
+                    <Field label={__('QoS default')} error={errors.qos_default}>
                         <Dropdown
                             value={data.qos_default == null ? '' : String(data.qos_default)}
                             onChange={(v) => setData('qos_default', v)}
@@ -196,7 +196,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                             className="w-full"
                         />
                     </Field>
-                    <Field label="Keep-alive (seconds)" error={errors.keep_alive_seconds}>
+                    <Field label={__('Keep-alive (seconds)')} error={errors.keep_alive_seconds}>
                         <input
                             type="number"
                             value={data.keep_alive_seconds}
@@ -206,7 +206,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                             className="form-input w-full"
                         />
                     </Field>
-                    <Field label="Connect timeout (seconds)" error={errors.connect_timeout}>
+                    <Field label={__('Connect timeout (seconds)')} error={errors.connect_timeout}>
                         <input
                             type="number"
                             value={data.connect_timeout}
@@ -216,7 +216,7 @@ export default function MqttConnectionForm({ action, method, submitLabel, cancel
                             className="form-input w-full"
                         />
                     </Field>
-                    <Field label="Reconnect delay (seconds)" error={errors.reconnect_delay_seconds}>
+                    <Field label={__('Reconnect delay (seconds)')} error={errors.reconnect_delay_seconds}>
                         <input
                             type="number"
                             value={data.reconnect_delay_seconds}

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Web\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Web\Admin\StoreMaintenanceEventRequest;
+use App\Models\FlowerLot;
+use App\Models\FlowerLotAllocation;
 use App\Models\ScheduleChangeLog;
 use App\Models\WorkOrder;
 use App\Services\Schedule\SchedulePlannerService;
@@ -33,6 +35,7 @@ class SchedulePlannerController extends Controller
 
         return Inertia::render('admin/schedule/Planner', [
             ...$board,
+            'flowerSchedule' => $this->flowerSchedule($board['rangeStart'], $board['rangeEnd']),
             // For the "+ New order" modal (shares the create page's form).
             'productTypes' => \App\Models\ProductType::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'customers' => \App\Models\Customer::active()->orderBy('name')->get(['id', 'name', 'tier']),
@@ -222,5 +225,133 @@ class SchedulePlannerController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => __('Change undone.')]);
+    }
+
+    /**
+     * Flower windows and occupied scenting slots for the planner board.
+     *
+     * Arrival blocks span from arrived_at to usable_until; allocation blocks
+     * span from allocated_at to the batch's planned end. A lot whose window
+     * already closed is rendered red, as is an allocation that overlaps another
+     * allocation on the same batch.
+     */
+    private function flowerSchedule(string $rangeStart, string $rangeEnd): array
+    {
+        $start = Carbon::parse($rangeStart)->startOfDay();
+        $end = Carbon::parse($rangeEnd)->endOfDay();
+
+        $lots = FlowerLot::query()
+            ->with(['allocations.batch.workOrder.productType'])
+            ->where(function ($query) use ($start, $end) {
+                $query->whereBetween('arrived_at', [$start, $end])
+                    ->orWhere(function ($inner) use ($start, $end) {
+                        $inner->whereNotNull('usable_until')
+                            ->where('usable_until', '>=', $start)
+                            ->where('arrived_at', '<=', $end);
+                    });
+            })
+            ->orderBy('usable_until')
+            ->orderBy('id')
+            ->get();
+
+        $arrivals = $lots->map(function (FlowerLot $lot) {
+            $status = $lot->effectiveStatus();
+
+            return [
+                'id' => $lot->id,
+                'code' => $lot->code,
+                'variety' => $lot->variety,
+                'origin' => $lot->origin,
+                'weight_kg' => (float) $lot->weight_kg,
+                'remaining_weight' => $lot->remainingWeight(),
+                'arrived_at' => $lot->arrived_at?->toIso8601String(),
+                'usable_from' => $lot->usable_from?->toIso8601String(),
+                'usable_until' => $lot->usable_until?->toIso8601String(),
+                'status' => $status,
+                'status_label' => $lot->statusLabel(),
+                'urgency' => $lot->urgency(),
+                'remaining_seconds' => $lot->remainingSeconds(),
+                'opening_rate' => $lot->opening_rate !== null ? (float) $lot->opening_rate : null,
+                'has_allocation' => $lot->allocations->isNotEmpty(),
+            ];
+        })->values();
+
+        $occupancies = $lots
+            ->flatMap(function (FlowerLot $lot) {
+                return $lot->allocations->map(function (FlowerLotAllocation $allocation) use ($lot) {
+                    $batch = $allocation->batch;
+                    $plannedEnd = $batch?->workOrder?->planned_end_at ?? $allocation->allocated_at?->copy()->addHours(12);
+                    $startAt = $allocation->allocated_at;
+                    $endAt = $plannedEnd && $startAt && $plannedEnd->greaterThan($startAt)
+                        ? $plannedEnd
+                        : $startAt?->copy()->addHours(12);
+
+                    return [
+                        'id' => $allocation->id,
+                        'flower_lot_id' => $lot->id,
+                        'flower_code' => $lot->code,
+                        'weight_kg' => (float) $allocation->weight_kg,
+                        'seep_count' => (int) $allocation->seep_count,
+                        'start_at' => $startAt?->toIso8601String(),
+                        'end_at' => $endAt?->toIso8601String(),
+                        'window_until' => $lot->usable_until?->toIso8601String(),
+                        'batch_id' => $batch?->id,
+                        'batch_number' => $batch?->batch_number,
+                        'product' => $batch?->workOrder?->productType?->name,
+                        'conflict' => false,
+                        'conflict_reason' => null,
+                    ];
+                });
+            })
+            ->filter(fn ($row) => $row['start_at'] && $row['end_at'])
+            ->values();
+
+        // Two allocations on the same batch that overlap are a scheduling
+        // conflict: the same scenting bed cannot be occupied twice.
+        $conflictCount = 0;
+        $occupancies = $occupancies->map(function ($row) use ($occupancies, &$conflictCount) {
+            if (! $row['batch_id']) {
+                return $row;
+            }
+
+            $overlaps = $occupancies->first(function ($other) use ($row) {
+                return $other['id'] !== $row['id']
+                    && $other['batch_id'] === $row['batch_id']
+                    && $row['start_at'] < $other['end_at']
+                    && $row['end_at'] > $other['start_at'];
+            });
+
+            if ($overlaps) {
+                $row['conflict'] = true;
+                $row['conflict_reason'] = '同一批次存在重叠的付窨占用。';
+                $conflictCount++;
+            }
+
+            if (! $row['conflict'] && $row['window_until'] && $row['start_at'] > $row['window_until']) {
+                $row['conflict'] = true;
+                $row['conflict_reason'] = '付窨开始时间晚于鲜花可用截止。';
+                $conflictCount++;
+            }
+
+            return $row;
+        })->values();
+
+        $arrivals = $arrivals->map(function ($row) use ($occupancies) {
+            $row['has_conflict'] = $occupancies->contains(fn ($occ) => $occ['flower_lot_id'] === $row['id'] && $occ['conflict']);
+
+            return $row;
+        })->values();
+
+        return [
+            'arrivals' => $arrivals->all(),
+            'occupancies' => $occupancies->all(),
+            'summary' => [
+                'arrivals' => $arrivals->count(),
+                'available' => $arrivals->where('status', FlowerLot::STATUS_AVAILABLE)->count(),
+                'expired' => $arrivals->where('status', FlowerLot::STATUS_EXPIRED)->count(),
+                'occupancies' => $occupancies->count(),
+                'conflicts' => $conflictCount,
+            ],
+        ];
     }
 }

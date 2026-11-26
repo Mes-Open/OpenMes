@@ -47,6 +47,10 @@ class HandleInertiaRequests extends Middleware
             // Sent only to Admins — null for everyone else, so no other role ever
             // receives the bar. Presentation only; permissions do not change.
             'viewAs' => \App\Support\ViewAs::current($request),
+            // Functional role preview: the administrator's nav is filtered to the
+            // preview role's tab grants. Null for admin/supervisor/operator (those
+            // keep their dedicated trees).
+            'viewAsTabs' => fn () => \App\Support\ViewAs::tabsForCurrent($request),
             // Optional feature modules switched on for this installation. The
             // admin nav gets this filtering for free through `accessibleTabs`
             // (TabRegistry consults ModuleRegistry); the supervisor tree is gated

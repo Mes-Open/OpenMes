@@ -54,16 +54,16 @@ export default function SummaryBar({ overview, accessibleTabs = [] }) {
     return (
         <section
             aria-label={__('Plant summary')}
-            className={`grid grid-cols-1 ${COLS[fields.length] ?? COLS[4]} gap-px overflow-hidden rounded-[14px] border border-om-line bg-om-line`}
+            className={`grid grid-cols-1 ${COLS[fields.length] ?? COLS[4]} gap-px overflow-hidden rounded-[4px] border border-om-line bg-om-line`}
         >
             {fields.map(({ id, label, value, href }) => {
                 const inner = (
                     <>
-                        <span className="text-[13px] text-om-muted">{label}</span>
-                        <span className="text-[15px] font-semibold text-om-ink">{value}</span>
+                        <span className="text-[11px] text-om-muted">{label}</span>
+                        <span className="text-[12px] font-semibold text-om-ink">{value}</span>
                     </>
                 );
-                const className = 'flex flex-col gap-0.5 bg-om-card px-5 py-4 no-underline';
+                const className = 'flex flex-col gap-0.5 bg-om-card px-3 py-2 no-underline';
 
                 return href ? (
                     <Link key={id} href={href} className={`${className} transition-colors hover:bg-om-panel`} data-testid={`summary-${id}`}>

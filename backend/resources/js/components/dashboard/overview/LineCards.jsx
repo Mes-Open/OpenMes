@@ -57,7 +57,7 @@ export default function LineCards({ overview, accessibleTabs = [] }) {
             </div>
 
             {lines.length === 0 ? (
-                <div className="bg-om-card border border-om-line rounded-[14px] px-6 py-5 text-[14px] text-om-muted">
+                <div className="bg-om-card border border-om-line rounded-[4px] px-6 py-5 text-[14px] text-om-muted">
                     {__('No active lines yet.')}
                 </div>
             ) : (
@@ -127,7 +127,7 @@ function LineCard({ line, lineOrder, live, href }) {
         </>
     );
 
-    const className = `flex flex-col gap-2.5 rounded-[14px] border bg-om-card p-5 text-om-ink no-underline ${style.edge}`;
+    const className = `flex flex-col gap-2.5 rounded-[4px] border bg-om-card p-5 text-om-ink no-underline ${style.edge}`;
 
     return href ? (
         <Link

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Material Lot Labels</title>
+    <title>物料批次标签</title>
     @include('packaging.pdf.labels._styles', ['widthMm' => $widthMm, 'heightMm' => $heightMm])
 </head>
 <body>

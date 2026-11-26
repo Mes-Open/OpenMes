@@ -21,7 +21,7 @@ class ManualMaterialReceiptService
             if ($existing) {
                 if (abs((float) $existing->quantity - $quantity) > 0.00001) {
                     throw ValidationException::withMessages([
-                        'reference' => __('This receipt reference has already been used with a different quantity.'),
+                        'reference' => '该参考号已用于不同数量的到货，请核对后重新提交。',
                     ]);
                 }
 

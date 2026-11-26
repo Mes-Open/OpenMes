@@ -142,11 +142,11 @@ export default function PalletsIndex() {
 
     return (
         <>
-            <Head title="Pallets" />
+            <Head title={__('Pallets')} />
             {labelTemplates.length === 0 && <NoTemplateBanner />}
             <ResourceTable
                 shape="pallets"
-                title="Pallets"
+                title={__('Pallets')}
                 createHref="/admin/pallets/create"
                 onCreate={drawer.create}
                 createLabel={__('New Pallet')}

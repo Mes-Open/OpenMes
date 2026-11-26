@@ -40,6 +40,7 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
         });
     };
     const available = material.available_quantity ?? 0;
+    const qualityHeld = material.quality_held_quantity ?? 0;
 
     const lotColumns = useMemo(() => [
         {
@@ -267,6 +268,10 @@ export default function MaterialShow({ material, lots = [], recentMovements = []
                             <div className="flex justify-between text-sm">
                                 <dt className="text-om-muted">{__('Reserved by active batches')}</dt>
                                 <dd className="font-mono text-om-downtime">{fmt(material.reserved_quantity)} {material.unit_of_measure}</dd>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <dt className="text-om-muted">{__('Quality hold')}</dt>
+                                <dd className={`font-mono ${qualityHeld > 0 ? 'text-om-blocked' : 'text-om-faint'}`}>{fmt(qualityHeld)} {material.unit_of_measure}</dd>
                             </div>
                             <div className="flex justify-between text-sm pt-2 border-t border-om-line2">
                                 <dt className="font-medium text-om-muted">{__('Available for production')}</dt>

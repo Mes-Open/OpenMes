@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Series Report — {{ $batch->lot_number ?? 'Batch #' . $batch->batch_number }}</title>
+    <title>生产批次报告 — {{ $batch->lot_number ?? '批次 #' . $batch->batch_number }}</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1a1a1a; margin: 20px; }
         h1 { font-size: 18px; margin-bottom: 5px; }

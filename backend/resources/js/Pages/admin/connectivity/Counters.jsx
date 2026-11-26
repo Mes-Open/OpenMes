@@ -55,13 +55,13 @@ function Configuration({ counter, workstations, steps }) {
     const options = steps.filter(s => s.workstation_id === Number(form.data.workstation_id));
     return <form aria-label={__('Counter configuration')} className="space-y-4" onSubmit={e => { e.preventDefault(); form.put(`${base}/${counter.id}`, { preserveScroll: true }); }}>
         <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Counter mode"><Dropdown className="w-full" value={form.data.mode} onChange={value => form.setData('mode', value)} options={Object.entries(MODES).map(([value, label]) => ({ value, label: __(label) }))} /></Field>
-            <Field label="Count quality"><Dropdown className="w-full" value={form.data.kind} onChange={value => form.setData('kind', value)} options={Object.entries(KINDS).map(([value, label]) => ({ value, label: __(label) }))} /></Field>
-            <Field label="Workstation"><Dropdown className="w-full" value={String(form.data.workstation_id)} onChange={value => form.setData({ ...form.data, workstation_id: value, batch_step_id: '' })} placeholder={__('Select workstation')} options={workstations.map(w => ({ value: String(w.id), label: w.name }))} /></Field>
-            <Field label="Assigned batch step"><Dropdown className="w-full" value={String(form.data.batch_step_id)} onChange={value => form.setData('batch_step_id', value)} options={[{ value: '', label: __('Unassigned') }, ...options.map(s => ({ value: String(s.id), label: s.label }))]} /></Field>
+            <Field label={__('Counter mode')}><Dropdown className="w-full" value={form.data.mode} onChange={value => form.setData('mode', value)} options={Object.entries(MODES).map(([value, label]) => ({ value, label: __(label) }))} /></Field>
+            <Field label={__('Count quality')}><Dropdown className="w-full" value={form.data.kind} onChange={value => form.setData('kind', value)} options={Object.entries(KINDS).map(([value, label]) => ({ value, label: __(label) }))} /></Field>
+            <Field label={__('Workstation')}><Dropdown className="w-full" value={String(form.data.workstation_id)} onChange={value => form.setData({ ...form.data, workstation_id: value, batch_step_id: '' })} placeholder={__('Select workstation')} options={workstations.map(w => ({ value: String(w.id), label: w.name }))} /></Field>
+            <Field label={__('Assigned batch step')}><Dropdown className="w-full" value={String(form.data.batch_step_id)} onChange={value => form.setData('batch_step_id', value)} options={[{ value: '', label: __('Unassigned') }, ...options.map(s => ({ value: String(s.id), label: s.label }))]} /></Field>
         </div>
         <p className="text-xs text-om-muted">{__('After a configuration change, the next cumulative reading establishes the baseline. Earlier readings are never replayed automatically.')}</p>
-        <Field label="Reason"><input className={input} required maxLength={1000} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+        <Field label={__('Reason')}><input className={input} required maxLength={1000} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
         <Errors errors={form.errors} />
         <Button type="submit" variant="primary" disabled={form.processing || !form.data.workstation_id}>{__(counter.configured_at ? 'Save counter configuration' : 'Enable explicit counting')}</Button>
     </form>;
@@ -69,7 +69,7 @@ function Configuration({ counter, workstations, steps }) {
 function LegacySwitch({ counter }) {
     const form = useForm({ note: '' });
     return <form aria-label={__('Return to legacy counting')} className="space-y-3 pt-3" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/legacy`, { preserveScroll: true }); }}>
-        <Field label="Reason"><input className={input} required value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+        <Field label={__('Reason')}><input className={input} required value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
         <Errors errors={form.errors} />
         <Button type="submit" variant="outline" disabled={form.processing}>{__('Return to legacy counting')}</Button>
     </form>;
@@ -78,7 +78,7 @@ function Baseline({ counter }) {
     const form = useForm({ note: '' });
     return <form aria-label={__('Reset review')} className="space-y-3" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/rebaseline`, { preserveScroll: true, onSuccess: () => form.reset() }); }}>
         <p className="text-xs text-om-muted">{__('Confirm a reset only after checking the machine. The next fresh reading becomes the baseline and adds no production.')}</p>
-        <Field label="Reset reason"><input className={input} required maxLength={1000} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+        <Field label={__('Reset reason')}><input className={input} required maxLength={1000} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
         <Errors errors={form.errors} />
         <Button type="submit" variant="outline" disabled={form.processing}>{__('Establish new baseline')}</Button>
     </form>;
@@ -88,9 +88,9 @@ function Simulator({ counter }) {
     return <form aria-label={__('Test reading')} className="space-y-3" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/simulate`, { preserveScroll: true }); }}>
         <p className="text-xs text-om-muted">{__('These readings change the demo order. Simulation is available only for specially created test sources.')}</p>
         <div className="grid md:grid-cols-3 gap-4">
-            <Field label="Raw count"><input className={input} type="number" step="0.01" min="0" required value={form.data.value} onChange={e => form.setData('value', e.target.value)} /></Field>
-            <Field label="Event ID"><input className={input} maxLength={160} value={form.data.event_id} onChange={e => form.setData('event_id', e.target.value)} /></Field>
-            <Field label="Timestamp (optional ISO 8601)"><input className={input} value={form.data.timestamp} onChange={e => form.setData('timestamp', e.target.value)} /></Field>
+            <Field label={__('Raw count')}><input className={input} type="number" step="0.01" min="0" required value={form.data.value} onChange={e => form.setData('value', e.target.value)} /></Field>
+            <Field label={__('Event ID')}><input className={input} maxLength={160} value={form.data.event_id} onChange={e => form.setData('event_id', e.target.value)} /></Field>
+            <Field label={__('Timestamp (optional ISO 8601)')}><input className={input} value={form.data.timestamp} onChange={e => form.setData('timestamp', e.target.value)} /></Field>
         </div>
         <Errors errors={form.errors} />
         <Button type="submit" variant="outline" disabled={form.processing}>{__('Send test reading')}</Button>
@@ -102,10 +102,10 @@ function Review({ counter, reading, steps, close }) {
     return <Card title={`${__('Review reading')} #${reading.id}`} className="border-om-accent">
         <form aria-label={__('Review reading')} className="space-y-4" onSubmit={e => { e.preventDefault(); form.post(`${base}/${counter.id}/readings/${reading.id}/review`, { preserveScroll: true, onSuccess: close }); }}>
             <div className="grid md:grid-cols-2 gap-4">
-                <Field label="Decision"><Dropdown className="w-full" value={form.data.decision} onChange={value => form.setData('decision', value)} options={[{ value: 'dismiss', label: __('Dismiss with reason') }, ...(canApply ? [{ value: 'apply', label: __('Apply remaining good quantity') }] : [])]} /></Field>
-                {form.data.decision === 'apply' && <Field label="Assigned batch step"><Dropdown className="w-full" value={String(form.data.batch_step_id)} onChange={value => form.setData('batch_step_id', value)} placeholder={__('Select step')} options={steps.filter(s => s.workstation_id === counter.workstation_id).map(s => ({ value: String(s.id), label: s.label }))} /></Field>}
+                <Field label={__('Decision')}><Dropdown className="w-full" value={form.data.decision} onChange={value => form.setData('decision', value)} options={[{ value: 'dismiss', label: __('Dismiss with reason') }, ...(canApply ? [{ value: 'apply', label: __('Apply remaining good quantity') }] : [])]} /></Field>
+                {form.data.decision === 'apply' && <Field label={__('Assigned batch step')}><Dropdown className="w-full" value={String(form.data.batch_step_id)} onChange={value => form.setData('batch_step_id', value)} placeholder={__('Select step')} options={steps.filter(s => s.workstation_id === counter.workstation_id).map(s => ({ value: String(s.id), label: s.label }))} /></Field>}
             </div>
-            <Field label="Review reason"><input required maxLength={1000} className={input} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
+            <Field label={__('Review reason')}><input required maxLength={1000} className={input} value={form.data.note} onChange={e => form.setData('note', e.target.value)} /></Field>
             <Errors errors={form.errors} />
             <div className="flex gap-2">
                 <Button type="submit" variant="primary" disabled={form.processing || (form.data.decision === 'apply' && !form.data.batch_step_id)}>{__('Save review')}</Button>
@@ -210,7 +210,7 @@ export default function Counters() {
                 </Card>
                 <Card title={__('Add counter')}>
                     <form aria-label={__('Register counter')} className="space-y-3" onSubmit={e => { e.preventDefault(); register.post(base); }}>
-                        <Field label="Machine source"><Dropdown className="w-full" value={register.data.source_id ? `${register.data.source_type}:${register.data.source_id}` : ''} placeholder={__('Select source')} onChange={value => { const [source_type, source_id] = value.split(':'); register.setData({ source_type, source_id }); }} options={sources.map(s => ({ value: `${s.type}:${s.id}`, label: `${s.label} (${s.type} #${s.id})` }))} /></Field>
+                        <Field label={__('Machine source')}><Dropdown className="w-full" value={register.data.source_id ? `${register.data.source_type}:${register.data.source_id}` : ''} placeholder={__('Select source')} onChange={value => { const [source_type, source_id] = value.split(':'); register.setData({ source_type, source_id }); }} options={sources.map(s => ({ value: `${s.type}:${s.id}`, label: `${s.label} (${s.type} #${s.id})` }))} /></Field>
                         <Errors errors={register.errors} />
                         <Button type="submit" variant="primary" disabled={register.processing || !register.data.source_id}>{__('Open counter')}</Button>
                     </form>

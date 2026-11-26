@@ -48,8 +48,10 @@ class MaterialLot extends Model
     protected $fillable = [
         'lot_number',
         'material_id',
+        'supplier_name',
         'source_id',
         'warehouse_id',
+        'warehouse_location_id',
         'quantity_received',
         'quantity_available',
         'unit_of_measure',
@@ -108,6 +110,12 @@ class MaterialLot extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    /** Bin the lot sits in; null until the floor assigns one. */
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(WarehouseLocation::class, 'warehouse_location_id');
     }
 
     /** Per-warehouse balances broken down for this lot (#212). */
@@ -171,7 +179,22 @@ class MaterialLot extends Model
         return $this->hasMany(AllocationLotPick::class);
     }
 
+    /** Physical removals from a quality-held lot (scrap / return / reject). */
+    public function disposals(): HasMany
+    {
+        return $this->hasMany(MaterialLotDisposal::class);
+    }
+
     // ── State checks ────────────────────────────────────────────────────────
+
+    /** Physical quantity still on the shelf, after consumption and disposal. */
+    public function remainingPhysicalQuantity(): float
+    {
+        $consumed = (float) $this->consumptions()->sum('quantity_consumed');
+        $disposed = (float) $this->disposals()->sum('quantity');
+
+        return max(0, (float) $this->quantity_received - $consumed - $disposed);
+    }
 
     public function isAvailable(): bool
     {

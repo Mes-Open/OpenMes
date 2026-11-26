@@ -56,7 +56,7 @@ return [
     | raised when they differ.
     |
     */
-    'default_currency' => env('DEFAULT_CURRENCY', 'PLN'),
+    'default_currency' => env('DEFAULT_CURRENCY', 'CNY'),
 
     /*
     |--------------------------------------------------------------------------

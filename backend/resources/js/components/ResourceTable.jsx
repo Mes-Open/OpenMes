@@ -145,7 +145,7 @@ const dimInactiveRow = (row) =>
  */
 const ACTION_BASE = 'inline-flex cursor-pointer items-center justify-center rounded-om-sm px-3 py-1.5 text-[12.5px] font-semibold transition-colors';
 const ACTION_CLASS = {
-    primary: `${ACTION_BASE} bg-om-ink text-om-on-ink hover:bg-om-ink-hover`,
+    primary: `${ACTION_BASE} bg-[var(--mes-blue)] text-white hover:bg-[var(--mes-blue-hover)]`,
     secondary: `${ACTION_BASE} bg-om-chip text-om-ink hover:bg-om-line2`,
     danger: `${ACTION_BASE} bg-om-blocked-bg text-om-blocked hover:bg-[#f8ddd6]`,
     warning: `${ACTION_BASE} bg-om-downtime-bg text-om-downtime hover:brightness-95`,
@@ -257,7 +257,7 @@ function ActionRail({ slots, row, confirm }) {
 /** Rail button tones — quieter than the old solid chips, since every row shows them. */
 const RAIL_TONE = {
     secondary: 'border border-om-line bg-om-card text-om-ink hover:bg-om-chip',
-    primary: 'bg-om-ink text-om-on-ink hover:bg-om-ink-hover',
+    primary: 'bg-[var(--mes-blue)] text-white hover:bg-[var(--mes-blue-hover)]',
     warning: 'border border-om-downtime-bg bg-om-downtime-bg text-om-downtime hover:brightness-95',
     danger: 'border border-om-blocked-bg bg-om-blocked-bg text-om-blocked hover:bg-[#f8ddd6]',
     ghost: 'text-om-muted hover:bg-om-chip hover:text-om-ink',
@@ -330,7 +330,7 @@ const BULK_CHIP_WARNING = `inline-flex cursor-pointer items-center justify-cente
  * every call site.
  */
 const CREATE_BTN_CLASS =
-    'inline-flex cursor-pointer items-center justify-center gap-2 rounded-om-sm bg-om-ink px-4 py-[9px] text-[13px] font-semibold text-om-on-ink transition-colors hover:bg-om-ink-hover';
+    'inline-flex cursor-pointer items-center justify-center gap-2 rounded-om-sm bg-[var(--mes-blue)] px-4 py-[9px] text-[13px] font-semibold text-white transition-colors hover:bg-[var(--mes-blue-hover)]';
 
 export default function ResourceTable({
     shape,
@@ -477,7 +477,17 @@ export default function ResourceTable({
         {/* Full width, unlike the form pages' max-w-7xl: a list with a dozen
             columns should spend the space it has rather than scroll sideways
             inside a 1280px box on a 1900px screen. */}
-        <div className="w-full">
+        <div className="mes-resource-page">
+
+            <div className="mes-resource-head">
+                <div className="min-w-0">
+                    <h1 className="mes-resource-title">{__(title)}</h1>
+                    {subtitle && <div className="mes-resource-sub">{subtitle}</div>}
+                </div>
+                {(toolbarActions || createButton) && (
+                    <div className="mes-actions">{createControl}</div>
+                )}
+            </div>
 
             {/* The trail lives in the app header's title slot, sharing that bar
                 with the clock instead of taking a row of its own. Pages that pass
@@ -497,8 +507,6 @@ export default function ResourceTable({
                 // wide table's only sideways scrollbar sits below the last row, so
                 // you had to scroll to the bottom of the page to move left/right.
                 // It's a max, so short tables are unaffected.
-                toolbarStart={subtitle}
-                toolbarEnd={createControl}
                 bodyMaxHeight={bodyMaxHeight}
                 infinite={infinite}
                 totalLabel={(n) => __(':count rows', { count: n })}

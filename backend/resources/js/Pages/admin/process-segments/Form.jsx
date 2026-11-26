@@ -28,17 +28,17 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
 
     return (
         <form onSubmit={onSubmit} className="bg-om-card rounded-om-sm shadow-sm p-6 max-w-3xl space-y-5">
-            <Field label="Code" error={errors.code} required>
+            <Field label={__('Code')} error={errors.code} required>
                 <input type="text" value={data.code} onChange={(e) => setData('code', e.target.value)} className="form-input w-full" autoFocus />
             </Field>
-            <Field label="Name" error={errors.name} required>
+            <Field label={__('Name')} error={errors.name} required>
                 <input type="text" value={data.name} onChange={(e) => setData('name', e.target.value)} className="form-input w-full" />
             </Field>
-            <Field label="Description" error={errors.description}>
+            <Field label={__('Description')} error={errors.description}>
                 <textarea value={data.description ?? ''} onChange={(e) => setData('description', e.target.value)} rows={3} className="form-input w-full" />
             </Field>
 
-            <Field label="Segment Type" error={errors.segment_type} required>
+            <Field label={__('Segment Type')} error={errors.segment_type} required>
                 <Dropdown
                     options={segmentTypes.map((t) => ({ value: String(t), label: __(cap(t)) }))}
                     value={data.segment_type == null ? '' : String(data.segment_type)}
@@ -47,7 +47,7 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
                 />
             </Field>
 
-            <Field label="Workstation Type" error={errors.workstation_type_id}>
+            <Field label={__('Workstation Type')} error={errors.workstation_type_id}>
                 <Dropdown
                     options={workstationTypes.map((w) => ({ value: String(w.id), label: w.name }))}
                     value={data.workstation_type_id == null ? '' : String(data.workstation_type_id)}
@@ -57,15 +57,15 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
                 />
             </Field>
 
-            <Field label="Estimated Duration (minutes)" error={errors.estimated_duration_minutes}>
+            <Field label={__('Estimated Duration (minutes)')} error={errors.estimated_duration_minutes}>
                 <input type="number" value={data.estimated_duration_minutes ?? ''} onChange={(e) => setData('estimated_duration_minutes', e.target.value)} className="form-input w-full" />
             </Field>
 
-            <Field label="Required Operators" error={errors.required_operators} required>
+            <Field label={__('Required Operators')} error={errors.required_operators} required>
                 <input type="number" value={data.required_operators ?? ''} onChange={(e) => setData('required_operators', e.target.value)} className="form-input w-full" />
             </Field>
 
-            <Field label="Standard instruction" error={errors.standard_instruction}>
+            <Field label={__('Standard instruction')} error={errors.standard_instruction}>
                 <textarea value={data.standard_instruction ?? ''} onChange={(e) => setData('standard_instruction', e.target.value)} rows={3} className="form-input w-full" />
             </Field>
 
@@ -82,7 +82,7 @@ export default function ProcessSegmentForm({ form, workstationTypes, skills, seg
                 {errors.required_skill_ids && <p className="mt-1 text-xs text-om-blocked">{errors.required_skill_ids}</p>}
             </div>
 
-            <Field label="Parameters (JSON)" error={errors.parameters_raw}>
+            <Field label={__('Parameters (JSON)')} error={errors.parameters_raw}>
                 <textarea
                     value={data.parameters_raw ?? ''}
                     onChange={(e) => setData('parameters_raw', e.target.value)}

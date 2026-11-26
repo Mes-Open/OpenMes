@@ -404,7 +404,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                 <div className="mb-4">
                     <div className="form-label">{__("Use Process Segment (optional)")}</div>
                     <Dropdown
-                        aria-label="Use Process Segment (optional)"
+                        aria-label={__('Use Process Segment (optional)')}
                         value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                         onChange={(v) => applySegment(v)}
                         options={[
@@ -437,7 +437,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
                 <div>
                     <div className="form-label">{__("Workstation (Optional)")}</div>
                     <Dropdown
-                        aria-label="Workstation (Optional)"
+                        aria-label={__('Workstation (Optional)')}
                         value={data.workstation_id == null ? '' : String(data.workstation_id)}
                         onChange={(v) => setData('workstation_id', v)}
                         options={[
@@ -538,7 +538,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 <div className="mb-4">
                     <div className="form-label">{__("Linked Process Segment")}</div>
                     <Dropdown
-                        aria-label="Linked Process Segment"
+                        aria-label={__('Linked Process Segment')}
                         value={data.process_segment_id == null ? '' : String(data.process_segment_id)}
                         onChange={(v) => setData('process_segment_id', v)}
                         options={[
@@ -570,7 +570,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
                 <div>
                     <div className="form-label">{__("Workstation (Optional)")}</div>
                     <Dropdown
-                        aria-label="Workstation (Optional)"
+                        aria-label={__('Workstation (Optional)')}
                         value={data.workstation_id == null ? '' : String(data.workstation_id)}
                         onChange={(v) => setData('workstation_id', v)}
                         options={[
@@ -944,11 +944,11 @@ function StepCard({
             <div className="flex items-start justify-between">
                 <div className="flex gap-4 flex-1">
                     {/* Drag handle */}
-                    <Tooltip label="Drag to reorder">
+                    <Tooltip label={__('Drag to reorder')}>
                         <div
                             className="drag-handle flex-shrink-0 flex items-center cursor-grab active:cursor-grabbing text-om-faintest hover:text-om-muted transition-colors px-1 self-start mt-3"
                             role="img"
-                            aria-label="Drag to reorder"
+                            aria-label={__('Drag to reorder')}
                         >
                             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                 <circle cx="9" cy="5" r="1.5" />
@@ -997,7 +997,7 @@ function StepCard({
                                         <a
                                             href={`/admin/process-segments/${step.process_segment.id}`}
                                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-om-chip"
-                                            title="ISA-95 Process Segment"
+                                            title={__('ISA-95 Process Segment')}
                                         >
                                             <Icon
                                                 d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z"
@@ -1031,24 +1031,24 @@ function StepCard({
 
                             {/* Actions */}
                             <div className="flex gap-1 ml-4">
-                                <Tooltip label="Edit">
+                                <Tooltip label={__('Edit')}>
                                     <button
                                         type="button"
                                         onClick={() => onEditStart(step.id)}
                                         className="text-om-accent hover:text-om-accent p-2"
-                                        aria-label="Edit"
+                                        aria-label={__('Edit')}
                                     >
                                         <Icon d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </button>
                                 </Tooltip>
 
                                 {!isFirst && (
-                                    <Tooltip label="Move up">
+                                    <Tooltip label={__('Move up')}>
                                         <button
                                             type="button"
                                             onClick={() => onMoveUp(step)}
                                             className="text-om-muted hover:text-om-ink p-2"
-                                            aria-label="Move up"
+                                            aria-label={__('Move up')}
                                         >
                                             <Icon d="M5 15l7-7 7 7" />
                                         </button>
@@ -1056,24 +1056,24 @@ function StepCard({
                                 )}
 
                                 {!isLast && (
-                                    <Tooltip label="Move down">
+                                    <Tooltip label={__('Move down')}>
                                         <button
                                             type="button"
                                             onClick={() => onMoveDown(step)}
                                             className="text-om-muted hover:text-om-ink p-2"
-                                            aria-label="Move down"
+                                            aria-label={__('Move down')}
                                         >
                                             <Icon d="M19 9l-7 7-7-7" />
                                         </button>
                                     </Tooltip>
                                 )}
 
-                                <Tooltip label="Delete">
+                                <Tooltip label={__('Delete')}>
                                     <button
                                         type="button"
                                         onClick={() => onDelete(step)}
                                         className="text-om-blocked hover:text-om-blocked p-2"
-                                        aria-label="Delete"
+                                        aria-label={__('Delete')}
                                     >
                                         <Icon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </button>
@@ -1678,12 +1678,12 @@ function PhotosSection({ productType, processTemplate }) {
                             )}
                         </figcaption>
                     </figure>
-                    <Tooltip label="Close">
+                    <Tooltip label={__('Close')}>
                         <button
                             type="button"
                             onClick={() => setLightbox(null)}
                             className="absolute top-5 right-5 text-white/80 hover:text-white"
-                            aria-label="Close"
+                            aria-label={__('Close')}
                         >
                             <Icon d="M6 18L18 6M6 6l12 12" className="w-8 h-8" />
                         </button>

@@ -102,8 +102,21 @@ export function Modal({
         if (open) {
             wasOpen.current = true;
             setClosing(false);
-            const frame = requestAnimationFrame(() => setShown(true));
-            return () => cancelAnimationFrame(frame);
+            let cancelled = false;
+            const reveal = () => {
+                if (!cancelled) setShown(true);
+            };
+            // The frame is what makes the slide animate. A paused or occluded
+            // browser (remote desktop, background window) can stop rAF entirely,
+            // which would leave the drawer permanently off-screen — the timer
+            // guarantees it still opens, just without the slide.
+            const frame = requestAnimationFrame(reveal);
+            const fallback = setTimeout(reveal, 40);
+            return () => {
+                cancelled = true;
+                cancelAnimationFrame(frame);
+                clearTimeout(fallback);
+            };
         }
         if (!wasOpen.current) return undefined;
         wasOpen.current = false;
@@ -121,6 +134,10 @@ export function Modal({
     if (!open && !closing && !wasOpen.current && !(keepMounted && opened.current)) return null;
 
     const visible = open || closing || (drawer && wasOpen.current);
+    // The modal portals to <body>, so it loses the layout ancestor. Read the
+    // admin shell from the document once per render to keep its denser controls,
+    // while operator modals retain their larger touch sizing.
+    const adminDensity = typeof document !== 'undefined' && Boolean(document.querySelector('.mes-admin-shell'));
 
     const scrim = drawer
         ? `${side === 'right' ? 'justify-end' : 'justify-start'} transition-opacity duration-[260ms] ${shown ? 'opacity-100' : 'opacity-0'}`
@@ -167,28 +184,28 @@ export function Modal({
                 // for what it is about.
                 aria-labelledby={title != null ? titleId : undefined}
                 aria-describedby={subtitle != null ? subtitleId : undefined}
-                className={`flex w-full flex-col overflow-hidden border-om-line bg-om-card ${panel} ${className}`}
+                className={`mes-shell ${adminDensity ? 'mes-admin-shell' : ''} mes-modal flex w-full flex-col overflow-hidden border-om-line bg-om-card ${panel} ${className}`}
                 style={width != null ? { maxWidth: typeof width === 'number' ? `${width}px` : width, ...style } : style}
                 onClick={(e) => e.stopPropagation()}
                 {...props}
             >
-                <div className="flex shrink-0 items-center justify-between border-b border-om-line2 px-[18px] py-4">
+                <div className="mes-modal-head flex shrink-0 items-center justify-between border-b border-om-line2 px-[18px] py-4">
                     <div>
-                        <div id={titleId} className="text-[15px] font-semibold text-om-ink">{title}</div>
-                        {subtitle != null && <div id={subtitleId} className="mt-[3px] font-mono text-[9.5px] text-om-faint">{subtitle}</div>}
+                        <div id={titleId} className="mes-modal-title text-[15px] font-semibold text-om-ink">{title}</div>
+                        {subtitle != null && <div id={subtitleId} className="mes-modal-sub mt-[3px] font-mono text-[9.5px] text-om-faint">{subtitle}</div>}
                     </div>
                     <button
                         type="button"
                         aria-label={closeLabel}
                         onClick={onClose}
-                        className="flex size-7 cursor-pointer items-center justify-center rounded-[6px] text-om-blocked hover:bg-om-blocked-bg"
+                        className="mes-modal-close flex size-7 cursor-pointer items-center justify-center rounded-[6px] text-om-blocked hover:bg-om-blocked-bg"
                     >
                         <Icon name="x" size={16} />
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto px-[18px] py-4">{children}</div>
+                <div className="mes-modal-body flex-1 overflow-y-auto px-[18px] py-4">{children}</div>
                 {footer != null && (
-                    <div className="flex shrink-0 justify-end gap-[9px] border-t border-om-line2 bg-om-panel px-[18px] py-[14px]">{footer}</div>
+                    <div className="mes-modal-foot flex shrink-0 justify-end gap-[9px] border-t border-om-line2 bg-om-panel px-[18px] py-[14px]">{footer}</div>
                 )}
             </div>
         </div>,

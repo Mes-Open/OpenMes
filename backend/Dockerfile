@@ -88,26 +88,25 @@ COPY modules/ ./modules/
 # before `npm ci` or the `@openmes/ui` import fails to resolve during `npm run build`.
 COPY packages/ /var/www/packages/
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Install PHP dependencies.
+# A prebuilt production vendor tree is shipped with this deployment. When it
+# is present, skip composer: the build host cannot reach codeload.github.com,
+# and composer would otherwise fail after the code layer already succeeded.
+RUN if [ ! -f vendor/autoload.php ]; then composer install --no-dev --optimize-autoloader --no-interaction; fi
 
-# The RoadRunner binary for Laravel Octane (concurrent app server), taken from
-# the official image rather than downloaded during the build.
-#
-# `vendor/bin/rr get-binary` asks api.github.com for the release list, which
-# makes every build depend on GitHub being reachable and on DNS answering at
-# that moment. Five services in docker-compose.yml build from this Dockerfile,
-# so a single `up --build` made that call several times over in parallel — enough
-# for a home router's resolver to return NODATA and fail the install outright.
-#
-# The version is pinned to match `spiral/roadrunner` in composer.lock. Bump both
-# together: Octane loads the PHP side from vendor and executes this binary, and
-# they are meant to be the same release.
-COPY --from=ghcr.io/roadrunner-server/roadrunner:2025.1.14 /usr/bin/rr /var/www/html/rr
+# The RoadRunner binary for Laravel Octane is shipped in the build context
+# instead of being pulled from ghcr.io: this build host cannot resolve ghcr.io,
+# and the binary only needs to match the spiral/roadrunner version in
+# composer.lock. Bump backend/rr together with that dependency.
+COPY backend/rr /var/www/html/rr
 RUN chmod +x /var/www/html/rr
 
-# Install Node dependencies and build assets
-RUN npm ci && npm run build
+# Install Node dependencies and build assets.
+# This deployment ships prebuilt assets in backend/public/build. When they are
+# present, skip npm entirely: `npm ci` inside the Alpine builder has been
+# observed to abort with npm's own "Exit handler never called" bug, which
+# would otherwise fail the image build after the backend code already built.
+RUN if [ ! -f public/build/manifest.json ]; then npm ci && npm run build; fi
 
 # Clean up node_modules + the build-only workspace sources to reduce image size
 RUN rm -rf node_modules /var/www/packages

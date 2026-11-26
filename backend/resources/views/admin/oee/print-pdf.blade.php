@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>OEE Report — {{ $dateFrom }} to {{ $dateTo }}</title>
+    <title>OEE 报告 — {{ $dateFrom }} 至 {{ $dateTo }}</title>
     <style>
         @page { margin: 14mm 12mm; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #1f2937; margin: 0; }
@@ -41,15 +41,15 @@
         <table style="border: 0;">
             <tr>
                 <td style="border: 0; padding: 0; text-align: left; vertical-align: top;">
-                    <h1>OEE Report</h1>
+                    <h1>OEE 报告</h1>
                     <p class="meta">
-                        {{ $singleLine && $perLine->count() === 1 ? $perLine->first()['line']->name : 'All active lines' }}
-                        — {{ $dateFrom }} to {{ $dateTo }}
+                        {{ $singleLine && $perLine->count() === 1 ? $perLine->first()['line']->name : '全部启用产线' }}
+                        — {{ $dateFrom }} 至 {{ $dateTo }}
                     </p>
-                    <p class="meta">Overall Equipment Effectiveness = Availability × Performance × Quality</p>
+                    <p class="meta">整体设备效率 = 可用性 × 性能 × 质量</p>
                 </td>
                 <td style="border: 0; padding: 0; text-align: right; vertical-align: top;" class="meta">
-                    <strong>Generated:</strong> {{ $generatedAt->format('Y-m-d H:i') }}<br>
+                    <strong>生成时间：</strong> {{ $generatedAt->format('Y-m-d H:i') }}<br>
                     {{ config('app.name') }}
                 </td>
             </tr>
@@ -96,30 +96,30 @@
                                       fill="{{ $oeeColor === 'green' ? '#16a34a' : ($oeeColor === 'yellow' ? '#ca8a04' : ($oeeColor === 'red' ? '#dc2626' : '#6b7280')) }}">
                                     {{ $hasValue ? number_format($needleVal, 1) . '%' : 'N/A' }}
                                 </text>
-                                <text x="50" y="64" text-anchor="middle" font-size="3" fill="#6b7280">AVG OEE</text>
+                                <text x="50" y="64" text-anchor="middle" font-size="3" fill="#6b7280">平均 OEE</text>
                             </svg>
                         </td>
                         <td style="border: 0; padding: 0 0 0 10px; vertical-align: top;">
                             <table class="stat-table">
                                 <tr>
-                                    <td><div class="stat-label">Availability</div><div class="stat-value">{{ $s['avg_availability'] !== null ? number_format($s['avg_availability'], 1) . '%' : '—' }}</div></td>
-                                    <td><div class="stat-label">Performance</div><div class="stat-value">{{ $s['avg_performance'] !== null ? number_format($s['avg_performance'], 1) . '%' : '—' }}</div></td>
-                                    <td><div class="stat-label">Quality</div><div class="stat-value">{{ $s['avg_quality'] !== null ? number_format($s['avg_quality'], 1) . '%' : '—' }}</div></td>
-                                    <td><div class="stat-label">Days</div><div class="stat-value">{{ $s['days'] }}</div></td>
+                                    <td><div class="stat-label">可用性</div><div class="stat-value">{{ $s['avg_availability'] !== null ? number_format($s['avg_availability'], 1) . '%' : '—' }}</div></td>
+                                    <td><div class="stat-label">性能</div><div class="stat-value">{{ $s['avg_performance'] !== null ? number_format($s['avg_performance'], 1) . '%' : '—' }}</div></td>
+                                    <td><div class="stat-label">质量</div><div class="stat-value">{{ $s['avg_quality'] !== null ? number_format($s['avg_quality'], 1) . '%' : '—' }}</div></td>
+                                    <td><div class="stat-label">天数</div><div class="stat-value">{{ $s['days'] }}</div></td>
                                 </tr>
                                 <tr>
-                                    <td><div class="stat-label">Produced</div><div class="stat-value">{{ number_format($s['total_produced']) }}</div></td>
-                                    <td><div class="stat-label">Scrap</div><div class="stat-value">{{ number_format($s['total_scrap']) }}</div></td>
-                                    <td><div class="stat-label">Downtime</div><div class="stat-value">{{ $s['total_downtime'] }} min</div></td>
+                                    <td><div class="stat-label">产量</div><div class="stat-value">{{ number_format($s['total_produced']) }}</div></td>
+                                    <td><div class="stat-label">报废</div><div class="stat-value">{{ number_format($s['total_scrap']) }}</div></td>
+                                    <td><div class="stat-label">停机</div><div class="stat-value">{{ $s['total_downtime'] }} 分钟</div></td>
                                     <td>
-                                        <div class="stat-label">Rating</div>
+                                        <div class="stat-label">评级</div>
                                         <div style="margin-top: 3px;">
                                             <span class="badge badge-{{ $oeeColor }}">
                                                 @switch($oeeColor)
-                                                    @case('green') World-class @break
-                                                    @case('yellow') Typical @break
-                                                    @case('red') Needs improvement @break
-                                                    @default No data
+                                                    @case('green') 世界级 @break
+                                                    @case('yellow') 典型水平 @break
+                                                    @case('red') 需要改进 @break
+                                                    @default 无数据
                                                 @endswitch
                                             </span>
                                         </div>
@@ -133,7 +133,7 @@
 
             @if(!empty($downtimeByReason))
                 @php $maxMinutes = collect($downtimeByReason)->max('total_minutes') ?: 1; @endphp
-                <h3>Downtime by Reason (Pareto)</h3>
+                <h3>按原因统计停机（帕累托图）</h3>
                 <table class="avoid-break" style="border: 0;">
                     @foreach($downtimeByReason as $item)
                         @php
@@ -154,8 +154,8 @@
                                     <div class="pareto-fill" style="width: {{ $widthPct }}%; background: {{ $fill }};"></div>
                                 </div>
                             </td>
-                            <td style="width: 90px; text-align: right; font-family: monospace; font-size: 9px;">
-                                {{ $item['total_minutes'] }} min ({{ $item['count'] }}×)
+                            <td style="width: 90px; text-align: right; font-size: 9px;">
+                                {{ $item['total_minutes'] }} 分钟 ({{ $item['count'] }}×)
                             </td>
                         </tr>
                     @endforeach
@@ -163,21 +163,21 @@
             @endif
 
             @if($records->isNotEmpty())
-                <h3>Daily Records</h3>
+                <h3>每日记录</h3>
                 <table>
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Shift</th>
-                            <th>Planned</th>
-                            <th>Operating</th>
-                            <th>Downtime</th>
-                            <th>A%</th>
-                            <th>P%</th>
-                            <th>Q%</th>
+                            <th>日期</th>
+                            <th>班次</th>
+                            <th>计划时间</th>
+                            <th>运行时间</th>
+                            <th>停机</th>
+                            <th>可用性%</th>
+                            <th>性能%</th>
+                            <th>质量%</th>
                             <th>OEE%</th>
-                            <th>Produced</th>
-                            <th>Scrap</th>
+                            <th>产量</th>
+                            <th>报废</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -185,7 +185,7 @@
                             @php $rowColor = \App\Support\OeeBand::colorFor($r->oee_pct !== null ? (float) $r->oee_pct : null); @endphp
                             <tr>
                                 <td>{{ $r->record_date->format('Y-m-d') }}</td>
-                                <td>{{ $r->shift?->name ?? 'All' }}</td>
+                                <td>{{ $r->shift?->name ?? '全部' }}</td>
                                 <td>{{ $r->planned_minutes }}</td>
                                 <td>{{ $r->operating_minutes }}</td>
                                 <td>{{ $r->downtime_minutes }}</td>
@@ -200,23 +200,23 @@
                     </tbody>
                 </table>
             @else
-                <p class="meta">No records for this period.</p>
+                <p class="meta">本期间暂无记录。</p>
             @endif
         </div>
     @empty
-        <p>No active lines.</p>
+        <p>暂无启用产线。</p>
     @endforelse
 
     <div class="footer-note">
-        <strong>OEE thresholds:</strong>
-        <span class="badge badge-green">≥ 85% World-class</span>
-        <span class="badge badge-yellow">65–84% Typical</span>
-        <span class="badge badge-red">&lt; 65% Needs improvement</span>
+        <strong>OEE 评级标准：</strong>
+        <span class="badge badge-green">≥ 85% 世界级</span>
+        <span class="badge badge-yellow">65–84% 典型水平</span>
+        <span class="badge badge-red">&lt; 65% 需要改进</span>
         &nbsp;·&nbsp;
-        <strong>Downtime kinds:</strong>
-        <span class="badge badge-blue">Planned</span> (subtracted from planned time) ·
-        <span class="badge badge-red">Unplanned</span> &
-        <span class="badge badge-amber">Changeover</span> (counted as availability loss)
+        <strong>停机类型：</strong>
+        <span class="badge badge-blue">计划时间</span> （从计划时间中扣除） ·
+        <span class="badge badge-red">非计划</span> &
+        <span class="badge badge-amber">换型</span> （计入可用性损失）
     </div>
 
 </body>

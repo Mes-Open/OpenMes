@@ -38,12 +38,14 @@ class InboundInspectionService
         User $inspector,
         ?string $supplierLotRef = null,
         ?string $sourceContainerNo = null,
+        ?int $stockDocumentLineId = null,
     ): Inspection {
         $plan ??= $this->applicablePlan($material);
 
-        return DB::transaction(function () use ($material, $lotNumber, $quantity, $plan, $inspector, $supplierLotRef, $sourceContainerNo) {
+        return DB::transaction(function () use ($material, $lotNumber, $quantity, $plan, $inspector, $supplierLotRef, $sourceContainerNo, $stockDocumentLineId) {
             $inspection = Inspection::create([
                 'inspection_plan_id' => $plan?->id,
+                'stock_document_line_id' => $stockDocumentLineId,
                 // Pin the exact plan version used so the inspection stays
                 // reproducible even after the plan is revised.
                 'plan_version' => $plan?->version,

@@ -689,7 +689,10 @@ class MaterialAllocationService
 
                 $requiredQty = $this->calculateRequiredQty($bomItem, (float) $batch->target_qty);
 
-                if ($blockNegative && $material->available_quantity < $requiredQty) {
+                // Negative stock may be allowed by plant policy, but quality-held
+                // stock never is: those lots exist physically yet cannot be issued.
+                $heldQty = $material->quality_held_quantity;
+                if (($blockNegative || $heldQty > 0) && $material->available_quantity < $requiredQty) {
                     throw new InsufficientStockException(
                         $material,
                         $requiredQty,

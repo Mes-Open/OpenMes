@@ -18,7 +18,9 @@ class SetLocale
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $locale = $request->session()->get('locale', app()->getLocale());
+        $locale = $request->session()->get('locale')
+            ?? $request->cookie('openmes_locale')
+            ?? app()->getLocale();
 
         if (array_key_exists($locale, config('app.available_locales', []))) {
             app()->setLocale($locale);

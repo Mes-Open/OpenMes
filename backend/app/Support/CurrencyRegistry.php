@@ -20,7 +20,7 @@ class CurrencyRegistry
 {
     public const SETTING_KEY = 'default_currency';
 
-    public const DEFAULT = 'PLN';
+    public const DEFAULT = 'CNY';
 
     /**
      * Supported ISO 4217 codes and their English names (translated in the UI).

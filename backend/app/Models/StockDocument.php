@@ -61,6 +61,8 @@ class StockDocument extends Model
         'type',
         'status',
         'warehouse_id',
+        'supplier_name',
+        'purchase_order_id',
         'work_order_id',
         'batch_id',
         'pallet_id',
@@ -101,6 +103,11 @@ class StockDocument extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 
     public function workOrder(): BelongsTo

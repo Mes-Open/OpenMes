@@ -19,7 +19,7 @@
                     <div class="line product">{{ $label['fields']['product'] }}</div>
                 @endif
                 @if($template->hasField('quantity') && !empty($label['fields']['quantity']))
-                    <div class="line">Qty: <strong>{{ $label['fields']['quantity'] }}</strong></div>
+                    <div class="line">数量： <strong>{{ $label['fields']['quantity'] }}</strong></div>
                 @endif
                 @if($template->hasField('material') && !empty($label['fields']['material']))
                     <div class="line product">{{ $label['fields']['material'] }}</div>

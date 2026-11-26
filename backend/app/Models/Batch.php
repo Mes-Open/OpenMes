@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Batch extends Model
 {
@@ -230,6 +231,39 @@ class Batch extends Model
     public function workstation(): BelongsTo
     {
         return $this->belongsTo(Workstation::class);
+    }
+
+    /**
+     * The controlled COA document for this finished batch, if one exists.
+     */
+    /** 第三方外检报告（农残、重金属、微生物）。 */
+    public function labTests(): HasMany
+    {
+        return $this->hasMany(BatchLabTest::class)->orderByDesc('issued_at')->orderByDesc('id');
+    }
+
+    /** 留样/清线/标签平衡等现场确认，按事件追加。 */
+    public function releaseChecks(): HasMany
+    {
+        return $this->hasMany(BatchReleaseCheck::class)->orderByDesc('checked_at')->orderByDesc('id');
+    }
+
+    /** 投料称重记录，按事件追加；放行门取每种原料最新一条。 */
+    public function weighingRecords(): HasMany
+    {
+        return $this->hasMany(BatchWeighingRecord::class)->orderByDesc('weighed_at')->orderByDesc('id');
+    }
+
+    public function coaDocument(): HasOne
+    {
+        return $this->hasOne(CoaDocument::class);
+    }
+
+    public function electronicSignatures(): HasMany
+    {
+        return $this->hasMany(ElectronicSignature::class, 'signable_id')
+            ->where('signable_type', self::class)
+            ->orderByDesc('signed_at');
     }
 
     /**

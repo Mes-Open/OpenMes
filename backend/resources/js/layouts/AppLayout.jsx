@@ -212,9 +212,13 @@ function mergeModuleNav(moduleNav) {
         injected[key] = (list ?? []).map(moduleItemToChild);
     }
 
-    const base = ADMIN_GROUPS.map((g) => {
-        const extra = injected[g.key];
-        if (! extra?.length) return g;
+    const base = ADMIN_GROUPS.map(function injectGroup(g) {
+        const extra = injected[g.key] ?? [];
+        const children = (g.children ?? []).map((child) => (child.children ? injectGroup(child) : child));
+
+        if (! extra.length) {
+            return { ...g, children };
+        }
 
         // A core group a module injected into gets the module's tag on its
         // header too, so the marking is visible without expanding it. Derived
@@ -226,7 +230,7 @@ function mergeModuleNav(moduleNav) {
             ...g,
             badge: g.badge ?? extra.find((child) => child.badge)?.badge,
             match: groupMatch(g.match, extra),
-            children: mergeChildren(g.children, extra),
+            children: mergeChildren(children, extra),
         };
     });
 
@@ -297,6 +301,10 @@ function useNavTree() {
     // Which admin tabs this user may open (#144) — role grants and enabled
     // modules, resolved server-side.
     const allowedTabs = page.props.auth?.user?.accessibleTabs;
+    // Admin role preview overrides the admin tab set without changing real
+    // permissions. The backend sends the preview role's tabs only while an
+    // administrator is previewing; null means "use the signed-in user's tabs".
+    const viewAsTabs = page.props.viewAsTabs;
     // Optional feature modules this install has switched on.
     const enabledModules = page.props.enabledModules;
 
@@ -318,9 +326,12 @@ function useNavTree() {
         return {
             links: ADMIN_LINKS,
             groups: mergeModuleNav(moduleNav),
-            showTab: (key) => ! Array.isArray(allowedTabs) || ! key || allowedTabs.includes(key),
+            showTab: (key) => {
+                const tabs = Array.isArray(viewAsTabs) ? viewAsTabs : allowedTabs;
+                return ! Array.isArray(tabs) || ! key || tabs.includes(key);
+            },
         };
-    }, [isAdmin, isSupervisor, viewAs, moduleNav, allowedTabs, enabledModules]);
+    }, [isAdmin, isSupervisor, viewAs, moduleNav, allowedTabs, viewAsTabs, enabledModules]);
 }
 
 export default function AppLayout({ children }) {
@@ -371,7 +382,7 @@ export default function AppLayout({ children }) {
         <PageTitleContext.Provider value={pageTitleCtx}>
         {/* App-wide toast stack — the replacement for window.alert(). */}
         <ToastProvider dismissLabel={__('Close')}>
-        <div className="flex h-screen overflow-hidden bg-om-bg">
+        <div className="mes-shell mes-admin-shell flex h-screen overflow-hidden bg-om-bg">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
                     <Sidebar
@@ -512,7 +523,7 @@ function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrai
         // `h-11` and the hairline both match the sidebar's logo header, so the two
         // bars read as one band across the top with one rule under it, instead of
         // a step where they meet and a border that stops halfway.
-        <div className="hidden lg:flex h-11 items-center justify-between gap-3 border-b border-om-line bg-om-card px-4 shrink-0">
+        <div className="hidden lg:flex h-12 items-center justify-between gap-3 border-b border-[var(--mes-line)] bg-om-card px-4 shrink-0">
             {/* Sidebar toggle. It lives here rather than at the foot of the rail
                 because that is where the thing it controls begins — and the rail's
                 own footer is the one part of it that scrolls out of reach. */}
@@ -547,7 +558,7 @@ function Sidebar({
     dark, onToggleCollapsed, onToggleDark, onCloseMobile,
 }) {
     const isAdmin = auth?.user?.roles?.includes('Admin');
-    const widthClass = collapsed ? 'lg:w-16' : 'lg:w-64';
+    const widthClass = collapsed ? 'lg:w-[64px]' : 'lg:w-[232px]';
     const translate = mobileOpen ? 'translate-x-0' : '-translate-x-full';
 
     // Which entries this user may see. The admin tree hides tabs the role can't
@@ -576,13 +587,13 @@ function Sidebar({
 
     return (
         <aside
-            className={`fixed inset-y-0 left-0 z-40 flex flex-col shrink-0 bg-om-panel text-om-ink w-64
-                        border-r border-om-line
+            className={`fixed inset-y-0 left-0 z-40 flex flex-col shrink-0 bg-[var(--mes-panel-soft)] text-om-ink w-64
+                        border-r border-[var(--mes-line)]
                         lg:relative lg:inset-auto lg:z-auto lg:translate-x-0 overflow-hidden
                         transition-[width,transform] duration-300 ease-in-out ${translate} ${widthClass}`}
         >
             {/* Logo / header — split orange/black brand mark + lowercase wordmark */}
-            <div className="flex items-center h-11 px-3 shrink-0 border-b border-om-line">
+            <div className="flex items-center h-12 px-3 shrink-0 border-b border-[var(--mes-line)]">
                 <Link href={navRoot(navLinks)?.href} className="flex items-center gap-2 min-w-0 overflow-hidden">
                     {showLabels ? (
                         <>
@@ -699,7 +710,7 @@ function Sidebar({
                 <div className="px-2 pt-2">
                     <button
                         onClick={onToggleDark}
-                        className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-om-sm text-[13px] font-medium
+                        className={`flex items-center gap-3 w-full px-3 py-2 rounded-om-sm text-[13px] font-medium
                                     text-om-muted hover:bg-om-chip hover:text-om-ink transition-colors
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
@@ -713,9 +724,9 @@ function Sidebar({
                     <Link
                         href="/settings"
                         prefetch
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
+                        className={`flex items-center gap-3 px-3 py-2 rounded-om-sm text-[13px] font-medium transition-colors
                                     ${isActive(path, ['/settings'])
-                                        ? 'bg-om-ink text-om-on-ink'
+                                        ? 'mes-nav-active'
                                         : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}
                                     ${collapsed && !mobileOpen ? 'justify-center !px-0' : ''}`}
                     >
@@ -753,7 +764,7 @@ function Sidebar({
                                 {showLabels && (
                                     <div className="flex-1 min-w-0 text-left">
                                         <p className="text-[13px] font-medium text-om-ink truncate">{auth?.user?.name}</p>
-                                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{auth?.user?.roles?.[0] ?? 'User'}</p>
+                                        <p className="font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint truncate">{__(auth?.user?.roles?.[0] ?? 'User')}</p>
                                     </div>
                                 )}
                             </Link>
@@ -833,7 +844,7 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
                     }}
                     placeholder={__('Search menu…')}
                     aria-label={__('Search menu…')}
-                    className="w-full pl-9 pr-3 py-2 rounded-om-sm bg-om-bg border border-om-line text-[13px]
+                    className="w-full h-8 pl-9 pr-3 rounded-om-sm bg-om-bg border border-om-line text-[12px]
                                text-om-ink placeholder:text-om-faint
                                focus:outline-none focus:border-om-ink focus:ring-1 focus:ring-om-ink"
                 />
@@ -845,7 +856,7 @@ function NavSearch({ query, onChange, onSubmit, collapsed, showLabels, onExpand 
 function SearchResultLink({ item, path, onNavigate }) {
     const active = isActive(path, item.match, item.exact);
     const className = `flex flex-col gap-0.5 px-3 py-2 rounded-om-sm text-[13px] transition-colors
-                            ${active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`;
+                            ${active ? 'mes-nav-active' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}`;
     const inner = (
         <>
             <span className="font-medium">{__(item.label)}</span>
@@ -869,7 +880,7 @@ function SearchResultLink({ item, path, onNavigate }) {
 
 function NavLink({ link, path, collapsed, showLabels, alertCount }) {
     const active = isActive(path, link.match, link.exact);
-    const activeClass = active ? 'bg-om-ink text-om-on-ink' : 'text-om-muted hover:bg-om-chip hover:text-om-ink';
+    const activeClass = active ? 'mes-nav-active' : 'text-om-muted hover:bg-om-chip hover:text-om-ink';
 
     // The alerts entry answers its own badge on hover: a count tells you
     // something is wrong but not what, and the list is already in the browser
@@ -887,7 +898,7 @@ function NavLink({ link, path, collapsed, showLabels, alertCount }) {
                 <Link
                     href={link.href}
                     prefetch
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-om-sm text-[13px] font-medium transition-colors
+                    className={`flex items-center gap-3 px-3 py-2 rounded-om-sm text-[13px] font-medium transition-colors
                                 ${activeClass} ${collapsed && !showLabels ? 'justify-center !px-0' : ''}`}
                 >
                     <span className="relative shrink-0">
@@ -958,7 +969,7 @@ function NavGroup({ group, path, collapsed, showLabels, showTab = () => true }) 
             <Tooltip label={__(group.label)} placement="right" disabled={showLabels}>
                 <button
                     onClick={toggle}
-                    className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-om-sm transition-colors
+                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-om-sm transition-colors
                                 text-om-faint hover:bg-om-chip hover:text-om-ink
                                 ${collapsed && !showLabels ? 'justify-center !px-0' : ''}
                                 ${groupActive && showLabels ? 'text-om-ink' : ''}
@@ -1015,9 +1026,13 @@ function SubGroup({ group, path, showTab = () => true }) {
             </button>
             {open && (
                 <div className="ml-3 mt-0.5 space-y-0.5 border-l border-om-line2 pl-3">
-                    {group.children.filter((child) => showTab(child.tab)).map((child) => (
-                        <ChildLink key={child.href} child={child} path={path} dot="sm" />
-                    ))}
+                    {group.children.filter((child) => showTab(child.tab)).map((child) =>
+                        child.children ? (
+                            <SubGroup key={child.key} group={child} path={path} showTab={showTab} />
+                        ) : (
+                            <ChildLink key={child.href} child={child} path={path} dot="sm" />
+                        ),
+                    )}
                 </div>
             )}
         </div>
@@ -1040,7 +1055,7 @@ function NavBadge({ label, tone = 'muted' }) {
             className={`ml-auto shrink-0 font-mono text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded ${
                 // On the active row the tinted chip sits on the inverted ink
                 // background, where a pale tint washes out — go solid instead.
-                tone === 'onInk' ? 'bg-om-accent text-white' : 'bg-om-accent-bg text-om-accent'
+                tone === 'onInk' ? 'bg-white/15 text-white' : 'bg-om-accent-bg text-om-accent'
             }`}
         >
             {__(label)}
@@ -1075,7 +1090,7 @@ function ChildLink({ child, path, dot, hideBadge = false }) {
     }
 
     const className = `flex items-center gap-2 px-2 py-1.5 rounded-om-sm text-[13px] transition-colors
-                        ${active ? 'bg-om-ink text-om-on-ink font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}
+                        ${active ? 'mes-nav-active font-medium' : 'text-om-muted hover:bg-om-chip hover:text-om-ink'}
                         ${child.external && !active ? MODULE_TINT : ''}`;
 
     // Module (legacy Blade) target — plain anchor for a full page load.
