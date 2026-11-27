@@ -61,10 +61,40 @@ function ModuleFieldInput({ field, value, error, onChange }) {
         );
     }
 
+    if (type === 'checkbox-group') {
+        // Several values from a fixed list — e.g. the plants a person may work
+        // in. The value is an array of the chosen option values, as strings.
+        const selected = Array.isArray(value) ? value.map(String) : [];
+        const toggle = (v, on) => onChange(on ? [...selected.filter((x) => x !== v), v] : selected.filter((x) => x !== v));
+
+        return (
+            <div>
+                <div className={LABEL_CLASS}>
+                    {label} {required && <span className="text-om-accent">*</span>}
+                </div>
+                <div role="group" aria-label={label} className="flex flex-wrap gap-x-5 gap-y-2">
+                    {options.map((o) => (
+                        <Checkbox
+                            key={String(o.value)}
+                            checked={selected.includes(String(o.value))}
+                            onChange={(on) => toggle(String(o.value), on)}
+                            label={o.label}
+                        />
+                    ))}
+                </div>
+                {help && <p className="mt-1 text-[11.5px] text-om-muted">{help}</p>}
+                {error && <p className="mt-1 text-[11.5px] text-om-blocked">{error}</p>}
+            </div>
+        );
+    }
+
     const control =
         type === 'select' ? (
             <Dropdown
                 className="w-full"
+                // The visible label above is a plain div; name the trigger so
+                // assistive tech (and tests) can find the control by its label.
+                aria-label={label}
                 options={options.map((o) => ({ value: String(o.value), label: o.label }))}
                 value={value == null ? '' : String(value)}
                 onChange={(v) => onChange(v)}
@@ -73,6 +103,7 @@ function ModuleFieldInput({ field, value, error, onChange }) {
         ) : (
             <input
                 type="text"
+                aria-label={label}
                 value={value ?? ''}
                 placeholder={placeholder}
                 onChange={(e) => onChange(e.target.value)}

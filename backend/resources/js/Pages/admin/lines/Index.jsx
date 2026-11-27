@@ -6,7 +6,7 @@ import { __ } from '../../../lib/i18n';
 import { lineFields, lineInitial } from './fields';
 
 export default function LinesIndex() {
-    const { counts = {}, warehouses, customFields } = usePage().props;
+    const { counts = {}, warehouses, customFields, hooks } = usePage().props;
 
     const drawer = useResourceDrawer();
 
@@ -58,10 +58,10 @@ export default function LinesIndex() {
             <ResourceFormDrawer
                 {...drawer.props}
                 action="/admin/lines"
-                fields={lineFields(warehouses ?? [])}
-                initial={lineInitial}
+                fields={lineFields(warehouses ?? [], hooks ?? {})}
+                initial={(record) => lineInitial(record, hooks ?? {}, { perRecord: false })}
                 customFields={customFields}
-                ensure={['warehouses', 'customFields']}
+                ensure={['warehouses', 'customFields', 'hooks']}
                 ready={warehouses !== undefined}
                 title={{ create: __('New Production Line'), edit: __('Edit Production Line') }}
             />

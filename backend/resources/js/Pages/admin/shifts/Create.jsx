@@ -5,7 +5,7 @@ import { shiftFields, shiftInitial } from './fields';
 import { __ } from '../../../lib/i18n';
 
 export default function ShiftCreate() {
-    const { lines = [] } = usePage().props;
+    const { lines = [], hooks = {} } = usePage().props;
     return (
         <div className="max-w-7xl mx-auto">
             <Head title={__('New Shift')} />
@@ -13,8 +13,8 @@ export default function ShiftCreate() {
             <ResourceForm
                 action="/admin/shifts"
                 method="post"
-                fields={shiftFields(lines)}
-                initial={shiftInitial(null)}
+                fields={shiftFields(lines, hooks)}
+                initial={shiftInitial(null, hooks)}
                 submitLabel="Create"
                 cancelHref="/admin/shifts"
             />

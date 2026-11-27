@@ -74,8 +74,8 @@ class HandleInertiaRequests extends Middleware
                 //   operator: [{label,url,order,prefix}] extra tabs on the operator
                 //           panel's top bar (OperatorLayout), Inertia links.
                 'operator' => fn () => app(\App\Services\MenuRegistry::class)->getOperatorItems(),
-                //   supervisor: { <group>: [{label,url,order,badge}] } links merged
-                //           into the supervisor sidebar (orders|production|logistics|reports).
+                //   supervisor: { <group>: [{label,url,order,icon,badge}] } entries in the
+                //           supervisor sidebar's groups (MenuRegistry::SUPERVISOR_GROUPS).
                 'supervisor' => fn () => app(\App\Services\MenuRegistry::class)->getSupervisorItems(),
                 //   hidden: [href] built-in sidebar entries an install hides
                 //           (filter `nav.hidden`) - e.g. a module that replaces a
@@ -116,6 +116,12 @@ class HandleInertiaRequests extends Middleware
             // line" button would only land back where the operator already is.
             'operatorCanSwitchLine' => fn () => $user !== null
                 && $user->lines()->where('is_active', true)->count() > 1,
+            // Which part of the installation the user is looking at, when a
+            // module divides it into scopes (plants, …) — the header switcher.
+            // Null without such a module, and then the header shows nothing.
+            'scopeSwitcher' => fn () => $user
+                ? app(\App\Extension\Contracts\ScopeProvider::class)->switcher($user)
+                : null,
             'csrf_token' => fn () => csrf_token(),
             'appVersion' => fn () => config('version.current'),
             // i18n: the active locale + the switcher's options. The frontend

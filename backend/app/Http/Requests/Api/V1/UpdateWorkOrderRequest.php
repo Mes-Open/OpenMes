@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Http\Requests\Concerns\GuardsStartedWorkOrderEdits;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateWorkOrderRequest extends FormRequest
 {
+    use GuardsStartedWorkOrderEdits;
+
     public function authorize(): bool
     {
         return true;
@@ -21,5 +25,10 @@ class UpdateWorkOrderRequest extends FormRequest
             'planned_start_at' => 'nullable|date',
             'description' => 'nullable|string',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->guardStartedOrder($validator, $this->route('work_order'));
     }
 }

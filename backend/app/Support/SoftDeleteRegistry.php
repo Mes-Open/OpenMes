@@ -77,6 +77,10 @@ class SoftDeleteRegistry
         'work_order_eans' => Models\WorkOrderEan::class,
         'batches' => Models\Batch::class,
         'batch_steps' => Models\BatchStep::class,
+        // Operator and machine time per step (#400). Leave with their step.
+        'batch_step_time_entries' => Models\BatchStepTimeEntry::class,
+        // Rework routing (#400). Leaves with its source or target step.
+        'rework_operations' => Models\ReworkOperation::class,
         'additional_costs' => Models\AdditionalCost::class,
         'scrap_entries' => Models\ScrapEntry::class,
         'work_order_shift_entries' => Models\WorkOrderShiftEntry::class,

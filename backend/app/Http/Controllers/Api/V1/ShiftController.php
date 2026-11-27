@@ -14,19 +14,24 @@ class ShiftController extends Controller
         $this->authorize('viewAny', Shift::class);
 
         $query = Shift::query()->with('line');
-        if (!$request->boolean('include_inactive')) {
+        if (! $request->boolean('include_inactive')) {
             $query->where('is_active', true);
         }
+        $shifts = $query->orderBy('start_time')->get();
+        // The shifts set for this line — its own, or its group's
+        // (Shift::coverage) — not those that run on every line.
         if ($lineId = $request->query('line_id')) {
-            $query->where('line_id', $lineId);
+            $shifts = $shifts->filter(fn (Shift $s) => $s->runsOnLine((int) $lineId, plantWide: false))->values();
         }
-        return response()->json(['data' => $query->orderBy('start_time')->get()]);
+
+        return response()->json(['data' => $shifts]);
     }
 
     public function show(Shift $shift): JsonResponse
     {
         $this->authorize('view', $shift);
         $shift->load('line');
+
         return response()->json(['data' => $shift]);
     }
 
@@ -44,6 +49,7 @@ class ShiftController extends Controller
         ]);
         $data['is_active'] = $data['is_active'] ?? true;
         $s = Shift::create($data);
+
         return response()->json(['message' => 'Shift created', 'data' => $s->load('line')], 201);
     }
 
@@ -60,6 +66,7 @@ class ShiftController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
         $shift->update($data);
+
         return response()->json(['message' => 'Shift updated', 'data' => $shift->fresh(['line'])]);
     }
 
@@ -67,6 +74,7 @@ class ShiftController extends Controller
     {
         $this->authorize('delete', $shift);
         $shift->delete();
+
         return response()->json(['message' => 'Shift deleted']);
     }
 }

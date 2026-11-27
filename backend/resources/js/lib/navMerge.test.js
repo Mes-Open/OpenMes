@@ -139,28 +139,25 @@ describe('mergeSupervisorItems', () => {
         { key: 'supervisor-orders', match: ['/supervisor/work-orders'], children: [{ label: 'All Orders', href: '/supervisor/work-orders' }] },
         { key: 'supervisor-production', match: ['/supervisor/issues'], children: [{ label: 'Issues', href: '/supervisor/issues' }] },
     ];
-    const toChild = (item) => ({ label: item.label, href: item.url, match: [item.url], order: item.order, badge: item.badge });
 
-    it('puts a module link into the named supervisor group, by order', () => {
-        const merged = mergeSupervisorItems(groups, {
-            production: [{ label: 'Pallets', url: '/packout/pallets', order: 5, badge: 'BH' }],
-        }, toChild);
+    it('adds module links to the group named by its short key, and matches their paths', () => {
+        const merged = mergeSupervisorItems(groups, { production: [{ label: 'Register', href: '/admin/register', match: ['/admin/register'], order: 90 }] });
 
-        const production = merged.find((g) => g.key === 'supervisor-production');
-        expect(production.children.map((c) => c.label)).toEqual(['Pallets', 'Issues']);
-        expect(production.match).toContain('/packout/pallets');
-        expect(production.badge).toBe('BH');
-        expect(merged.find((g) => g.key === 'supervisor-orders')).toBe(groups[0]);
+        expect(merged[1].children.map((c) => c.label)).toEqual(['Issues', 'Register']);
+        expect(merged[1].match).toContain('/admin/register');
+        expect(merged[0]).toBe(groups[0]);
     });
 
-    it('falls back to production for a group the tree does not have', () => {
-        const merged = mergeSupervisorItems(groups, { warehouse: [{ label: 'Stock', url: '/stock', order: 90 }] }, toChild);
-
-        expect(merged.find((g) => g.key === 'supervisor-production').children.map((c) => c.label)).toEqual(['Issues', 'Stock']);
+    it('leaves the groups as they are without module links', () => {
+        expect(mergeSupervisorItems(groups, {})).toEqual(groups);
+        expect(mergeSupervisorItems(groups, undefined)).toEqual(groups);
     });
 
-    it('returns the groups unchanged without module links', () => {
-        expect(mergeSupervisorItems(groups, undefined, toChild)).toEqual(groups);
+    it('gives the group the badge of a module link when it has none', () => {
+        const merged = mergeSupervisorItems(groups, { production: [{ label: 'Pallets', href: '/packout/pallets', match: ['/packout/pallets'], order: 5, badge: 'BH' }] });
+
+        expect(merged[1].children.map((c) => c.label)).toEqual(['Pallets', 'Issues']);
+        expect(merged[1].badge).toBe('BH');
     });
 });
 

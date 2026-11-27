@@ -295,6 +295,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/queue/check', [OperatorWorkOrderController::class, 'check'])->name('queue.check');
         Route::post('/work-order/{workOrder}/line-status', [OperatorWorkOrderController::class, 'updateLineStatus'])->name('work-order.line-status');
         Route::get('/work-order/{workOrder}', [OperatorWorkOrderController::class, 'show'])->name('work-order.detail');
+        // The execution panel beside the queue / workstation lists (JSON).
+        Route::get('/work-order/{workOrder}/panel', [OperatorWorkOrderController::class, 'panel'])->name('work-order.panel');
         Route::post('/batch', [OperatorBatchController::class, 'store'])->name('batch.store');
         Route::post('/batch/{batch}/confirm', [OperatorBatchController::class, 'confirmParameters'])->name('batch.confirm');
         Route::post('/batch/{batch}/quality-check', [OperatorBatchController::class, 'qualityCheck'])->name('batch.quality-check');
@@ -312,6 +314,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/batch-step/{batchStep}/quantity', [OperatorBatchController::class, 'recordQuantity'])->name('batch-step.quantity');
         Route::post('/batch-step/{batchStep}/skip', [OperatorBatchController::class, 'skipStep'])->name('batch-step.skip');
         Route::post('/batch-step/{batchStep}/choose-variant', [OperatorBatchController::class, 'chooseVariant'])->name('batch-step.choose-variant');
+        // Rework routing (#400): run the rework sent back to a step of this line.
+        Route::post('/rework/{rework}/start', [\App\Http\Controllers\Web\ReworkController::class, 'start'])->name('rework.start');
+        Route::post('/rework/{rework}/complete', [\App\Http\Controllers\Web\ReworkController::class, 'complete'])->name('rework.complete');
+        Route::post('/rework/{rework}/time/{kind}/{action}', [\App\Http\Controllers\Web\ReworkController::class, 'time'])
+            ->whereIn('kind', ['labor', 'machine'])->whereIn('action', ['start', 'stop'])->name('rework.time');
+        // Operator and machine time (#400): clock on/off, start/stop the machine.
+        Route::post('/batch-step/{batchStep}/time/{kind}/{action}', [OperatorBatchController::class, 'recordTime'])
+            ->whereIn('kind', ['labor', 'machine'])->whereIn('action', ['start', 'stop'])->name('batch-step.time');
         // Read-confirmation: acknowledge reading a critical step's instructions.
         Route::post('/batch-step/{batchStep}/confirm-instructions', [OperatorBatchController::class, 'confirmInstructions'])->name('batch-step.confirm-instructions');
         // Document control: validate a mandatory document so its step can complete.
@@ -469,6 +479,10 @@ Route::middleware('auth')->group(function () {
             Route::post('/issues/actions/{action}/complete', [IssueManagementController::class, 'completeAction'])->name('issues.actions.complete');
             Route::post('/issues/actions/{action}/verify', [IssueManagementController::class, 'verifyAction'])->name('issues.actions.verify');
             Route::delete('/issues/actions/{action}', [IssueManagementController::class, 'destroyAction'])->name('issues.actions.destroy');
+            // Rework routing (#400): send pieces of the issue back to an earlier step.
+            Route::get('/issues/{issue}/rework', [\App\Http\Controllers\Web\ReworkController::class, 'forIssue'])->name('issues.rework');
+            Route::post('/issues/{issue}/rework', [\App\Http\Controllers\Web\ReworkController::class, 'storeForIssue'])->name('issues.rework.store');
+            Route::post('/rework-operations/{rework}/cancel', [\App\Http\Controllers\Web\ReworkController::class, 'cancel'])->name('rework-operations.cancel');
         });
 
         // Quality-control trigger queue (#105) — outstanding controls.
@@ -673,6 +687,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/issues/actions/{action}/complete', [IssueManagementController::class, 'completeAction'])->name('issues.actions.complete');
         Route::post('/issues/actions/{action}/verify', [IssueManagementController::class, 'verifyAction'])->name('issues.actions.verify');
         Route::delete('/issues/actions/{action}', [IssueManagementController::class, 'destroyAction'])->name('issues.actions.destroy');
+        // Rework routing (#400): send pieces of the issue back to an earlier step.
+        Route::get('/issues/{issue}/rework', [\App\Http\Controllers\Web\ReworkController::class, 'forIssue'])->name('issues.rework');
+        Route::post('/issues/{issue}/rework', [\App\Http\Controllers\Web\ReworkController::class, 'storeForIssue'])->name('issues.rework.store');
+        Route::post('/rework-operations/{rework}/cancel', [\App\Http\Controllers\Web\ReworkController::class, 'cancel'])->name('rework-operations.cancel');
 
         // Quality-control trigger queue (#105) — outstanding controls.
         Route::get('/quality-tasks', [QualityControlTaskController::class, 'index'])->name('quality-tasks.index');

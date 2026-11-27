@@ -136,8 +136,10 @@ class WorkstationCompletionGuardTest extends TestCase
         Issue::factory()->create(['work_order_id' => $order->id, 'blocks_work_order' => true]);
         $order->update(['status' => WorkOrder::STATUS_IN_PROGRESS]);
 
+        // Refused before the completion guard even runs: a blocked order takes
+        // no new output at all (WorkstationController::outputStopped()).
         $this->actingAsOperator()->post("/operator/workstation/{$order->id}/complete", ['produced_qty' => 10])
-            ->assertSessionHasErrors(['produced_qty' => __('This work order is blocked by an open issue and cannot be completed.')]);
+            ->assertSessionHas('error', __('Resolve the blocking issues before recording production.'));
 
         $this->assertNotSame(WorkOrder::STATUS_DONE, $order->fresh()->status);
         $this->assertEquals(0, $order->fresh()->produced_qty);

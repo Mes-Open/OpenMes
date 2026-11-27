@@ -62,7 +62,7 @@ class MenuRegistry
     /** @var list<array{label: string, url: string, order: int, prefix: string}> */
     private array $operatorItems = [];
 
-    /** @var list<array{group: string, label: string, url: string, order: int, badge: ?string}> */
+    /** @var array<string, list<array{label: string, url: string, order: int, icon: ?string, badge: ?string}>> */
     private array $supervisorItems = [];
 
     // -------------------------------------------------------------------------
@@ -79,16 +79,19 @@ class MenuRegistry
      * @param  string|null  $badge  Short tag rendered to the right of the label. Lets a module
      *                              mark which entries it contributed (its edition, tier, or
      *                              anything else) without core knowing any module by name.
+     * @param  string|null  $icon  Lucide icon name, as the built-in entries use (e.g. 'file-badge')
+     * @param  string|null  $tab  TabRegistry key the viewer must hold to see the entry; the
+     *                            module's routes still enforce access themselves
      */
-    public function addItem(string $group, string $label, string $url, int $order = 50, ?string $badge = null): void
+    public function addItem(string $group, string $label, string $url, int $order = 50, ?string $badge = null, ?string $icon = null, ?string $tab = null): void
     {
-        $this->items[$group][] = compact('label', 'url', 'order', 'badge');
+        $this->items[$group][] = compact('label', 'url', 'order', 'badge', 'icon', 'tab');
     }
 
     /**
      * Return the extra items registered for a built-in dropdown, sorted by order.
      *
-     * @return list<array{label: string, url: string, order: int, badge: ?string}>
+     * @return list<array{label: string, url: string, order: int, badge: ?string, icon: ?string, tab: ?string}>
      */
     public function getItems(string $group): array
     {
@@ -103,7 +106,7 @@ class MenuRegistry
      * Feeds the React sidebar (HandleInertiaRequests) so module menu hooks render
      * in the SPA the same way they used to render in the deleted Blade sidebar.
      *
-     * @return array<string, list<array{label: string, url: string, order: int, badge: ?string}>>
+     * @return array<string, list<array{label: string, url: string, order: int, badge: ?string, icon: ?string, tab: ?string}>>
      */
     public function getAllItems(): array
     {
@@ -153,14 +156,16 @@ class MenuRegistry
      * @param  string  $url  Resolved URL
      * @param  int  $order  Sort weight within the group
      * @param  string|null  $badge  Short tag rendered to the right of the label
+     * @param  string|null  $icon  Lucide icon name
+     * @param  string|null  $tab  TabRegistry key the viewer must hold to see the entry
      */
-    public function addGroupItem(string $groupId, string $label, string $url, int $order = 50, ?string $badge = null): void
+    public function addGroupItem(string $groupId, string $label, string $url, int $order = 50, ?string $badge = null, ?string $icon = null, ?string $tab = null): void
     {
         if (! isset($this->groups[$groupId])) {
             $this->addGroup($groupId, ucfirst($groupId));
         }
 
-        $this->groups[$groupId]['items'][] = compact('label', 'url', 'order', 'badge');
+        $this->groups[$groupId]['items'][] = compact('label', 'url', 'order', 'badge', 'icon', 'tab');
     }
 
     /**
@@ -185,6 +190,52 @@ class MenuRegistry
         usort($groups, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         return $groups;
+    }
+
+    // -------------------------------------------------------------------------
+    // Supervisor sidebar
+    // -------------------------------------------------------------------------
+
+    /** MenuRegistry group => supervisor sidebar group (supervisorNav.js). */
+    public const SUPERVISOR_GROUPS = ['orders', 'production', 'materials', 'logistics', 'reports'];
+
+    /**
+     * Add a link to one of the supervisor sidebar's groups.
+     *
+     * The supervisor sees their own tree (supervisorNav.js), not the admin one, so
+     * an addItem() entry never reaches them. A module whose screen a supervisor
+     * works with registers it here as well; its routes must let the Supervisor role in.
+     *
+     * @param  string  $group  orders | production | materials | logistics | reports
+     * @param  string  $label  Link text
+     * @param  string  $url  Resolved URL (call route() or url() in your ServiceProvider)
+     * @param  int  $order  Sort weight — built-in items use multiples of 10
+     * @param  string|null  $icon  Lucide icon name
+     * @param  string|null  $badge  Short tag shown next to the label (see addItem)
+     */
+    public function addSupervisorItem(string $group, string $label, string $url, int $order = 50, ?string $icon = null, ?string $badge = null): void
+    {
+        if (! in_array($group, self::SUPERVISOR_GROUPS, true)) {
+            throw new \InvalidArgumentException("Unknown supervisor menu group \"{$group}\"; use one of: ".implode(', ', self::SUPERVISOR_GROUPS).'.');
+        }
+
+        $this->supervisorItems[$group][] = compact('label', 'url', 'order', 'icon', 'badge');
+    }
+
+    /**
+     * Supervisor entries keyed by group, each sorted by order.
+     *
+     * @return array<string, list<array{label: string, url: string, order: int, icon: ?string, badge: ?string}>>
+     */
+    public function getSupervisorItems(): array
+    {
+        $out = [];
+        foreach ($this->supervisorItems as $group => $items) {
+            usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
+            $out[$group] = $items;
+        }
+
+        return $out;
     }
 
     // -------------------------------------------------------------------------
@@ -234,58 +285,5 @@ class MenuRegistry
         usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
 
         return $items;
-    }
-
-    // -------------------------------------------------------------------------
-    // Supervisor sidebar
-    // -------------------------------------------------------------------------
-
-    /**
-     * Add a link to the supervisor sidebar.
-     *
-     * Supervisors get their own menu (their pages live under /supervisor), so
-     * items added with addItem() — which target the admin dropdowns — never
-     * reach them. A module whose screen a supervisor uses (a register, a
-     * report, an approval queue) registers it here as well. The URL may point
-     * anywhere the supervisor is allowed to go; what they may open is still
-     * decided by the route's own middleware.
-     *
-     * @param  string  $group  Supervisor dropdown: orders | production | logistics | reports
-     *                         (the key of a SUPERVISOR_GROUPS entry without its
-     *                         "supervisor-" prefix). Unknown keys land in production.
-     * @param  string  $label  Link text
-     * @param  string  $url  Resolved URL (call route() or url() in your ServiceProvider)
-     * @param  int  $order  Sort weight — built-in items use multiples of 10
-     * @param  string|null  $badge  Short tag shown next to the label (see addItem)
-     */
-    public function addSupervisorItem(string $group, string $label, string $url, int $order = 50, ?string $badge = null): void
-    {
-        $this->supervisorItems[] = [
-            'group' => $group,
-            'label' => $label,
-            'url' => $url,
-            'order' => $order,
-            'badge' => $badge,
-        ];
-    }
-
-    /**
-     * Supervisor sidebar items keyed by group, each list sorted by order.
-     *
-     * @return array<string, list<array{label: string, url: string, order: int, badge: ?string}>>
-     */
-    public function getSupervisorItems(): array
-    {
-        $grouped = [];
-        foreach ($this->supervisorItems as $item) {
-            $group = $item['group'];
-            unset($item['group']);
-            $grouped[$group][] = $item;
-        }
-        foreach ($grouped as &$items) {
-            usort($items, fn ($a, $b) => $a['order'] <=> $b['order']);
-        }
-
-        return $grouped;
     }
 }

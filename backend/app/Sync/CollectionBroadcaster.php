@@ -135,8 +135,25 @@ class CollectionBroadcaster
                 continue;
             }
             $op = ($member !== null && ! $member($fresh)) ? 'delete' : 'upsert';
-            self::safeBroadcast($name, $op, $row, $tenant);
+            self::safeBroadcast($name, $op, $row, $tenant, self::partitions($name, $fresh->getTable(), $fresh->getAttributes()));
         }
+    }
+
+    /**
+     * The partitions a row belongs to, as the installed ScopeProvider sees it.
+     * Keys that could not form a valid channel name are dropped — a malformed
+     * key must never turn into a channel nobody is authorised for.
+     *
+     * @return list<string>
+     */
+    private static function partitions(string $name, string $table, array $attributes): array
+    {
+        $keys = app(\App\Extension\Contracts\ScopeProvider::class)->rowPartitions($name, $table, $attributes);
+
+        return array_values(array_unique(array_filter(
+            array_map('strval', $keys),
+            fn (string $key) => preg_match('/^[A-Za-z0-9_-]+$/', $key) === 1,
+        )));
     }
 
     /** Column allowlist per collection, resolved once per request. */
@@ -204,13 +221,13 @@ class CollectionBroadcaster
      * would otherwise push a row that never existed into every open list, and
      * nothing would ever take it back out.
      */
-    private static function safeBroadcast(string $name, string $op, array $row, $tenant): void
+    private static function safeBroadcast(string $name, string $op, array $row, $tenant, array $partitions = [], bool $base = true): void
     {
-        if (self::$muted > 0) {
+        if (self::$muted > 0 || (! $base && $partitions === [])) {
             return;
         }
 
-        $event = new CollectionChanged($name, $op, self::project($name, $row), $tenant);
+        $event = new CollectionChanged($name, $op, self::project($name, $row), $tenant, $partitions, $base);
 
         DB::afterCommit(function () use ($event) {
             try {
@@ -243,10 +260,21 @@ class CollectionBroadcaster
                 $model::{$event}(function ($m) use ($collections, $event) {
                     $row = $m->attributesToArray();
                     $tenant = $m->getAttribute('tenant_id');
+                    $table = $m->getTable();
 
                     foreach ($collections as $name => $member) {
                         $op = ($event === 'deleted' || ($member !== null && ! $member($m))) ? 'delete' : 'upsert';
-                        self::safeBroadcast($name, $op, $row, $tenant);
+                        $partitions = self::partitions($name, $table, $m->getAttributes());
+                        self::safeBroadcast($name, $op, $row, $tenant, $partitions);
+
+                        // A row that moved out of a partition (a line handed to
+                        // another plant) has to disappear from the screens
+                        // watching only that partition. During `updated` the
+                        // original attributes still hold the previous values.
+                        if ($event === 'updated') {
+                            $left = array_values(array_diff(self::partitions($name, $table, $m->getRawOriginal()), $partitions));
+                            self::safeBroadcast($name, 'delete', $row, $tenant, $left, base: false);
+                        }
                     }
                 });
             }

@@ -1250,6 +1250,13 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "DELETE api/v1/batch-step-time-entries/{timeEntry}": {
+            "guest": "deny",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "DELETE api/v1/batches/{batch}": {
             "guest": "deny",
             "Admin": "allow",
@@ -2056,6 +2063,13 @@
             "no-role": "deny"
         },
         "GET admin/issues/{issue}/actions": {
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "deny",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "GET admin/issues/{issue}/rework": {
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "deny",
@@ -3258,6 +3272,13 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "GET api/v1/batch-steps/{batchStep}/time-entries": {
+            "guest": "deny",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "GET api/v1/batches/{batch}": {
             "guest": "deny",
             "Admin": "allow",
@@ -4089,6 +4110,20 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "GET api/v1/rework-operations": {
+            "guest": "deny",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "allow",
+            "no-role": "allow"
+        },
+        "GET api/v1/rework-operations/{rework}": {
+            "guest": "deny",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "GET api/v1/roles": {
             "guest": "deny",
             "Admin": "allow",
@@ -4434,6 +4469,20 @@
             "Operator": "allow",
             "no-role": "deny"
         },
+        "GET api/v1/work-orders/{workOrder}/operation-times": {
+            "guest": "deny",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "GET api/v1/work-orders/{workOrder}/rework-operations": {
+            "guest": "deny",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "GET api/v1/work-orders/{workOrder}/scrap-entries": {
             "guest": "deny",
             "Admin": "allow",
@@ -4711,6 +4760,13 @@
             "Admin": "redirect:/operator/queue",
             "Supervisor": "redirect:/operator/queue",
             "Operator": "redirect:/operator/queue",
+            "no-role": "deny"
+        },
+        "GET operator/work-order/{workOrder}/panel": {
+            "guest": "login",
+            "Admin": "deny",
+            "Supervisor": "deny",
+            "Operator": "deny",
             "no-role": "deny"
         },
         "GET operator/workstation": {
@@ -5166,6 +5222,13 @@
             "no-role": "deny"
         },
         "GET supervisor/issues/{issue}/actions": {
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "GET supervisor/issues/{issue}/rework": {
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "allow",
@@ -6048,6 +6111,14 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "POST admin/issues/{issue}/rework": {
+            "payload": true,
+            "guest": "login",
+            "Admin": "allow-422",
+            "Supervisor": "deny",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "POST admin/line-statuses": {
             "payload": true,
             "guest": "login",
@@ -6503,6 +6574,14 @@
             "no-role": "deny"
         },
         "POST admin/quality-tasks/{task}/skip": {
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "deny",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST admin/rework-operations/{rework}/cancel": {
+            "payload": true,
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "deny",
@@ -7005,6 +7084,42 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "POST api/v1/batch-steps/{batchStep}/time-entries": {
+            "payload": true,
+            "guest": "deny",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST api/v1/batch-steps/{batchStep}/time-entries/labor/start": {
+            "guest": "deny",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST api/v1/batch-steps/{batchStep}/time-entries/labor/stop": {
+            "guest": "deny",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST api/v1/batch-steps/{batchStep}/time-entries/machine/start": {
+            "guest": "deny",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST api/v1/batch-steps/{batchStep}/time-entries/machine/stop": {
+            "guest": "deny",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "POST api/v1/batches/{batch}/cancel": {
             "guest": "deny",
             "Admin": "allow",
@@ -7379,6 +7494,14 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "POST api/v1/issues/{issue}/rework-operations": {
+            "payload": true,
+            "guest": "deny",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "POST api/v1/label-templates": {
             "payload": true,
             "guest": "deny",
@@ -7695,6 +7818,36 @@
             "guest": "deny",
             "Admin": "allow",
             "Supervisor": "deny",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST api/v1/rework-operations/{rework}/cancel": {
+            "payload": true,
+            "guest": "deny",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST api/v1/rework-operations/{rework}/complete": {
+            "payload": true,
+            "guest": "deny",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST api/v1/rework-operations/{rework}/start": {
+            "guest": "deny",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST api/v1/rework-operations/{rework}/time/{kind}/{action}": {
+            "guest": "deny",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
             "Operator": "deny",
             "no-role": "deny"
         },
@@ -8281,6 +8434,13 @@
             "Operator": "allow",
             "no-role": "deny"
         },
+        "POST operator/batch-step/{batchStep}/time/{kind}/{action}": {
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "allow",
+            "no-role": "deny"
+        },
         "POST operator/batch/{batch}/confirm": {
             "payload": true,
             "guest": "login",
@@ -8366,6 +8526,28 @@
             "Operator": "allow",
             "no-role": "deny"
         },
+        "POST operator/rework/{rework}/complete": {
+            "payload": true,
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST operator/rework/{rework}/start": {
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST operator/rework/{rework}/time/{kind}/{action}": {
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "POST operator/scrap": {
             "payload": true,
             "guest": "login",
@@ -8417,24 +8599,24 @@
             "payload": true,
             "guest": "login",
             "Admin": "allow-422",
-            "Supervisor": "allow-422",
-            "Operator": "allow-422",
+            "Supervisor": "deny",
+            "Operator": "deny",
             "no-role": "deny"
         },
         "POST operator/unit-labels/start": {
             "payload": true,
             "guest": "login",
             "Admin": "allow-422",
-            "Supervisor": "allow-422",
-            "Operator": "allow-422",
+            "Supervisor": "deny",
+            "Operator": "deny",
             "no-role": "deny"
         },
         "POST operator/unit-labels/subassembly": {
             "payload": true,
             "guest": "login",
             "Admin": "allow-422",
-            "Supervisor": "allow-422",
-            "Operator": "allow-422",
+            "Supervisor": "deny",
+            "Operator": "deny",
             "no-role": "deny"
         },
         "POST operator/unit-labels/{serialUnit}/block": {
@@ -8909,6 +9091,14 @@
             "Operator": "deny",
             "no-role": "deny"
         },
+        "POST supervisor/issues/{issue}/rework": {
+            "payload": true,
+            "guest": "login",
+            "Admin": "allow-422",
+            "Supervisor": "allow-422",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
         "POST supervisor/priority-rules": {
             "payload": true,
             "guest": "login",
@@ -8949,6 +9139,14 @@
             "no-role": "deny"
         },
         "POST supervisor/quality-tasks/{task}/skip": {
+            "guest": "login",
+            "Admin": "allow",
+            "Supervisor": "allow",
+            "Operator": "deny",
+            "no-role": "deny"
+        },
+        "POST supervisor/rework-operations/{rework}/cancel": {
+            "payload": true,
             "guest": "login",
             "Admin": "allow",
             "Supervisor": "allow",

@@ -29,6 +29,16 @@ Broadcast::channel('col.{tenant}.{collection}', function ($user, string $tenant,
         return false;
     }
 
+    // "{tenant}@{partition}" is the same collection narrowed to one scope of a
+    // scoping module (App\Extension\Contracts\ScopeProvider) — e.g. one plant.
+    $partition = null;
+    if (str_contains($tenant, '@')) {
+        [$tenant, $partition] = explode('@', $tenant, 2);
+        if (preg_match('/^[A-Za-z0-9_-]+$/', $partition) !== 1) {
+            return false;
+        }
+    }
+
     $userTenant = $user->tenant_id === null ? 'g' : (string) $user->tenant_id;
     // A user may subscribe to their own tenant channel AND the global ("g")
     // channel: global tables (no tenant_id column — e.g. skills, issues) and
@@ -44,7 +54,14 @@ Broadcast::channel('col.{tenant}.{collection}', function ($user, string $tenant,
     // access rule, so a user never gets live rows they can't load, or the reverse.
     $shape = app(\App\Sync\ShapeRegistry::class)->find($collection);
 
-    return $shape !== null && $shape->allows($user);
+    if ($shape === null || ! $shape->allows($user)) {
+        return false;
+    }
+
+    // Whether this user may hear this partition — or, with none, the whole
+    // collection. A person confined to one plant must not be able to subscribe
+    // to the unpartitioned channel and receive every plant's rows.
+    return app(\App\Extension\Contracts\ScopeProvider::class)->allowsPartition($user, $collection, $partition);
 });
 
 /**

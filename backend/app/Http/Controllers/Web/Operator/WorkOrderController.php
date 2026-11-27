@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Web\Operator;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\UpdateLineStatusRequest;
+use App\Models\Batch;
+use App\Models\BatchStep;
 use App\Models\IssueType;
 use App\Models\LineStatus;
 use App\Models\ScrapReason;
@@ -12,6 +14,7 @@ use App\Models\Workstation;
 use App\Services\Production\OperatorWorkstationSelection;
 use App\Services\WorkOrder\StepDefinitions;
 use App\Services\WorkOrder\WorkOrderService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -21,6 +24,45 @@ class WorkOrderController extends Controller
     public function __construct(
         protected WorkOrderService $workOrderService
     ) {}
+
+    /**
+     * Every BOM line of the order against stock, for the Materials tab: what
+     * the order needs, what it has (already reserved for it plus usable stock),
+     * what is missing, and the store's on-hand and reserved-elsewhere figures.
+     * Lines of the same material are summed, as the shortage check sums them.
+     *
+     * @param  list<array<string, mixed>>  $preview  previewForWorkOrder()
+     * @param  list<array<string, mixed>>  $shortages  shortagesForWorkOrders() for this order
+     * @return list<array<string, mixed>>
+     */
+    private function materialLines(array $preview, array $shortages): array
+    {
+        $keyOf = fn (array $line) => $line['material_code'] ?? $line['material_name'] ?? '';
+        $short = collect($shortages)->keyBy($keyOf);
+
+        return collect($preview)
+            ->groupBy($keyOf)
+            ->map(function ($lines, $key) use ($short) {
+                $first = $lines->first();
+                $need = (float) $lines->sum('required_qty');
+                $missing = (float) ($short->get($key)['missing_qty'] ?? 0);
+
+                return [
+                    'material_code' => $first['material_code'],
+                    'material_name' => $first['material_name'],
+                    'unit_of_measure' => $first['unit_of_measure'],
+                    'material_exists' => $first['material_exists'],
+                    'need' => round($need, 4),
+                    'have' => round(max(0, $need - $missing), 4),
+                    'missing' => round($missing, 4),
+                    'on_hand' => $first['on_hand_qty'],
+                    'reserved' => $first['reserved_qty'],
+                    'short' => $short->has($key),
+                ];
+            })
+            ->values()
+            ->all();
+    }
 
     /**
      * Show work order queue for selected line.
@@ -83,6 +125,9 @@ class WorkOrderController extends Controller
 
             $workstationQueue = $selection->workOrdersAt($queueSource, $selectedWorkstation);
             $workstationNotStarted = $selection->notStartedAt($queueSource, $selectedWorkstation);
+            // Routed orders come from their own query: flag them like the line's.
+            $workstationQueue->merge($workstationNotStarted)
+                ->each(fn (WorkOrder $order) => $order->setAttribute('uses_step_ledger', $order->usesStepLedger()));
         }
 
         // Load available workstations for this line (for the workstation filter dropdown)
@@ -105,8 +150,15 @@ class WorkOrderController extends Controller
             ['lineId' => (int) $lineId, 'workstationId' => $selectedWorkstation?->id],
         );
 
+        $shiftSummary = app(\App\Services\Production\OperatorShiftSummary::class)->forLine((int) $lineId);
+        // The toolbar's workstation picker; a cumulative line does not route work to stations.
+        $stationPicker = $trackingMode === 'cumulative' ? [] : app(\App\Services\Production\OperatorStationPicker::class)->forLine((int) $lineId);
+
+        // The panel's Report issue asks for the issue custom fields too.
+        $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
+
         return Inertia::render('operator/Queue', compact(
-            'hooks',
+            'hooks', 'shiftSummary', 'stationPicker', 'issueCustomFields',
             'activeWorkOrders', 'completedWorkOrders', 'line', 'selectedWorkstation',
             'lineStatuses', 'issueTypes', 'workflowMode', 'doneStatusIds',
             'trackingMode', 'workstationQueue', 'workstationNotStarted', 'lineWorkstations',
@@ -266,6 +318,255 @@ class WorkOrderController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'type', 'size', 'barcode_format', 'is_default']);
 
+        // Work instructions for the process this order was built from (photos,
+        // media, checklists, typed outputs), keyed by step number. Media,
+        // checklists and outputs come frozen from the order's snapshot.
+        ['processPhotos' => $processPhotos, 'stepPhotos' => $stepPhotos, 'stepMedia' => $stepMedia,
+            'stepChecklists' => $stepChecklists, 'stepOutputs' => $stepOutputs]
+            = $this->workInstructions($workOrder);
+
+        $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
+
+        // Engineering documents (#179) frozen onto this order at release — read-only
+        // for operators (download + interactive view), gated by `view engineering
+        // documents` on the client (Operator has it; see the seeder).
+        $engineeringDocuments = $workOrder->frozenEngineeringDocuments();
+
+        // What this order cannot be built from, if anything. Shown before the
+        // operator starts rather than surfacing as a failed allocation — and a
+        // subassembly is named as itself, not as the parts it is made from.
+        $allocation = app(\App\Services\Material\MaterialAllocationService::class);
+        $materialShortages = $allocation->shortagesForWorkOrders(collect([$workOrder]))[$workOrder->id] ?? [];
+        $materialLines = $this->materialLines($allocation->previewForWorkOrder($workOrder), $materialShortages);
+
+        $workOrder->scrapEntries->each(fn ($entry) => $entry->setAttribute('can_classify', $request->user()->can('update', $entry)));
+
+        // What a new batch may still take — the Create batch modal prefills and
+        // caps with it, and the server refuses more (assertCanCreateBatch).
+        $workOrder->setAttribute('batch_capacity', $this->workOrderService->remainingBatchCapacity($workOrder));
+        $workOrder->setAttribute('overproduction_allowed', WorkOrderService::overproductionAllowed());
+
+        // pcs-type products are logged in whole pieces (WholePieces rule); the
+        // batch modal and the quantity log use it to refuse 1.5 before it
+        // reaches the server.
+        $wholePieces = (bool) $workOrder->productType?->isCountedInPieces();
+        $workOrder->setAttribute('whole_pieces', $wholePieces);
+
+        // Quantity ledger per step (what arrived, what is still waiting) so the
+        // page can show and gate the quick quantity log; the flow mode tells it
+        // whether finishing a step needs the ledger to be empty first.
+        $flowMode = \App\Support\ProductionFlow::mode();
+        $manualCorrectionsEnabled = app(\App\Services\WorkOrder\BatchService::class)->manualCorrectionsEnabled();
+        foreach ($workOrder->batches as $batch) {
+            $productionBlocker = $workOrder->plannedStartBlocker();
+            if ($flowMode === \App\Support\ProductionFlow::TRANSFER && ($firstStep = $batch->steps->first())) {
+                $firstStep->setRelation('batch', $batch->withoutRelations()->setRelation('workOrder', $workOrder->withoutRelations()));
+                $productionBlocker = $firstStep->productionBlocker();
+                $firstStep->unsetRelation('batch');
+            }
+            foreach ($batch->steps as $step) {
+                // Point the step at the already-loaded batch (and its steps) so the
+                // ledger doesn't lazy-load the batch and re-query its steps per step,
+                // then drop that relation again so it isn't serialized into the props.
+                $step->setRelation('batch', $batch->withoutRelations()->setRelation('steps', $batch->steps));
+                $step->setAttribute('production_blocker', $productionBlocker);
+                $step->setAttribute('manual_correction_allowed', $workOrder->counting_source === 'operator' && $manualCorrectionsEnabled
+                    && ((int) $step->started_by_id === (int) $request->user()->id || $request->user()->hasAnyRole(['Admin', 'Supervisor'])));
+                $step->setAttribute('prerequisites_met', $step->prerequisitesMet());
+                $step->setAttribute('incoming_qty', $step->incomingQty());
+                $step->setAttribute('available_qty', $step->availableQty());
+                $step->setAttribute('whole_pieces', $wholePieces);
+                $step->setAttribute('completion_blocker', $step->status === \App\Models\BatchStep::STATUS_IN_PROGRESS ? $step->completionBlocker() : null);
+                $step->unsetRelation('batch');
+            }
+        }
+
+        // The station the operator picked in the queue (or their workstation
+        // account): the page folds the other stations' steps away behind it.
+        $selectedWorkstation = app(\App\Services\Production\OperatorWorkstationSelection::class)
+            ->resolve($request, (int) $workOrder->line_id, allowOtherLines: (bool) json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'workstation_routing_enabled')->value('value') ?? 'false', true));
+        $selectedWorkstation = $selectedWorkstation?->only(['id', 'name', 'code']);
+
+        // Regions an installed module may contribute to: extra sections after the
+        // BOM, and a replacement for the operator's number inputs. `{}` when none.
+        $hooks = app(\App\Extension\HookRegistry::class)->renderMany(
+            ['display.operator.work_order.sections', 'display.operator.quantity_field'],
+            ['workOrderId' => $workOrder->id, 'workstationId' => $selectedWorkstation['id'] ?? null],
+        );
+
+        // The order's serialised units - PSN, serial number, status and where each
+        // was last seen - so the order shows which pieces it is made of, not only counts.
+        $serialUnits = $this->serialUnitsOf($workOrder);
+
+        // What a new batch may still add up to; null while overproduction is allowed.
+        $batchableQty = \App\Support\ProductionRules::batchableQty($workOrder);
+
+        // The QC template in-process checks on this order are judged against, so
+        // the quality-check form asks for exactly its parameters and samples.
+        $qualityCheckTemplate = \App\Models\QualityCheckTemplate::forProcessTemplate($workOrder->process_snapshot['template_id'] ?? null)
+            ?->only(['id', 'name', 'min_checks_per_batch', 'samples_per_check', 'parameters']);
+
+        $lotManualEntry = \App\Services\Lot\BatchLotRules::manualEntryAllowed();
+
+        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'lotManualEntry', 'hooks', 'qualityCheckTemplate', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'materialLines', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+    }
+
+    /**
+     * The execution panel beside the queue and workstation lists: the order's
+     * batch being worked, its steps in order, and the current step's work
+     * instructions and checklist — what the operator needs to run the step
+     * without leaving the list. JSON, re-read after every write; the writes
+     * themselves stay on the existing batch-step routes.
+     */
+    public function panel(Request $request, WorkOrder $workOrder): JsonResponse
+    {
+        $lineId = app(OperatorWorkstationSelection::class)->resolveLine($request);
+        if ((int) $workOrder->line_id !== (int) $lineId) {
+            return response()->json(['message' => __('This work order does not belong to the selected line.')], 403);
+        }
+
+        $workOrder->load([
+            'productType',
+            'batches.steps.workstation',
+            'batches.steps.documents',
+            'batches.steps.checklistCompletions',
+            'batches.steps.outputValues',
+            'batches.steps.timeEntries',
+        ]);
+        $workOrder->setAttribute('uses_step_ledger', $workOrder->usesStepLedger());
+
+        $selectedWorkstationId = $request->session()->get('selected_workstation_id');
+        $openBatches = $workOrder->batches->reject(fn (Batch $b) => in_array($b->status, [Batch::STATUS_DONE, Batch::STATUS_CANCELLED], true));
+        // The batch with a step open at the operator's station, else the first
+        // unfinished one, else the last (a finished order shows its history).
+        $batch = ($selectedWorkstationId
+            ? $openBatches->first(fn (Batch $b) => $b->steps->contains(fn (BatchStep $s) => (int) $s->workstation_id === (int) $selectedWorkstationId
+                && in_array($s->status, [BatchStep::STATUS_READY, BatchStep::STATUS_IN_PROGRESS], true)))
+            : null) ?? $openBatches->first() ?? $workOrder->batches->last();
+
+        $instructions = $this->workInstructions($workOrder);
+        $transfer = \App\Support\ProductionFlow::isTransfer();
+
+        $steps = collect();
+        if ($batch) {
+            $time = app(\App\Services\Production\StepTimeService::class);
+            $userId = (int) $request->user()->id;
+            $steps = $batch->steps->sortBy('step_number')->values()->map(function (BatchStep $step) use ($batch, $workOrder, $instructions, $transfer, $time, $userId) {
+                $step->setRelation('batch', $batch->withoutRelations()->setRelation('workOrder', $workOrder->withoutRelations())->setRelation('steps', $batch->steps));
+                $done = $step->checklistCompletions->pluck('checklist_item_id')->all();
+                $recorded = $step->outputValues->pluck('output_id')->all();
+                $row = [
+                    'id' => $step->id,
+                    'step_number' => $step->step_number,
+                    'name' => $step->name,
+                    'status' => $step->status,
+                    'instruction' => $step->instruction,
+                    'requires_confirmation' => (bool) $step->requires_confirmation,
+                    'confirmed_at' => $step->confirmed_at?->toIso8601String(),
+                    'estimated_duration_minutes' => $step->estimated_duration_minutes,
+                    'workstation' => $step->workstation ? ['id' => $step->workstation->id, 'name' => $step->workstation->name] : null,
+                    'started_at' => $step->started_at?->toIso8601String(),
+                    'prerequisites_met' => $step->prerequisitesMet(),
+                    'production_blocker' => $transfer ? $step->productionBlocker() : $workOrder->plannedStartBlocker(),
+                    'completion_blocker' => $step->status === BatchStep::STATUS_IN_PROGRESS ? $step->completionBlocker() : null,
+                    // Gates the panel cannot clear itself: the full order page holds those forms.
+                    'blocking_documents' => $step->documents->filter(fn ($d) => $d->is_mandatory && $d->requires_validation && ! $d->validated_at)->count(),
+                    'pending_outputs' => collect($instructions['stepOutputs'][$step->step_number] ?? [])
+                        ->filter(fn ($o) => $o['is_required'] && ! in_array($o['id'], $recorded, true))->pluck('label')->values(),
+                    'asks_actual_times' => $step->setup_time_minutes !== null || $step->run_time_per_unit_minutes !== null,
+                    'checklist' => collect($instructions['stepChecklists'][$step->step_number] ?? [])
+                        ->map(fn ($item) => $item + ['done' => in_array($item['id'], $done, true)])->values(),
+                    'photo' => $instructions['stepPhotos'][$step->step_number] ?? null,
+                    'media' => $instructions['stepMedia'][$step->step_number] ?? [],
+                    // Operator and machine time (#400): totals so far and what is running now.
+                    'time' => $this->stepTime($step, $time, $userId),
+                ];
+                $step->unsetRelation('batch');
+
+                return $row;
+            });
+        }
+
+        return response()->json([
+            'work_order' => [
+                'id' => $workOrder->id,
+                'order_no' => $workOrder->order_no,
+                'status' => $workOrder->status,
+                'product' => $workOrder->productType?->name,
+                'planned_qty' => (float) $workOrder->planned_qty,
+                'produced_qty' => (float) $workOrder->produced_qty,
+                'due_date' => $workOrder->due_date?->toIso8601String(),
+                'priority' => $workOrder->priority,
+                'description' => $workOrder->description,
+                'uses_step_ledger' => $workOrder->uses_step_ledger,
+                'batch_count' => $workOrder->batches->count(),
+            ],
+            'batch' => $batch ? [
+                'id' => $batch->id,
+                'batch_number' => $batch->batch_number,
+                'lot_number' => $batch->lot_number,
+                'status' => $batch->status,
+            ] : null,
+            'steps' => $steps,
+            // Rework sent back to a step of this batch (#400), still to be done.
+            'reworks' => $batch ? $this->activeReworks($batch, (int) $request->user()->id) : [],
+            'flow_mode' => \App\Support\ProductionFlow::mode(),
+        ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function activeReworks(Batch $batch, int $userId): array
+    {
+        $time = app(\App\Services\Production\StepTimeService::class);
+
+        return \App\Models\ReworkOperation::where('batch_id', $batch->id)
+            ->whereIn('status', \App\Models\ReworkOperation::ACTIVE_STATUSES)
+            ->with(['sourceStep', 'targetStep', 'timeEntries'])
+            ->orderBy('id')
+            ->get()
+            ->map(function (\App\Models\ReworkOperation $r) use ($time, $userId) {
+                $open = $r->timeEntries->whereNull('ended_at');
+
+                return \App\Services\Quality\ReworkService::present($r) + [
+                    'time' => $time->liveReworkTotals($r) + [
+                        'clocked_on' => $open->contains(fn ($e) => $e->kind === 'labor' && (int) $e->user_id === $userId),
+                        'operators_on' => $open->where('kind', 'labor')->count(),
+                        'machine_running' => $open->contains('kind', 'machine'),
+                    ],
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /** @return array{labor_minutes: int, machine_minutes: int, clocked_on: bool, operators_on: int, machine_running: bool} */
+    private function stepTime(BatchStep $step, \App\Services\Production\StepTimeService $time, int $userId): array
+    {
+        $open = $step->timeEntries->whereNull('ended_at')->whereNull('rework_operation_id');
+        $labor = $open->where('kind', \App\Models\BatchStepTimeEntry::KIND_LABOR);
+
+        return $time->liveTotals($step) + [
+            'clocked_on' => $labor->contains(fn ($e) => (int) $e->user_id === $userId),
+            'operators_on' => $labor->count(),
+            'machine_running' => $open->contains('kind', \App\Models\BatchStepTimeEntry::KIND_MACHINE),
+        ];
+    }
+
+    /**
+     * The work instructions of the template an order was built from. Photos are
+     * resolved live by the snapshot's template id; media, checklist items and
+     * typed outputs are read from the order's process snapshot, so an order in
+     * progress keeps the instructions it was released with when the template is
+     * edited (orders not started yet are moved onto the edit, see
+     * ProcessTemplateChangePropagator). A batch step links back to its template
+     * step only by step_number, so everything per step is keyed by it.
+     *
+     * @return array{processPhotos: \Illuminate\Support\Collection, stepPhotos: array, stepMedia: array, stepChecklists: array, stepOutputs: array}
+     */
+    private function workInstructions(WorkOrder $workOrder): array
+    {
+        $templateId = $workOrder->process_snapshot['template_id'] ?? null;
+
         // Reference photos (work instructions) for the process this order was
         // built from. Loaded live by the snapshot's template id so updated
         // instructions reach in-flight orders; the snapshot itself stays frozen.
@@ -273,7 +574,6 @@ class WorkOrderController extends Controller
         // may view them.
         $processPhotos = collect();   // general (non-step) work-instruction gallery
         $stepPhotos = [];             // step_number => photo, shown inline per step
-        $templateId = $workOrder->process_snapshot['template_id'] ?? null;
         if ($templateId) {
             $photos = \App\Models\ProcessTemplatePhoto::where('process_template_id', $templateId)
                 ->with('templateStep:id,step_number')
@@ -302,11 +602,8 @@ class WorkOrderController extends Controller
         }
 
         // Rich work-instruction media (image/PDF/video), checklist items and typed
-        // outputs per step, keyed by step_number. Read from the order's process
-        // snapshot, so an order in progress keeps the instructions it was released
-        // with when the template is edited (orders not started yet are moved onto
-        // the edit, see ProcessTemplateChangePropagator). Orders released before
-        // these were frozen fall back to the live template.
+        // outputs per step, keyed by step_number. Orders released before these
+        // were frozen fall back to the live template (StepDefinitions).
         $stepMedia = [];      // step_number => [ {id, url, media_type, title, ...} ]
         foreach (StepDefinitions::forWorkOrder($workOrder, StepDefinitions::MEDIA) as $num => $media) {
             foreach ($media as $m) {
@@ -336,77 +633,7 @@ class WorkOrderController extends Controller
             StepDefinitions::forWorkOrder($workOrder, StepDefinitions::OUTPUTS),
         );
 
-        $issueCustomFields = app(\App\Services\CustomFieldService::class)->clientConfig('issue');
-
-        // Engineering documents (#179) frozen onto this order at release — read-only
-        // for operators (download + interactive view), gated by `view engineering
-        // documents` on the client (Operator has it; see the seeder).
-        $engineeringDocuments = $workOrder->frozenEngineeringDocuments();
-
-        // What this order cannot be built from, if anything. Shown before the
-        // operator starts rather than surfacing as a failed allocation — and a
-        // subassembly is named as itself, not as the parts it is made from.
-        $materialShortages = app(\App\Services\Material\MaterialAllocationService::class)
-            ->shortagesForWorkOrders(collect([$workOrder]))[$workOrder->id] ?? [];
-
-        $workOrder->scrapEntries->each(fn ($entry) => $entry->setAttribute('can_classify', $request->user()->can('update', $entry)));
-
-        // Quantity ledger per step (what arrived, what is still waiting) so the
-        // page can show and gate the quick quantity log; the flow mode tells it
-        // whether finishing a step needs the ledger to be empty first.
-        $flowMode = \App\Support\ProductionFlow::mode();
-        $manualCorrectionsEnabled = app(\App\Services\WorkOrder\BatchService::class)->manualCorrectionsEnabled();
-        foreach ($workOrder->batches as $batch) {
-            $productionBlocker = $workOrder->plannedStartBlocker();
-            if ($flowMode === \App\Support\ProductionFlow::TRANSFER && ($firstStep = $batch->steps->first())) {
-                $firstStep->setRelation('batch', $batch->withoutRelations()->setRelation('workOrder', $workOrder->withoutRelations()));
-                $productionBlocker = $firstStep->productionBlocker();
-                $firstStep->unsetRelation('batch');
-            }
-            foreach ($batch->steps as $step) {
-                // Point the step at the already-loaded batch (and its steps) so the
-                // ledger doesn't lazy-load the batch and re-query its steps per step,
-                // then drop that relation again so it isn't serialized into the props.
-                $step->setRelation('batch', $batch->withoutRelations()->setRelation('steps', $batch->steps));
-                $step->setAttribute('production_blocker', $productionBlocker);
-                $step->setAttribute('manual_correction_allowed', $workOrder->counting_source === 'operator' && $manualCorrectionsEnabled
-                    && ((int) $step->started_by_id === (int) $request->user()->id || $request->user()->hasAnyRole(['Admin', 'Supervisor'])));
-                $step->setAttribute('prerequisites_met', $step->prerequisitesMet());
-                $step->setAttribute('incoming_qty', $step->incomingQty());
-                $step->setAttribute('available_qty', $step->availableQty());
-                $step->setAttribute('completion_blocker', $step->status === \App\Models\BatchStep::STATUS_IN_PROGRESS ? $step->completionBlocker() : null);
-                $step->unsetRelation('batch');
-            }
-        }
-
-        // The station the operator picked in the queue (or their workstation
-        // account): the page folds the other stations' steps away behind it.
-        $selectedWorkstation = app(\App\Services\Production\OperatorWorkstationSelection::class)
-            ->resolve($request, (int) $workOrder->line_id, allowOtherLines: (bool) json_decode(\Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'workstation_routing_enabled')->value('value') ?? 'false', true));
-        $selectedWorkstation = $selectedWorkstation?->only(['id', 'name', 'code']);
-
-        // Regions an installed module may contribute to: extra sections after the
-        // BOM, and a replacement for the operator's number inputs. `{}` when none.
-        $hooks = app(\App\Extension\HookRegistry::class)->renderMany(
-            ['display.operator.work_order.sections', 'display.operator.quantity_field'],
-            ['workOrderId' => $workOrder->id, 'workstationId' => $selectedWorkstation['id'] ?? null],
-        );
-
-        // The order's serialised units - PSN, serial number, status and where each
-        // was last seen - so the order shows which pieces it is made of, not only counts.
-        $serialUnits = $this->serialUnitsOf($workOrder);
-
-        // What a new batch may still add up to; null while overproduction is allowed.
-        $batchableQty = \App\Support\ProductionRules::batchableQty($workOrder);
-
-        // The QC template in-process checks on this order are judged against, so
-        // the quality-check form asks for exactly its parameters and samples.
-        $qualityCheckTemplate = \App\Models\QualityCheckTemplate::forProcessTemplate($templateId)
-            ?->only(['id', 'name', 'min_checks_per_batch', 'samples_per_check', 'parameters']);
-
-        $lotManualEntry = \App\Services\Lot\BatchLotRules::manualEntryAllowed();
-
-        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'lotManualEntry', 'hooks', 'qualityCheckTemplate', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+        return compact('processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs');
     }
 
     /**

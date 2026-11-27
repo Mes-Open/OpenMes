@@ -130,4 +130,34 @@ class ModuleMenuHooksTest extends TestCase
                 ->where('moduleWidgets.kpi.0.metric', '7')
                 ->where('moduleWidgets.kpi.0.body', 'Awaiting start'));
     }
+
+    public function test_an_entry_carries_its_icon_and_access_tab(): void
+    {
+        app(MenuRegistry::class)->addItem('warehouses', 'Certificates', '/admin/certificates', order: 35, icon: 'file-badge', tab: 'materials');
+
+        $this->actingAs($this->admin)->get('/admin/work-orders')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('moduleNav.items.warehouses.0.icon', 'file-badge')
+                ->where('moduleNav.items.warehouses.0.tab', 'materials'));
+    }
+
+    public function test_supervisor_entries_reach_the_supervisor_sidebar_prop(): void
+    {
+        $menu = app(MenuRegistry::class);
+        $menu->addSupervisorItem('production', 'Register', '/admin/register', order: 90, icon: 'list-checks');
+        $supervisor = User::factory()->create();
+        $supervisor->assignRole('Supervisor');
+
+        $this->actingAs($supervisor)->get('/supervisor/dashboard')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('moduleNav.supervisor.production.0.label', 'Register')
+                ->where('moduleNav.supervisor.production.0.icon', 'list-checks'));
+    }
+
+    public function test_a_supervisor_entry_in_an_unknown_group_is_refused(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        app(MenuRegistry::class)->addSupervisorItem('settings', 'Nope', '/nope');
+    }
 }

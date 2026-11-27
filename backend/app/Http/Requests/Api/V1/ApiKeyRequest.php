@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1;
 
 use App\Enums\ApiScope;
+use App\Http\Requests\Concerns\AllowsModuleFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,6 +15,8 @@ use Illuminate\Validation\Rule;
  */
 class ApiKeyRequest extends FormRequest
 {
+    use AllowsModuleFields;
+
     public function authorize(): bool
     {
         return true;
@@ -21,7 +24,7 @@ class ApiKeyRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return $this->withModuleFields([
             'name' => ['required', 'string', 'max:120'],
             'integration_config_id' => [
                 'nullable',
@@ -33,6 +36,17 @@ class ApiKeyRequest extends FormRequest
             'ip_allowlist.*' => ['ip'],
             'expires_at' => ['nullable', 'date', 'after:now'],
             'is_active' => ['nullable', 'boolean'],
-        ];
+        ]);
+    }
+
+    /** Fields an installed module adds to the key form (e.g. its plant). */
+    protected function moduleFieldFilter(): string
+    {
+        return 'validation.api_keys';
+    }
+
+    protected function moduleFieldContext(): array
+    {
+        return ['action' => $this->moduleFieldAction(), 'apiKey' => $this->route('apiKey')];
     }
 }

@@ -45,6 +45,11 @@ class SettingsController extends Controller
             'pinLoginEnabled' => $pinLoginEnabled,
             'hasPin' => ! empty(auth()->user()->pin),
             'twoFactorEnabled' => (bool) auth()->user()->two_factor_enabled,
+            // Cards an installed module adds for its own settings page (title,
+            // body, href). Asked per user, so a module can leave someone out.
+            'hooks' => app(\App\Extension\HookRegistry::class)->renderMany([
+                'display.settings.index.cards',
+            ], ['user' => auth()->user()]),
         ]);
     }
 
@@ -249,8 +254,10 @@ class SettingsController extends Controller
         $window = ShiftWindow::current();
 
         return [
-            'max_scrap_rate_pct' => ProductionTargetSettings::maxScrapRate(),
-            'min_fpy_pct' => ProductionTargetSettings::minFirstPassYield(),
+            // The installation's values: this page edits them, whatever plant
+            // the administrator happens to be looking at.
+            'max_scrap_rate_pct' => ProductionTargetSettings::installationValue(ProductionTargetSettings::SCRAP_KEY),
+            'min_fpy_pct' => ProductionTargetSettings::installationValue(ProductionTargetSettings::FPY_KEY),
             'quality_enabled' => ModuleRegistry::isModuleEnabled('quality'),
             'current_shift_fpy' => app(FirstPassYieldService::class)->forWindow($window->start, $window->end),
             'plant_oee_target' => round(app(ProductionTargets::class)->plantOeeTarget($window), 1),
@@ -379,6 +386,11 @@ class SettingsController extends Controller
             // the section only exists while the ERP module (and that API) is on.
             'erpEnabled' => $erpEnabled,
             'erpScopes' => $erpEnabled ? ApiScope::options() : [],
+            // Fields an installed module adds to the ERP key form (e.g. the
+            // plant a key is bound to) — data core renders, `{}` without one.
+            'erpKeyHooks' => $erpEnabled
+                ? app(\App\Extension\HookRegistry::class)->renderMany([\App\Http\Controllers\Api\V1\ApiKeyController::FIELDS_HOOK])
+                : [],
         ]);
     }
 

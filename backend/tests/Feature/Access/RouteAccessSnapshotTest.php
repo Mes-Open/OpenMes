@@ -512,6 +512,8 @@ class RouteAccessSnapshotTest extends TestCase
                 'type' => 'downtime_reasons',
                 'id' => (string) $this->trashed(DowntimeReason::class)?->getKey(),
             ]],
+            // Operator / machine time (#400): kind and action are whereIn-constrained.
+            str_ends_with($uri, '/time/{kind}/{action}') => ['params' => ['kind' => 'labor', 'action' => 'start']],
             default => [],
         };
     }

@@ -59,6 +59,15 @@ async function login(page: Page, user: string, pass: string) {
 
 const createBtn = (page: Page) => page.getByRole('button', { name: 'Create', exact: true });
 
+/** The packing station offers a handful of orders as chips and a long list as a dropdown. */
+async function pickPalletOrder(page: Page, order: RegExp, name = 'Create pallet for order') {
+  const chips = page.getByRole('radiogroup', { name });
+  const dropdown = page.getByRole('combobox', { name });
+  await expect(chips.or(dropdown)).toBeVisible({ timeout: 15_000 });
+  if (await chips.count()) await chips.getByRole('radio', { name: order }).click();
+  else await pickDropdown(dropdown, order);
+}
+
 test('produce a product end-to-end through the UI', async ({ page, browser }: { page: Page; browser: Browser }) => {
   // Deterministic slate: silence any leftover triggers/tasks from earlier runs
   // so this run's single in-production control is the only one outstanding.
@@ -182,25 +191,24 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
     await op.waitForLoadState('networkidle');
     await expect(op.getByRole('heading', { name: WO, level: 1 })).toBeVisible();
 
-    // Opens the "Create New Batch" modal (quantity defaults to the remainder);
-    // its own Create Batch button is the second one on the page.
-    await op.getByRole('button', { name: 'Create Batch', exact: true }).click();
+    // The header's Create batch opens the "Create New Batch" modal (quantity
+    // defaults to the remainder); the modal's own submit is Create Batch.
+    await op.getByTestId('wo-hero').getByRole('button', { name: 'Create batch' }).click();
     await expect(op.getByText('Create New Batch')).toBeVisible();
-    await op.getByRole('button', { name: 'Create Batch', exact: true }).last().click();
+    await op.locator('form').getByRole('button', { name: /^Create Batch$/i }).click();
     await expect(op.getByText('No batches created yet.')).toBeHidden({ timeout: 15_000 });
     await op.getByRole('button', { name: 'Start', exact: true }).first().click();
-    await expect(op.getByRole('button', { name: 'Complete', exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(op.getByRole('button', { name: 'Complete step' }).first()).toBeVisible({ timeout: 15_000 });
   });
 
   // ── 10. Packaging station: open a pallet, scan a piece, close it ────────
   let palletNo = '';
   await test.step('operator packages a piece onto a pallet', async () => {
     await op.goto('/operator/packaging');
-    await pickDropdown(op.locator('button[aria-haspopup="listbox"]').first(), new RegExp(WO));
+    await pickPalletOrder(op, new RegExp(WO));
     await op.getByRole('button', { name: /Create pallet/ }).click();
-    // The pallet card shows once a pallet is open; its number sits in its own element.
-    await expect(op.getByRole('button', { name: 'Close pallet' })).toBeVisible({ timeout: 15_000 });
-    palletNo = (await op.getByText(/^PAL-\d{6}$/).first().innerText()).trim();
+    await expect(op.getByRole('button', { name: /Close pallet/ })).toBeVisible({ timeout: 15_000 });
+    palletNo = (await op.locator('text=/PAL-\\d{6}/').first().innerText()).match(/PAL-\d{6}/)![0]; // the Pack-into menu names it too ("My pallet PAL-…")
 
     await op.getByRole('heading', { name: /Packing Station/ }).click();
     await op.keyboard.type(EAN);
@@ -208,8 +216,7 @@ test('produce a product end-to-end through the UI', async ({ page, browser }: { 
     await expect(op.getByText('Scanned!')).toBeVisible({ timeout: 15_000 });
 
     await op.getByRole('button', { name: /Close pallet/ }).click();
-    // Closed pallets leave the station's open list (other runs may leave theirs open).
-    await expect(op.getByText(palletNo, { exact: true })).toHaveCount(0, { timeout: 15_000 });
+    await expect(op.getByRole('button', { name: /Close pallet/ })).toBeHidden({ timeout: 15_000 });
   });
 
   // ── 11. Admin performs the fired QC linked to the pallet (→ Passed) ─────

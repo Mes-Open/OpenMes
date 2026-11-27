@@ -141,6 +141,22 @@ class ModuleFormFieldSeamTest extends TestCase
         ]], $this->contributionsOn($response, self::FIELD));
     }
 
+    public function test_a_checkbox_group_field_reaches_the_form(): void
+    {
+        $this->contributes(self::FIELD, [
+            'name' => 'module_example_sites',
+            'type' => 'checkbox-group',
+            'label' => 'Sites',
+            'value' => ['2'],
+            'options' => [['value' => '1', 'label' => 'North'], ['value' => '2', 'label' => 'South']],
+        ]);
+
+        $response = $this->actingAs($this->admin())->get(route('admin.users.create'))->assertOk();
+
+        $this->assertSame('checkbox-group', $this->contributionsOn($response, self::FIELD)[0]['type']);
+        $this->assertSame(['2'], $this->contributionsOn($response, self::FIELD)[0]['value']);
+    }
+
     public function test_a_field_of_an_unrenderable_type_is_dropped_and_logged(): void
     {
         Log::spy();

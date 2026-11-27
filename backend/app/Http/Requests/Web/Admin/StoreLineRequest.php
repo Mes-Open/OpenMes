@@ -2,12 +2,14 @@
 
 namespace App\Http\Requests\Web\Admin;
 
+use App\Http\Requests\Concerns\AllowsModuleFields;
 use App\Http\Requests\Concerns\MergesCustomFieldRules;
 use App\Http\Requests\Concerns\ValidatesLineStockLocation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreLineRequest extends FormRequest
 {
+    use AllowsModuleFields;
     use MergesCustomFieldRules;
     use ValidatesLineStockLocation;
 
@@ -35,7 +37,7 @@ class StoreLineRequest extends FormRequest
 
     public function rules(): array
     {
-        return array_merge([
+        return $this->withModuleFields(array_merge([
             'code' => ['required', 'string', 'max:50', 'unique:lines,code'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -44,6 +46,17 @@ class StoreLineRequest extends FormRequest
             'is_active' => ['boolean'],
             // Share of calendar capacity planning may load (100 = all of it).
             'planning_efficiency_pct' => ['nullable', 'numeric', 'min:1', 'max:100'],
-        ], $this->customFieldRules());
+        ], $this->customFieldRules()));
+    }
+
+    /** Fields an installed module adds to the line form (e.g. the plant area). */
+    protected function moduleFieldFilter(): string
+    {
+        return 'validation.admin.lines';
+    }
+
+    protected function moduleFieldContext(): array
+    {
+        return ['action' => $this->moduleFieldAction(), 'line' => $this->route('line')];
     }
 }

@@ -37,8 +37,10 @@ class BatchStep extends Model
         'config',
         'instruction',
         'requires_confirmation',
+        'quantity_entry',
         'passed_qty',
         'scrap_qty',
+        'rework_held_qty',
         'workstation_id',
         'workstation_type_id',
         'estimated_duration_minutes',
@@ -58,6 +60,8 @@ class BatchStep extends Model
         'actual_elapsed_minutes',
         'actual_setup_minutes',
         'actual_run_minutes',
+        'actual_labor_minutes',
+        'actual_machine_minutes',
         'assigned_by_id',
         'assigned_at',
     ];
@@ -68,6 +72,7 @@ class BatchStep extends Model
             'step_number' => 'integer',
             'passed_qty' => 'decimal:2',
             'scrap_qty' => 'decimal:2',
+            'rework_held_qty' => 'decimal:2',
             'estimated_duration_minutes' => 'integer',
             'setup_time_minutes' => 'integer',
             'run_time_per_unit_minutes' => 'decimal:2',
@@ -82,6 +87,8 @@ class BatchStep extends Model
             'actual_elapsed_minutes' => 'integer',
             'actual_setup_minutes' => 'integer',
             'actual_run_minutes' => 'integer',
+            'actual_labor_minutes' => 'integer',
+            'actual_machine_minutes' => 'integer',
         ];
     }
 
@@ -172,7 +179,22 @@ class BatchStep extends Model
         return [
             [BatchStepDocument::class, 'batch_step_id'],
             [BatchStepOutputValue::class, 'batch_step_id'],
+            [BatchStepTimeEntry::class, 'batch_step_id'],
+            [ReworkOperation::class, 'source_batch_step_id'],
+            [ReworkOperation::class, 'target_batch_step_id'],
         ];
+    }
+
+    /** Rework operations holding pieces at this step (#400). */
+    public function heldReworks(): HasMany
+    {
+        return $this->hasMany(ReworkOperation::class, 'source_batch_step_id');
+    }
+
+    /** Operator (labor) and machine time recorded against this step (#400). */
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(BatchStepTimeEntry::class);
     }
 
     /** Checklist-item completions recorded against this step (who/when). */
@@ -355,14 +377,18 @@ class BatchStep extends Model
         return $previous ? (float) $previous->passed_qty : (float) $this->batch->target_qty;
     }
 
-    /** Pieces that reached this step and have neither passed it nor been scrapped. */
+    /**
+     * Pieces that reached this step and have neither passed it nor been
+     * scrapped, less the pieces held here by open rework (#400) — those may not
+     * move on until the rework is accepted.
+     */
     public function availableQty(): float
     {
         if ($this->status === self::STATUS_SKIPPED) {
             return 0.0;
         }
 
-        return max(0.0, round($this->incomingQty() - (float) $this->passed_qty - (float) $this->scrap_qty, 2));
+        return max(0.0, round($this->incomingQty() - (float) $this->passed_qty - (float) $this->scrap_qty - (float) $this->rework_held_qty, 2));
     }
 
     /** True once nothing more can arrive: the feeding step is closed (or there is none). */
@@ -404,6 +430,14 @@ class BatchStep extends Model
      */
     public function completionBlocker(): ?string
     {
+        // Both flows: pieces held here by open rework (#400) must come back
+        // (accepted or scrapped) or the rework be cancelled first.
+        if ((float) $this->rework_held_qty > 0) {
+            return __(':qty pieces are held in rework at this step — finish or cancel the rework first.', [
+                'qty' => rtrim(rtrim(number_format((float) $this->rework_held_qty, 2, '.', ''), '0'), '.'),
+            ]);
+        }
+
         if (! ProductionFlow::isTransfer()) {
             return null;
         }

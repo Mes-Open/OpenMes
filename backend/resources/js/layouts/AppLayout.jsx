@@ -6,6 +6,7 @@ import { byOrder, groupMatch, mergeChildren, mergeGroups, mergeSupervisorItems, 
 import { filterNavItems, flattenNavItems, groupVisible, searchResultKeys } from '../lib/navSearch';
 import LiveAlertCount from '../components/LiveAlertCount';
 import ViewAsBar from '../components/ViewAsBar';
+import FlashToasts from '../components/FlashToasts';
 import LatestAlerts from '../components/LatestAlerts';
 import Tooltip from '../components/Tooltip';
 import HoverPanel from '../components/HoverPanel';
@@ -54,6 +55,8 @@ function moduleItemToChild(item) {
         external: true,
         order: item.order,
         badge: item.badge,
+        lucide: item.icon ?? undefined,
+        tab: item.tab ?? undefined,
     };
 }
 
@@ -206,6 +209,11 @@ function navRoot(links) {
 // Merge module-registered hooks into ADMIN_GROUPS: inject items into built-in
 // dropdowns (by aliased key) and place any custom top-level dropdowns at the
 // position the module asked for. See lib/navMerge.js for the scale.
+/** The supervisor entries modules registered, as sidebar children per group. */
+function supervisorModuleItems(moduleNav) {
+    return Object.fromEntries(Object.entries(moduleNav?.supervisor ?? {}).map(([group, list]) => [group, (list ?? []).map(moduleItemToChild)]));
+}
+
 function mergeModuleNav(moduleNav) {
     const items = moduleNav?.items ?? {};
     const groups = moduleNav?.groups ?? [];
@@ -309,11 +317,7 @@ function useNavTree() {
         if ((! isAdmin && isSupervisor) || (isAdmin && viewAs === 'supervisor')) {
             return {
                 links: withoutHidden(withGrantedTabs(withEnabledModules(SUPERVISOR_LINKS, enabledModules), allowedTabs), moduleNav?.hidden),
-                groups: withoutHidden(mergeSupervisorItems(
-                    withGrantedTabs(withEnabledModules(SUPERVISOR_GROUPS, enabledModules), allowedTabs),
-                    moduleNav?.supervisor,
-                    moduleItemToChild,
-                ), moduleNav?.hidden),
+                groups: withoutHidden(withGrantedTabs(withEnabledModules(mergeSupervisorItems(SUPERVISOR_GROUPS, supervisorModuleItems(moduleNav)), enabledModules), allowedTabs), moduleNav?.hidden),
                 // The supervisor tree is gated by the route group's role
                 // middleware, not the admin access matrix. Only its entries that
                 // carry a `tab` key (an admin page granted in Settings → Access)
@@ -380,7 +384,10 @@ export default function AppLayout({ children }) {
         <LiveShapesProvider>
         <PageTitleContext.Provider value={pageTitleCtx}>
         {/* App-wide toast stack — the replacement for window.alert(). */}
+        {/* Flash messages arrive through the same stack (FlashToasts), so a
+            redirect's "saved" floats instead of pushing the page down. */}
         <ToastProvider dismissLabel={__('Close')}>
+        <FlashToasts />
         <div className="flex h-screen overflow-hidden bg-om-bg">
             <LiveAlertCount fallback={nav?.alertCount ?? 0}>
                 {(alertCount) => (
@@ -429,6 +436,7 @@ export default function AppLayout({ children }) {
                     <div data-page-title-slot className="flex min-w-0 items-center gap-3">
                         <NavTrail items={navTrail} show={!hasPageTitle} />
                     </div>
+                    <ScopeSwitcher className="ml-auto" />
                 </header>
 
                 {/* Desktop clock (top-right) — ported from app.blade.php's clock */}
@@ -439,11 +447,13 @@ export default function AppLayout({ children }) {
                     showNavTrail={!hasPageTitle}
                 />
 
-                <main className="flex-1 overflow-auto">
+                {/* `relative` makes <main> the containing block of absolutely
+                    positioned page content (e.g. `sr-only` text), so it stays
+                    in this scroll area instead of stretching the document. */}
+                <main className="relative flex-1 overflow-auto">
                     {/* Whatever an installed module has to say on every admin
                         screen. Renders nothing when no module listens. */}
                     <Hook name="display.admin.layout" hooks={adminHooks} />
-                    <FlashMessages />
                     {children}
                 </main>
             </div>
@@ -455,54 +465,6 @@ export default function AppLayout({ children }) {
 }
 
 /**
- * The default "that worked" for a write that redirects: any controller ending in
- * `->with('success'|'error', …)` lands here, and the page itself needs no code.
- *
- * In the document flow on purpose — it should push the page down and be read,
- * having just arrived from somewhere else. That makes it the wrong choice under
- * a rapid in-place interaction (dragging rows, say), where the shift moves what
- * you were looking at; those use `useToast()` instead.
- */
-function FlashMessages() {
-    const { flash } = usePage().props;
-    // All four kinds the server shares. `warning` and `info` are the ones that
-    // explain a redirect ("you were sent here because…"), and dropping them
-    // left the user on a page they had not asked for with no word why.
-    const shown = FLASH_KINDS.filter(([kind]) => flash?.[kind]);
-    // A form saved at the bottom of a long page redirects back to the same,
-    // still scrolled, page: the message lands above the fold and the save
-    // looks like it did nothing. Bring a new message into view.
-    // Keyed on the flash object: every visit brings a new one, so saving twice
-    // with the same message still scrolls the second time.
-    const ref = useRef(null);
-    useEffect(() => {
-        const el = ref.current;
-        if (!el) return;
-        // Above the top of the scrolling <main> (under the header) counts as hidden.
-        const top = el.closest('main')?.getBoundingClientRect().top ?? 0;
-        if (el.getBoundingClientRect().top >= top) return;
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, [flash]);
-    if (shown.length === 0) return null;
-    return (
-        <div ref={ref} className="mb-4 space-y-2 scroll-mt-4">
-            {shown.map(([kind, tone, role]) => (
-                <div key={kind} role={role} className={`p-3 rounded-om-sm border border-om-line text-[13px] ${tone}`}>
-                    {__(flash[kind])}
-                </div>
-            ))}
-        </div>
-    );
-}
-
-const FLASH_KINDS = [
-    ['success', 'bg-om-running-bg text-om-running', 'status'],
-    ['error', 'bg-om-blocked-bg text-om-blocked', 'alert'],
-    ['warning', 'bg-om-downtime-bg text-om-downtime', 'alert'],
-    ['info', 'bg-om-chip text-om-ink', 'status'],
-];
-
-/**
  * Desktop-only live clock shown top-right on every page (parity with the
  * clock the Blade app.blade.php rendered above <main>). Isolated
  * so its per-second tick only re-renders this component, not the whole layout.
@@ -512,6 +474,45 @@ const FLASH_KINDS = [
 function NavTrail({ items, show }) {
     if (!show || items.length === 0) return null;
     return <Breadcrumbs linkAs={Link} items={items} />;
+}
+
+/**
+ * Which part of the installation the page shows — e.g. one plant, or all of
+ * them — when a module divides the installation into scopes. The server sends
+ * the `scopeSwitcher` prop (App\Extension\Contracts\ScopeProvider); without
+ * such a module it is null and nothing renders.
+ *
+ * A plain form POST rather than an Inertia visit, on purpose: the choice
+ * changes which live channels every collection listens on and which rows its
+ * snapshot holds, and those live in the persistent layout. A full page load is
+ * the one way to drop them all and start again in the new scope.
+ */
+function ScopeSwitcher({ className = '' }) {
+    const { scopeSwitcher: s, csrf_token } = usePage().props;
+    const formRef = useRef(null);
+    if (!s || !Array.isArray(s.options) || s.options.length === 0) return null;
+
+    return (
+        <form ref={formRef} method="post" action={s.action} className={`flex shrink-0 items-center gap-2 ${className}`}>
+            <input type="hidden" name="_token" value={csrf_token} />
+            <label className="flex items-center gap-2 text-[13px] text-om-faint">
+                <UiIcon name="factory" size={14} />
+                <span className="hidden sm:inline">{s.label}</span>
+                <select
+                    name="scope"
+                    data-testid="scope-switcher"
+                    aria-label={s.label}
+                    defaultValue={s.current}
+                    onChange={() => formRef.current?.submit()}
+                    className="max-w-[14rem] cursor-pointer rounded-om-sm border border-om-line bg-om-bg px-2 py-1 text-[13px] text-om-ink outline-none focus:border-om-accent"
+                >
+                    {s.options.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                </select>
+            </label>
+        </form>
+    );
 }
 
 function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrail = false }) {
@@ -557,6 +558,7 @@ function DesktopClock({ collapsed, onToggleCollapsed, navTrail = [], showNavTrai
             <div data-page-title-slot className="flex min-w-0 flex-1 items-center gap-3">
                 <NavTrail items={navTrail} show={showNavTrail} />
             </div>
+            <ScopeSwitcher />
             <div className="flex shrink-0 items-center gap-2 text-[13px] text-om-faint">
                 <UiIcon name="clock" size={14} />
                 <span>{t.date}</span>

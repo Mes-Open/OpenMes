@@ -31,6 +31,7 @@ class UpdateTemplateStepRequest extends FormRequest
             'config.weight_expected_g' => ['nullable', 'numeric', 'gt:0', 'max:1000000'],
             'config.weight_tolerance_g' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'instruction' => ['sometimes', 'nullable', 'string'],
+            'quantity_entry' => ['sometimes', Rule::in(TemplateStep::QUANTITY_ENTRIES)],
             'estimated_duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'setup_time_minutes' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'run_time_per_unit_minutes' => ['sometimes', 'nullable', 'numeric', 'min:0'],

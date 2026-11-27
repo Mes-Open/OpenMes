@@ -7,7 +7,7 @@ import { __ } from '../../lib/i18n';
 import ErpApiKeys from './ErpApiKeys';
 
 export default function ApiTokens() {
-    const { tokens, newToken, newTokenName, newTokenScope, appUrl, csrf_token, scopes = [], erpEnabled, erpScopes } = usePage().props;
+    const { tokens, newToken, newTokenName, newTokenScope, appUrl, csrf_token, scopes = [], erpEnabled, erpScopes, erpKeyHooks = {} } = usePage().props;
     const [copied, setCopied] = useState(false);
     // Pending revoke confirmation — holds the token row + its <form> element so
     // confirming submits the exact same native DELETE form.
@@ -189,7 +189,7 @@ export default function ApiTokens() {
             )}
 
             {/* ERP integration keys — scoped machine credentials for /api/v1/erp */}
-            {erpEnabled && <ErpApiKeys scopes={erpScopes ?? []} />}
+            {erpEnabled && <ErpApiKeys scopes={erpScopes ?? []} hooks={erpKeyHooks} />}
 
             {/* Usage Info */}
             <div className="bg-om-card border border-om-line rounded-om p-6 mt-6">

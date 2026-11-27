@@ -30,6 +30,8 @@ class IssueUnitBatchTest extends TestCase
         $this->operator->assignRole('Operator');
         $product = ProductType::factory()->create();
         $this->wo = WorkOrder::factory()->create(['product_type_id' => $product->id, 'status' => WorkOrder::STATUS_IN_PROGRESS]);
+        // The station works on the order's line (unit actions are line-scoped).
+        $this->withSession(['selected_line_id' => $this->wo->line_id]);
         LabelTemplate::create(['name' => 'SN', 'type' => LabelTemplate::TYPE_SERIAL_UNIT, 'size' => '80x40', 'barcode_format' => 'code128', 'fields_config' => ['serial_no' => true, 'psn' => true, 'qr' => true, 'barcode' => true], 'is_default' => true, 'is_active' => true]);
     }
 

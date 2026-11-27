@@ -34,9 +34,81 @@ class Shift extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // A saved shift may now cover other lines; and refresh() reloads
+        // attributes without saving, so it is cleared there too.
+        static::saved(function (self $shift) {
+            $shift->coverage = null;
+        });
+    }
+
+    public function refresh()
+    {
+        $this->coverage = null;
+
+        return parent::refresh();
+    }
+
     public function line(): BelongsTo
     {
         return $this->belongsTo(Line::class);
+    }
+
+    /** @var array{key: string, line_ids: list<int>|null}|null */
+    private ?array $coverage = null;
+
+    /**
+     * Which lines this shift runs on, and what it is set for.
+     *
+     * Core knows two answers: a shift with a `line_id` runs on that line, one
+     * without runs on every line. An installed module may narrow a shift with
+     * no line to a group of lines through the `shifts.coverage` filter — the
+     * multi-site module gives each plant its own shifts that way. `key` names
+     * the group: shifts are only checked for overlap against others with the
+     * same key.
+     *
+     * Remembered per instance: shift lists are walked once per line and day.
+     *
+     * @return array{key: string, line_ids: list<int>|null}
+     */
+    public function coverage(): array
+    {
+        if ($this->coverage !== null) {
+            return $this->coverage;
+        }
+
+        $default = $this->line_id !== null
+            ? ['key' => 'line:'.$this->line_id, 'line_ids' => [(int) $this->line_id]]
+            : ['key' => 'all', 'line_ids' => null];
+
+        $coverage = app(\App\Extension\FilterRegistry::class)->filter('shifts.coverage', $default, ['shift' => $this]);
+
+        return $this->coverage = is_array($coverage) && isset($coverage['key']) && array_key_exists('line_ids', $coverage)
+            ? ['key' => (string) $coverage['key'], 'line_ids' => $coverage['line_ids'] === null ? null : array_map('intval', $coverage['line_ids'])]
+            : $default;
+    }
+
+    /** The lines this shift runs on; null = every line. */
+    public function lineIds(): ?array
+    {
+        return $this->coverage()['line_ids'];
+    }
+
+    /**
+     * Does this shift run on the line? A null line asks about the plant as a
+     * whole, where every shift counts. With `$plantWide` false a shift that runs
+     * on every line does not count — only one set for this line (or its group).
+     */
+    public function runsOnLine(?int $lineId, bool $plantWide = true): bool
+    {
+        if ($lineId === null) {
+            return true;
+        }
+
+        $lines = $this->lineIds();
+
+        return $lines === null ? $plantWide : in_array($lineId, $lines, true);
     }
 
     public function shiftEntries(): HasMany
@@ -54,9 +126,8 @@ class Shift extends Model
         $time = $now->format('H:i:s');
 
         return static::where('is_active', true)
-            ->when($lineId, fn ($q) => $q->where(fn ($q2) => $q2->where('line_id', $lineId)->orWhereNull('line_id')
-            ))
             ->get()
+            ->filter(fn (self $shift) => $shift->runsOnLine($lineId ?: null))
             ->first(function (self $shift) use ($dayOfWeek, $time) {
                 if (is_array($shift->days_of_week) && ! in_array($dayOfWeek, $shift->days_of_week)) {
                     return false;

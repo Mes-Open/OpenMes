@@ -75,6 +75,33 @@ function OptionalVariantFields({ data, setData, errors }) {
             <p className="md:col-span-3 -mt-2 text-xs text-om-muted">
                 {__('When on, the operator must acknowledge the instructions before this step can be completed.')}
             </p>
+
+            <div className="md:col-span-3 border-t border-om-line pt-3">
+                <div className="form-label">{__('Quantity entry')}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label={__('Quantity entry')}>
+                    {[
+                        { value: 'quantities', label: __('Record quantities'), desc: __('The operator types how many pieces are good and how many scrapped, with a small +1 for a single piece.') },
+                        { value: 'piece', label: __('+1 per piece'), desc: __('One large +1 per good piece and one per scrapped piece, for a station that hands pieces on one at a time.') },
+                    ].map((opt) => {
+                        const on = (data.quantity_entry ?? 'quantities') === opt.value;
+                        return (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                role="radio"
+                                aria-checked={on}
+                                onClick={() => setData('quantity_entry', opt.value)}
+                                className={`text-left rounded-om-sm border px-3 py-2.5 cursor-pointer ${on ? 'border-om-accent bg-om-accent-bg' : 'border-om-line hover:bg-om-bg'}`}
+                            >
+                                <span className="block text-[13px] font-semibold text-om-ink">{opt.label}</span>
+                                <span className="block text-xs text-om-muted mt-0.5">{opt.desc}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+                <p className="text-xs text-om-muted mt-1">{__('Used when production flow is set to Transfer, where pieces are logged as they leave the step.')}</p>
+                {errors.quantity_entry && <p className="text-om-blocked text-xs mt-1">{errors.quantity_entry}</p>}
+            </div>
         </div>
     );
 }
@@ -362,6 +389,7 @@ function AddStepForm({ productType, processTemplate, processSegments, workstatio
         name: '',
         instruction: '',
         requires_confirmation: false,
+        quantity_entry: 'quantities',
         estimated_duration_minutes: '',
         setup_time_minutes: '',
         run_time_per_unit_minutes: '',
@@ -507,6 +535,7 @@ function EditStepForm({ step, productType, processTemplate, processSegments, wor
         name: step.name ?? '',
         instruction: step.instruction ?? '',
         requires_confirmation: !!step.requires_confirmation,
+        quantity_entry: step.quantity_entry ?? 'quantities',
         estimated_duration_minutes: step.estimated_duration_minutes != null ? String(step.estimated_duration_minutes) : '',
         setup_time_minutes: step.setup_time_minutes != null ? String(step.setup_time_minutes) : '',
         run_time_per_unit_minutes: step.run_time_per_unit_minutes != null ? String(step.run_time_per_unit_minutes) : '',
@@ -988,6 +1017,11 @@ function StepCard({
                                     {step.requires_confirmation && (
                                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-blocked-bg text-om-blocked">
                                             {__('Read-confirmation')}
+                                        </span>
+                                    )}
+                                    {step.quantity_entry === 'piece' && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-om-accent-bg text-om-accent">
+                                            {__('+1 per piece')}
                                         </span>
                                     )}
                                 </h3>

@@ -108,35 +108,29 @@ export function groupMatch(match, children) {
 }
 
 /**
- * Links modules registered for supervisors (MenuRegistry::addSupervisorItem),
- * merged into the supervisor dropdowns. `items` is keyed by the group name
- * without its "supervisor-" prefix; a name the tree does not have falls back
- * to production, so a link is never lost. `toChild` turns a registry item into
- * a nav entry (AppLayout's moduleItemToChild).
+ * Put module links into the supervisor sidebar's groups.
  *
- * @param {Array<{key: string, match?: string[], children?: object[], badge?: string}>} groups
- * @param {Record<string, Array<object>>|undefined} items
- * @param {(item: object) => object} toChild
+ * MenuRegistry::addSupervisorItem() names a group by its short key (orders,
+ * production, materials, logistics, reports); supervisorNav.js keys the same
+ * groups `supervisor-<key>`. A group that gets links also matches their paths,
+ * so it opens and lights up on the module's own screens, and takes the first
+ * link's badge when it has none of its own.
+ *
+ * @param {Array<object>} groups  SUPERVISOR_GROUPS
+ * @param {Record<string, Array<object>>} items  short group key => sidebar children
  */
-export function mergeSupervisorItems(groups, items, toChild) {
-    const keys = new Set(groups.map((g) => g.key));
-    const injected = {};
-    for (const [group, list] of Object.entries(items ?? {})) {
-        const key = keys.has(`supervisor-${group}`) ? `supervisor-${group}` : 'supervisor-production';
-        injected[key] = [...(injected[key] ?? []), ...(list ?? []).map(toChild)];
-    }
-
-    return groups.map((g) => {
-        const extra = injected[g.key];
+export function mergeSupervisorItems(groups, items) {
+    return groups.map((group) => {
+        const extra = items?.[group.key.replace(/^supervisor-/, '')];
         if (! extra?.length) {
-            return g;
+            return group;
         }
 
         return {
-            ...g,
-            badge: g.badge ?? extra.find((child) => child.badge)?.badge,
-            match: groupMatch(g.match, extra),
-            children: mergeChildren(g.children ?? [], extra),
+            ...group,
+            badge: group.badge ?? extra.find((child) => child.badge)?.badge,
+            match: groupMatch(group.match, extra),
+            children: mergeChildren(group.children, extra),
         };
     });
 }

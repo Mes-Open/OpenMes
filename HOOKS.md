@@ -223,6 +223,13 @@ $menu->addItem('production', 'My Page', url('/modules/your-module'), order: 90);
 $menu->addGroup('yourmod', 'Your Module', order: 55);
 // (c) … and add links to it
 $menu->addGroupItem('yourmod', 'Overview', url('/modules/your-module'), order: 10);
+
+// Optional: a Lucide icon, and the access tab the viewer needs to see the entry.
+$menu->addItem('warehouses', 'Certificates', '/admin/certificates', order: 35, icon: 'file-badge', tab: 'materials');
+
+// The supervisor sees their own sidebar; reach it with addSupervisorItem()
+// (see "Supervisor sidebar" below). The module's routes must let Supervisor in.
+$menu->addSupervisorItem('production', 'Register', '/admin/register', order: 90, icon: 'list-checks');
 ```
 
 Resolve URLs with `url()` (not `route()`) so registration never depends on route
@@ -253,9 +260,9 @@ Supervisors have their own menu (their pages live under `/supervisor`), so
 them. A module whose screen a supervisor uses registers it here too:
 
 ```php
-// group (orders | production | logistics | reports - unknown keys land in
-// production), label, url, order, optional badge.
-$menu->addSupervisorItem('production', 'Pallets', url('/modules/pallets'), order: 60);
+// group (orders | production | materials | logistics | reports - any other key
+// throws), label, url, order, optional Lucide icon and badge.
+$menu->addSupervisorItem('production', 'Pallets', url('/modules/pallets'), order: 60, icon: 'boxes', badge: 'BH');
 ```
 
 They arrive as `moduleNav.supervisor` and merge into the supervisor dropdowns.
@@ -340,6 +347,15 @@ $widgets->register('kpi', [
 ], order: 50);
 ```
 
+A value that changes (a count, a status) belongs in a callable, not in an array
+built in `boot()`: under Octane a provider boots once per worker, so the array
+would keep the value of that moment. The callable runs on every dashboard render
+and returns the card, or `null` for none:
+
+```php
+$widgets->register('kpi', fn () => ['title' => 'Open jobs', 'metric' => (string) Job::open()->count()]);
+```
+
 Zones: `kpi` and `sidebar` render as compact cards in the grid under the core
 KPIs; `main` renders as a full-width card at the bottom of the dashboard column.
 
@@ -373,6 +389,11 @@ app(FilterRegistry::class)->addFilter('operator.can_logout', fn (bool $can, arra
 
 ### Display hooks
 
+Every contribution's `href` must be a path on this site (`/…`) or an http(s) URL;
+anything else (`javascript:`, `//host`, a backslash or a control character) is
+dropped with a warning in the log. A listener that throws is reported and skipped,
+so a failing module loses its contribution instead of breaking the page.
+
 ```
 display.operator.workstation.shift_cell   context: entry, workOrder, shift, canCorrect   (replaces the whole shift cell)
 display.operator.work_order.sections      context: workOrder                 (rendered after the BOM section)
@@ -380,6 +401,7 @@ display.operator.quantity_field           props: value, onChange, variant     (r
 display.operator.layout                   (no context)                        (rendered at the top of every operator screen)
 display.admin.layout                      (no context)                        (rendered above the page on every admin screen)
 display.settings.system.tabs              contribution: slot, title, component (one tab each on Settings → System)
+display.settings.index.cards              context: user; contribution: title, body, href (one card each on Settings)
 display.auth.login.before                 (no context)                        (rendered above the sign-in form)
 display.auth.login.after                  (no context)                        (rendered below the sign-in form)
 ```
@@ -394,6 +416,7 @@ The PHP-side context a listener receives:
 | `display.operator.layout` | `HandleInertiaRequests` (shared `operatorHooks`) | `user` |
 | `display.admin.layout` | `HandleInertiaRequests` (shared `adminHooks`) | `user` |
 | `display.settings.system.tabs` | `SettingsController::showSystemSettings` | — |
+| `display.settings.index.cards` | `SettingsController::index` | `user` |
 | `display.auth.login.before`, `display.auth.login.after` | `AuthController::showLoginForm` | — |
 
 Notes:
@@ -406,6 +429,15 @@ Notes:
   `ext-<slot>` (linkable as `?tab=ext-<slot>`) labelled `title`. Its component
   renders outside the core settings form, so core's Save button is not shown
   there: the module saves through its own route.
+- **`settings.index.cards`** — each contribution is a card in the list every user
+  sees on Settings, after core's own, linking to the module's settings page:
+  `title`, optional `body` (the line under it) and `href` (a path on this site or
+  an http(s) URL; anything else is not shown). Plain fields, so a module installed
+  from a ZIP can add one. The card is a full page load, so the page behind it may
+  be Blade or Inertia. The listener gets the signed-in `user` — return `null` to
+  leave someone out (a page only admins may open, say). Hiding the card is
+  cosmetic: the module's route must still check who may open it (`role:` middleware
+  or a policy), since anyone can type the address.
 - **`operator.layout`** and **`admin.layout`** are resolved on every Inertia
   response, like any shared prop — a listener should return `null` cheaply where
   it has nothing to show.
@@ -511,7 +543,7 @@ class SyncToErp implements ShouldQueue
 `User\UserAssignedToLine`, `Resource\ResourceChanged` (generic CRUD),
 `Schedule\WorkOrderScheduled`.
 
-**Menu** (`App\Services\MenuRegistry`): `addItem`, `addGroup`, `addGroupItem`.
+**Menu** (`App\Services\MenuRegistry`): `addItem`, `addGroup`, `addGroupItem`, `addSupervisorItem`.
 
 **Widgets** (`App\Services\WidgetRegistry`): `register` — zones `kpi`, `main`,
 `sidebar`.
@@ -519,7 +551,7 @@ class SyncToErp implements ShouldQueue
 **Display hooks** (`App\Extension\HookRegistry`): `display.operator.workstation.actor`,
 `display.operator.workstation.shift_cell`, `display.operator.work_order.sections`,
 `display.operator.quantity_field`, `display.operator.layout`,
-`display.admin.layout`, `display.settings.system.tabs`,
+`display.admin.layout`, `display.settings.system.tabs`, `display.settings.index.cards`,
 `display.auth.login.before`, `display.auth.login.after`.
 
 **Filters** (`App\Extension\FilterRegistry`): `operator.tabs`,

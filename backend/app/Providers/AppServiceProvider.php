@@ -61,6 +61,14 @@ class AppServiceProvider extends ServiceProvider
             \App\Extension\Contracts\WorkforceCapacityProvider::class,
             \App\Services\Schedule\Finite\AssignedStaffCapacityProvider::class,
         );
+        // How the installation divides into scopes (plants, …) for the header
+        // switcher and live sync. Core has one scope; a module rebinds this.
+        // bind(), not singleton(): the module's binding must win and is
+        // typically per-request.
+        $this->app->bind(
+            \App\Extension\Contracts\ScopeProvider::class,
+            \App\Extension\Contracts\Null\NullScopeProvider::class,
+        );
         // Request-scoped tenant for headless (API-key) contexts. Set per request
         // by AuthenticateApiKey; falls through to null for user-authenticated
         // requests, which resolve the tenant from the logged-in user instead.
@@ -175,6 +183,13 @@ class AppServiceProvider extends ServiceProvider
             \App\Listeners\GenerateWorkOrderStockDocuments::class,
         );
 
+        // Operator and machine time (#400): a workstation's RUNNING state
+        // records machine time on the step in progress there.
+        Event::listen(
+            \App\Events\Machine\WorkstationStateChanged::class,
+            \App\Listeners\RecordStepMachineTime::class,
+        );
+
         // Outgoing webhooks (#20): observe the source models so a status change /
         // creation fans out to subscribed endpoints. The dispatcher is
         // best-effort and never breaks the underlying write.
@@ -222,13 +237,19 @@ class AppServiceProvider extends ServiceProvider
                 $model = $data[0] ?? null;
                 $hooked = $hookedModels();
                 if ($model instanceof \Illuminate\Database\Eloquent\Model && isset($hooked[$model::class])) {
-                    // A throwing module listener must never break the core write
-                    // that triggered it (mirrors the best-effort webhook observers).
-                    try {
-                        event(new \App\Events\Resource\ResourceChanged($model, $verb));
-                    } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::warning('ResourceChanged hook failed', ['error' => $e->getMessage()]);
-                    }
+                    // Once committed, like webhooks and live broadcasts: a write
+                    // that is rolled back (a refused save, a failed transaction)
+                    // must not reach a module that may already have told an
+                    // outside system about it. Outside a transaction it runs at once.
+                    \Illuminate\Support\Facades\DB::afterCommit(function () use ($model, $verb) {
+                        // A throwing module listener must never break the core write
+                        // that triggered it (mirrors the best-effort webhook observers).
+                        try {
+                            event(new \App\Events\Resource\ResourceChanged($model, $verb));
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::warning('ResourceChanged hook failed', ['error' => $e->getMessage()]);
+                        }
+                    });
                 }
             });
         }

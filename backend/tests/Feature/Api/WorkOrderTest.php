@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Api;
 
-use App\Models\User;
 use App\Models\Line;
-use App\Models\ProductType;
 use App\Models\ProcessTemplate;
+use App\Models\ProductType;
+use App\Models\User;
 use App\Models\WorkOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -24,6 +24,7 @@ class WorkOrderTest extends TestCase
     {
         $user = User::factory()->create();
         $user->assignRole($role);
+
         return $user;
     }
 
@@ -184,7 +185,10 @@ class WorkOrderTest extends TestCase
     public function test_cannot_update_completed_work_order(): void
     {
         $user = $this->authenticatedUser('Admin');
-        $workOrder = WorkOrder::factory()->done()->create();
+        // Fixed quantities: done() copies the factory's random planned quantity
+        // into produced_qty before create() overrides apply, and above 150 that
+        // failed validation first (422) instead of reaching the completed-order guard.
+        $workOrder = WorkOrder::factory()->done()->create(['planned_qty' => 100, 'produced_qty' => 100]);
 
         $token = $user->createToken('test')->plainTextToken;
 

@@ -214,11 +214,35 @@ class ErpWorkOrderSettlementTest extends TestCase
     {
         $wo = $this->settledOrder('WO-ONE');
 
-        foreach (['consumption', 'scrap', 'costs'] as $section) {
+        foreach (['consumption', 'scrap', 'costs', 'operations'] as $section) {
             $data = $this->getAs("/api/v1/erp/work-orders/{$wo->id}?include={$section}")->assertOk()->json('data');
 
             $this->assertEqualsCanonicalizing([...self::SHOW_KEYS, $section], array_keys($data), $section);
         }
+    }
+
+    public function test_operations_include_reports_labor_and_machine_minutes_per_step(): void
+    {
+        $wo = $this->settledOrder('WO-OPS');
+        $step = BatchStep::whereHas('batch', fn ($q) => $q->where('work_order_id', $wo->id))->firstOrFail();
+        $step->update([
+            'duration_minutes' => 70,
+            'actual_elapsed_minutes' => 65,
+            'actual_setup_minutes' => 15,
+            'actual_run_minutes' => 50,
+            'actual_labor_minutes' => 40,
+            'actual_machine_minutes' => 60,
+        ]);
+
+        $operations = $this->getAs("/api/v1/erp/work-orders/{$wo->id}?include=operations")->assertOk()->json('data.operations');
+
+        $this->assertCount(1, $operations);
+        $this->assertSame(1, $operations[0]['batch_number']);
+        $this->assertSame(2, $operations[0]['step_number']);
+        $this->assertSame('Mixing', $operations[0]['name']);
+        $this->assertSame(65, $operations[0]['actual_elapsed_minutes']);
+        $this->assertSame(40, $operations[0]['actual_labor_minutes']);
+        $this->assertSame(60, $operations[0]['actual_machine_minutes']);
     }
 
     public function test_include_tolerates_spaces_and_duplicates(): void
