@@ -52,7 +52,7 @@ class BatchController extends Controller
     public function pickPreview(Request $request, BatchStep $batchStep)
     {
         if (! $this->servesStep($request, $batchStep)) {
-            return response()->json(['message' => 'This step does not belong to the selected line.'], 403);
+            return response()->json(['message' => __('This step does not belong to the selected line.')], 403);
         }
 
         return response()->json([
@@ -131,7 +131,7 @@ class BatchController extends Controller
     public function completeStep(CompleteBatchStepRequest $request, BatchStep $batchStep)
     {
         if (! $this->servesStep($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         // Operator-confirmed actual times (ISA-95 L3, #52) — from the completion
@@ -139,7 +139,7 @@ class BatchController extends Controller
         try {
             $this->batchService->completeStep($batchStep, $request->user(), $request->validated());
 
-            return back()->with('success', 'Step completed.');
+            return back()->with('success', __('Step completed.'));
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -199,12 +199,12 @@ class BatchController extends Controller
         $step = $batchStepDocument->batchStep;
 
         if (! $step || ! $this->servesStep($request, $step)) {
-            return back()->with('error', 'This document does not belong to the selected line.');
+            return back()->with('error', __('This document does not belong to the selected line.'));
         }
 
         $batchStepDocument->markValidated($request->user());
 
-        return back()->with('success', 'Document validated.');
+        return back()->with('success', __('Document validated.'));
     }
 
     /**
@@ -297,7 +297,7 @@ class BatchController extends Controller
     public function toggleChecklistItem(Request $request, BatchStep $batchStep, TemplateStepChecklistItem $checklistItem)
     {
         if (! $this->servesStep($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         // Anti-IDOR: the item must belong to this step's template and step number.
@@ -305,7 +305,7 @@ class BatchController extends Controller
         $checklistItem->loadMissing('templateStep:id,step_number');
         if ($checklistItem->process_template_id !== $templateId
             || $checklistItem->templateStep?->step_number !== $batchStep->step_number) {
-            return back()->with('error', 'This checklist item does not belong to this step.');
+            return back()->with('error', __('This checklist item does not belong to this step.'));
         }
 
         $existing = BatchStepChecklistCompletion::where('batch_step_id', $batchStep->id)
@@ -315,7 +315,7 @@ class BatchController extends Controller
         if ($existing) {
             $existing->delete();
 
-            return back()->with('success', 'Checklist item unchecked.');
+            return back()->with('success', __('Checklist item unchecked.'));
         }
 
         BatchStepChecklistCompletion::create([
@@ -325,7 +325,7 @@ class BatchController extends Controller
             'checked_at' => now(),
         ]);
 
-        return back()->with('success', 'Checklist item checked.');
+        return back()->with('success', __('Checklist item checked.'));
     }
 
     /**
@@ -337,7 +337,7 @@ class BatchController extends Controller
     public function recordOutput(Request $request, BatchStep $batchStep, TemplateStepOutput $output, ImageSanitizer $sanitizer)
     {
         if (! $this->servesStep($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         // Anti-IDOR: the output must belong to this step's template + step number.
@@ -345,7 +345,7 @@ class BatchController extends Controller
         $output->loadMissing('templateStep:id,step_number');
         if ($output->process_template_id !== $templateId
             || $output->templateStep?->step_number !== $batchStep->step_number) {
-            return back()->with('error', 'This output does not belong to this step.');
+            return back()->with('error', __('This output does not belong to this step.'));
         }
 
         $attrs = [
@@ -476,13 +476,13 @@ class BatchController extends Controller
     public function chooseVariant(Request $request, BatchStep $batchStep)
     {
         if (! $this->servesStep($request, $batchStep)) {
-            return back()->with('error', 'This step does not belong to the selected line.');
+            return back()->with('error', __('This step does not belong to the selected line.'));
         }
 
         try {
             $this->batchService->chooseVariant($batchStep, $request->user());
 
-            return back()->with('success', 'Variant selected.');
+            return back()->with('success', __('Variant selected.'));
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
