@@ -44,6 +44,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   - a `settings.value` filter on the production targets (scrap rate, first-pass yield).
     Settings → System keeps editing the installation's own values.
 
+- **Rework routing (#400).** From an issue, a supervisor sends affected pieces back to an
+  earlier step (*Issues → Rework*), with quantity, reason and the step to redo. Until the
+  rework ends, the pieces are held at the step where the defect was found: they can't move
+  on or count as produced, and that step can't be completed.
+  - **On the operator panel:** the operator starts the rework, clocks on and runs the
+    machine for it, then completes it. Accepted pieces return to their step; scrapped
+    pieces are booked as scrap there.
+  - **Cancelling** releases the pieces unchanged.
+  - **Unchanged:** the original step's quantities, times and material. No material is
+    allocated again.
+  - **Time:** the rework records its own operator and machine time.
+  - **REST:** `/api/v1/issues/{id}/rework-operations` and `/api/v1/rework-operations/…`.
 - **Separate operator and machine time per operation (#400).** A running step now records
   operator (labor) time and machine time independently. On the operator panel, the operator
   taps **Clock on** / **Clock off**, and **Start machine** / **Stop machine** for the

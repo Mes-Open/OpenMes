@@ -304,7 +304,8 @@ class BatchService
             if (abs((float) $step->passed_qty - $expected) > 0.001) {
                 throw new \DomainException(__('The quantity changed. Refresh and review it before correcting.'));
             }
-            if ($good + (float) $step->scrap_qty > $step->incomingQty() + 0.001) {
+            // Pieces held here by open rework (#400) may not be passed on.
+            if ($good + (float) $step->scrap_qty + (float) $step->rework_held_qty > $step->incomingQty() + 0.001) {
                 throw new \DomainException(__('The correction exceeds the incoming quantity.'));
             }
             $downstream = $batch->steps->filter(fn ($s) => $s->step_number > $step->step_number && $s->status !== BatchStep::STATUS_SKIPPED)->sortBy('step_number');
@@ -509,6 +510,11 @@ class BatchService
 
             if (! $step->canSkip()) {
                 throw new \Exception('This step is required and cannot be skipped.');
+            }
+
+            // Pieces held here by open rework (#400) must come back first.
+            if ((float) $step->rework_held_qty > 0) {
+                throw new \DomainException($step->completionBlocker());
             }
 
             $this->guardUnprocessedRouting($step);
