@@ -162,4 +162,16 @@ class OptionalVariantStepExecutionTest extends TestCase
 
         $this->assertTrue($batch->fresh()->allStepsComplete());
     }
+
+    public function test_skipping_ahead_keeps_an_accepted_order_accepted(): void
+    {
+        $batch = $this->makeBatch();
+        $batch->workOrder->update(['status' => WorkOrder::STATUS_ACCEPTED]);
+
+        $this->actingOperator($batch)
+            ->post("/operator/batch-step/{$this->step($batch, 2)->id}/skip")
+            ->assertSessionHas('success');
+
+        $this->assertSame(WorkOrder::STATUS_ACCEPTED, $batch->workOrder->fresh()->status);
+    }
 }

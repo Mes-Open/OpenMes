@@ -322,6 +322,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   ones were still to be done: an operator could start "remove winding" before winding.
   A step now waits until every earlier step is done or skipped, and a refused start names
   the first step still open.
+- **Skipping a step ahead no longer undoes an order's acceptance.** An order whose batch had
+  not started yet was put back from *Accepted* to *Pending* whenever its status was
+  recalculated, which a skip does. An accepted order now stays accepted until it starts.
 
 - **Admin pages no longer scroll the whole window.** Screen-reader-only text in the page
   content (e.g. the severity of a *Needs action* row on the dashboard) escaped the scroll
