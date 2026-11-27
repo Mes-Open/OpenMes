@@ -55,6 +55,68 @@ export function ModalShell({ title, subtitle, onClose, children }) {
 }
 
 /**
+ * May the operator skip this step? An optional step, or one alternative of a
+ * variant group, that is not finished yet - the same rule as the server's
+ * BatchStep::canSkip(). The panel's payload carries it as `can_skip`; the
+ * order page has the step's own fields.
+ */
+export function canSkipStep(step) {
+    if (step.can_skip !== undefined) return !!step.can_skip;
+    return (!!step.is_optional || !!step.variant_group) && ['PENDING', 'READY', 'IN_PROGRESS'].includes(step.status);
+}
+
+/**
+ * Skip an optional (or variant) step, with an optional reason kept for audit.
+ * Stays open on a refusal so the operator reads why.
+ */
+export function SkipStepModal({ step, onClose }) {
+    const [reason, setReason] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+    const tooLong = reason.length > 255;
+
+    const submit = () => {
+        if (tooLong) return;
+        setSaving(true);
+        setError(null);
+        router.post(`/operator/batch-step/${step.id}/skip`, { skip_reason: reason.trim() || null }, {
+            preserveScroll: true,
+            onError: (errors) => setError(Object.values(errors).join(' ')),
+            onSuccess: (page) => (page.props.flash?.error ? setError(page.props.flash.error) : onClose()),
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    return (
+        <ModalShell title={__('Skip step')} subtitle={step.name} onClose={onClose}>
+            <div className="px-[18px] py-4 space-y-2">
+                <p className="m-0 text-[13px] text-om-muted leading-[1.5]">
+                    {__('This step is optional. Skipping it moves the batch on to the next step.')}
+                </p>
+                <label className="block">
+                    <span className="block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1">{__('Reason (optional)')}</span>
+                    <textarea
+                        aria-label={__('Reason (optional)')}
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        rows={3}
+                        className="w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-[14px]"
+                    />
+                </label>
+                {tooLong && <p className={errorCls}>{__('The reason may be at most 255 characters.')}</p>}
+                {error && <p role="alert" className={errorCls}>{error}</p>}
+            </div>
+            <div className={modalFooterCls}>
+                <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                <Button variant="primary" disabled={saving || tooLong} onClick={submit}>
+                    {saving ? '…' : __('Skip step')}
+                </Button>
+            </div>
+        </ModalShell>
+    );
+}
+
+/**
  * Confirm-actual-times modal (#52), shown at step completion only for steps with
  * ISA-95 standard times configured. Prefills elapsed from started_at→now and the
  * setup/run split from the plan; the operator can correct them. Setup + run must

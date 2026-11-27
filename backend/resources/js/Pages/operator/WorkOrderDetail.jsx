@@ -18,7 +18,7 @@ import { customFieldInitial, customFieldProps, submitForm } from '../../lib/cust
 import { __, formatDate, formatDateTime, formatNumber, todayInPlant } from '../../lib/i18n';
 import { readParam, writeParams } from '../../lib/urlState';
 import { serialStatusBadge, serialStatusLabel } from '../../lib/serialStatus';
-import { ConfirmTimesModal, LotPickModal, ModalShell } from '../../components/operator/StepModals';
+import { ConfirmTimesModal, LotPickModal, ModalShell, SkipStepModal, canSkipStep } from '../../components/operator/StepModals';
 import { pickCurrentStep } from '../../components/operator/ExecutionPanel';
 import { historyTitle } from '../admin/traceability/results';
 import { fmtQty as qtyS, monoLabelCls, pillCls, priorityTag, statusMeta } from '../../components/operator/operatorUi';
@@ -1114,6 +1114,7 @@ function BatchStepList({ steps, current = null, labelTemplates = [], stepPhotos 
     const [photoZoom, setPhotoZoom] = useState(null);
     const [pickModal, setPickModal] = useState(null); // { step, materials } | null
     const [completeModal, setCompleteModal] = useState(null); // { step } — actual-times confirmation (#52)
+    const [skipModal, setSkipModal] = useState(null); // the optional step being skipped
 
     const handleStepAction = (step, action) => {
         setInflightStepId(step.id);
@@ -1223,6 +1224,16 @@ function BatchStepList({ steps, current = null, labelTemplates = [], stepPhotos 
         const recorded = new Set(outputValues.map((v) => v.output_id));
         const canCheck = step.status === 'IN_PROGRESS' || step.status === 'READY' || step.status === 'PENDING';
         const startable = step.status === 'PENDING' || step.status === 'READY';
+        // Optional (or variant) steps can be skipped, also ahead of time.
+        const skipButton = canSkipStep(step) && (
+            <button
+                type="button"
+                onClick={() => setSkipModal(step)}
+                className="mt-2 block w-full text-center text-[13px] font-semibold rounded-[10px] py-2.5 cursor-pointer bg-om-chip text-om-muted hover:brightness-95"
+            >
+                {__('Skip step')}
+            </button>
+        );
         // Transfer flow: the step can't be finished while pieces can still
         // arrive or are waiting (the server tells us why).
         const productionBlocker = transfer ? step.production_blocker : null;
@@ -1418,6 +1429,7 @@ function BatchStepList({ steps, current = null, labelTemplates = [], stepPhotos 
                                     </p>
                                 )}
                                 {startErrors[step.id] && <p role="alert" className="mt-2 mb-0 text-center text-[12px] text-om-blocked">{startErrors[step.id]}</p>}
+                                {skipButton}
                             </div>
                             {mine && mode === 'step' && <NextStation next={nextAfter(group)} />}
                         </div>
@@ -1436,6 +1448,7 @@ function BatchStepList({ steps, current = null, labelTemplates = [], stepPhotos 
                                         {step.prerequisites_met === false ? __('Waiting for the previous step') : __('Start')}
                                     </button>
                                     {productionBlocker && <p role="status" className="mt-2 mb-0 text-center text-[12px] text-om-muted">{productionBlocker}</p>}
+                                    {skipButton}
                                 </div>
                             )}
                         </div>
@@ -1564,6 +1577,8 @@ function BatchStepList({ steps, current = null, labelTemplates = [], stepPhotos 
                     onClose={() => setCompleteModal(null)}
                 />
             )}
+
+            {skipModal && <SkipStepModal step={skipModal} onClose={() => setSkipModal(null)} />}
         </div>
     );
 }
@@ -2211,7 +2226,7 @@ function MaterialsTable({ lines = [], filter, onFilter }) {
 }
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], materialLines = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {}, batchableQty = null } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], materialLines = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {}, batchableQty = null, syncLineId = null } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2292,7 +2307,7 @@ export default function WorkOrderDetail() {
             <Head title={`Work Order ${workOrder.order_no}`} />
 
             {/* Live-refresh when the work order changes on the line */}
-            {line && <LineSync lineId={line.id} reloadOnly={['workOrder', 'batchableQty']} />}
+            {(syncLineId || line) && <LineSync lineId={syncLineId ?? line.id} reloadOnly={['workOrder', 'batchableQty']} />}
 
             <div className="h-full flex flex-col overflow-auto xl:overflow-hidden">
                 {/* Hero — the order, how far it has got, and what can be done to it, in one row */}

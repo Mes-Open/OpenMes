@@ -299,6 +299,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Workstation routing works across lines on the operator screens.** With routing on,
+  the queue of a workstation listed orders of another line whose steps run there, but
+  the execution panel ("Could not load this work order"), the order page, creating a
+  batch and every step action refused them as "not on the selected line". A workstation
+  now opens such an order, creates its batches and works the steps assigned to it. It
+  still cannot act on steps of other workstations. The reach across lines needs routing
+  on and a workstation the operator may work at: a workstation account's own, or one on
+  a line they are assigned to (any for Admins and Supervisors). Picking another line's
+  workstation in the station picker opens nothing. Such a workstation's queue and the
+  routed order's page also refresh live: a change to the order now nudges the lines of
+  the workstations it routes through as well, and the order page listens on the
+  operator's own line.
+- **Optional steps can be skipped from the operator screens.** The server accepted a skip
+  of an optional or variant step, but neither the execution panel nor the order page
+  offered one, so operators had to start and finish a step that was not done. Both now
+  show *Skip* on such steps, also on one still waiting for an earlier step, and ask for an
+  optional reason, which is kept on the step. The skip messages are translated.
+- **A skipped step no longer opens the steps after it too early.** With sequential steps
+  on, a step waited only for the step right before it. A step skipped ahead of time (or
+  the skipped sibling of a default variant) therefore opened the next step while earlier
+  ones were still to be done: an operator could start "remove winding" before winding.
+  A step now waits until every earlier step is done or skipped, and a refused start names
+  the first step still open.
+- **Skipping a step ahead no longer undoes an order's acceptance.** An order whose batch had
+  not started yet was put back from *Accepted* to *Pending* whenever its status was
+  recalculated, which a skip does. An accepted order now stays accepted until it starts.
+
 - **Admin pages no longer scroll the whole window.** Screen-reader-only text in the page
   content (e.g. the severity of a *Needs action* row on the dashboard) escaped the scroll
   area and stretched the document, so scrolling moved the sidebar and page away and left a

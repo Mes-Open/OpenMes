@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ScrapEntry;
 use App\Models\Shift;
 use App\Models\WorkOrder;
+use App\Services\Production\OperatorWorkstationSelection;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -25,8 +26,8 @@ class ScrapController extends Controller
 
         $workOrder = WorkOrder::findOrFail($validated['work_order_id']);
 
-        // Verify work order belongs to selected line
-        if ($workOrder->line_id != $request->session()->get('selected_line_id')) {
+        // On the selected line, or routed through the operator's workstation.
+        if (! app(OperatorWorkstationSelection::class)->servesWorkOrder($request, $workOrder)) {
             return back()->with('error', __('This work order does not belong to the selected line.'));
         }
 

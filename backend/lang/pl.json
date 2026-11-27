@@ -8046,5 +8046,18 @@
     "Send to rework": "Skieruj do poprawki",
     "Found at": "Wykryto na kroku",
     "Send back to": "Odeślij do kroku",
-    "Rework not sent": "Nie wysłano do poprawki"
+    "Rework not sent": "Nie wysłano do poprawki",
+    "Skip step": "Pomiń krok",
+    "Skip :step": "Pomiń: :step",
+    "This step is optional. Skipping it moves the batch on to the next step.": "Ten krok jest opcjonalny. Pominięcie przenosi partię do następnego kroku.",
+    "The reason may be at most 255 characters.": "Powód może mieć najwyżej 255 znaków.",
+    "Step skipped.": "Krok pominięty.",
+    "This step is required and cannot be skipped.": "Ten krok jest wymagany i nie można go pominąć.",
+    "Step completed.": "Krok zakończony.",
+    "This document does not belong to the selected line.": "Ten dokument nie należy do wybranej linii.",
+    "This checklist item does not belong to this step.": "Ten punkt listy kontrolnej nie należy do tego kroku.",
+    "Checklist item unchecked.": "Punkt listy kontrolnej odznaczony.",
+    "Checklist item checked.": "Punkt listy kontrolnej zaznaczony.",
+    "This output does not belong to this step.": "Ten wynik nie należy do tego kroku.",
+    "Variant selected.": "Wariant wybrany."
 }

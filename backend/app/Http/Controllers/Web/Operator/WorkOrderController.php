@@ -267,12 +267,16 @@ class WorkOrderController extends Controller
      */
     public function show(Request $request, WorkOrder $workOrder)
     {
-        $lineId = app(OperatorWorkstationSelection::class)->resolveLine($request);
+        $selection = app(OperatorWorkstationSelection::class);
+        // Live nudges come on the line the operator works on: the order's own,
+        // or - for an order routed through their workstation - their line,
+        // which OperatorLineBroadcaster nudges for such orders too.
+        $syncLineId = $selection->resolveLine($request);
 
-        // Verify work order belongs to selected line
-        if ($workOrder->line_id != $lineId) {
+        // On the selected line, or routed through the operator's workstation.
+        if (! $selection->servesWorkOrder($request, $workOrder)) {
             return redirect()->route('operator.queue')
-                ->with('error', 'This work order does not belong to the selected line.');
+                ->with('error', __('This work order does not belong to the selected line.'));
         }
 
         $workOrder->load([
@@ -398,7 +402,7 @@ class WorkOrderController extends Controller
         // What a new batch may still add up to; null while overproduction is allowed.
         $batchableQty = \App\Support\ProductionRules::batchableQty($workOrder);
 
-        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'materialLines', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'materialLines', 'flowMode', 'selectedWorkstation', 'serialUnits', 'syncLineId'));
     }
 
     /**
@@ -410,8 +414,9 @@ class WorkOrderController extends Controller
      */
     public function panel(Request $request, WorkOrder $workOrder): JsonResponse
     {
-        $lineId = app(OperatorWorkstationSelection::class)->resolveLine($request);
-        if ((int) $workOrder->line_id !== (int) $lineId) {
+        $selection = app(OperatorWorkstationSelection::class);
+        $selection->resolveLine($request);
+        if (! $selection->servesWorkOrder($request, $workOrder)) {
             return response()->json(['message' => __('This work order does not belong to the selected line.')], 403);
         }
 
@@ -457,6 +462,8 @@ class WorkOrderController extends Controller
                     'workstation' => $step->workstation ? ['id' => $step->workstation->id, 'name' => $step->workstation->name] : null,
                     'started_at' => $step->started_at?->toIso8601String(),
                     'prerequisites_met' => $step->prerequisitesMet(),
+                    // An optional or variant step not yet finished: the panel offers Skip.
+                    'can_skip' => $step->canSkip(),
                     'production_blocker' => $transfer ? $step->productionBlocker() : $workOrder->plannedStartBlocker(),
                     'completion_blocker' => $step->status === BatchStep::STATUS_IN_PROGRESS ? $step->completionBlocker() : null,
                     // Gates the panel cannot clear itself: the full order page holds those forms.

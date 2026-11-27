@@ -509,7 +509,7 @@ class BatchService
             $this->guardWorkstationRouting($step, $user);
 
             if (! $step->canSkip()) {
-                throw new \Exception('This step is required and cannot be skipped.');
+                throw new \Exception(__('This step is required and cannot be skipped.'));
             }
 
             // Pieces held here by open rework (#400) must come back first.
@@ -823,15 +823,8 @@ class BatchService
         }
 
         // Check sequential enforcement
-        if (\App\Support\ProductionRules::forceSequentialSteps() && $step->step_number > 1) {
-            $previousStep = $step->batch->steps()
-                ->where('step_number', $step->step_number - 1)
-                ->first();
-
-            if (! $previousStep || ! in_array($previousStep->status, [BatchStep::STATUS_DONE, BatchStep::STATUS_SKIPPED])) {
-                $prevNum = $step->step_number - 1;
-                throw new \Exception(__('Complete step :step before starting this step.', ['step' => $prevNum]));
-            }
+        if (\App\Support\ProductionRules::forceSequentialSteps() && ($open = $step->firstOpenEarlierStep())) {
+            throw new \Exception(__('Complete step :step before starting this step.', ['step' => $open->step_number]));
         }
 
         throw new \Exception('Step cannot be started');

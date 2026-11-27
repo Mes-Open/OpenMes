@@ -8,6 +8,7 @@ use App\Models\Line;
 use App\Models\WorkOrder;
 use App\Models\Workstation;
 use App\Support\ProductionFlow;
+use App\Support\ProductionRules;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
@@ -70,6 +71,93 @@ class OperatorWorkstationSelection
             ?? ($fallBackToAccount && $user?->account_type === 'workstation' ? $user->workstation_id : null);
 
         return $id ? (int) $id : null;
+    }
+
+    /**
+     * May the operator work on this order from where they are? It runs on their
+     * selected line, or - with workstation routing on - its routing passes
+     * through the workstation they work at, which may sit on another line (a
+     * shared packing bench, an insulation shop feeding the winding line). The
+     * queue lists such routed orders, so their screens must open them too.
+     */
+    public function servesWorkOrder(Request $request, WorkOrder $workOrder): bool
+    {
+        if ($this->onSelectedLine($request, $workOrder)) {
+            return true;
+        }
+
+        $stationId = $this->routedStationId($request);
+        if ($stationId === null) {
+            return false;
+        }
+
+        $workOrder->loadMissing('batches.steps');
+
+        return collect($workOrder->process_snapshot['steps'] ?? [])
+            ->contains(fn ($step) => (int) ($step['workstation_id'] ?? 0) === $stationId)
+            || $workOrder->batches->contains(
+                fn (Batch $batch) => $batch->steps->contains(fn (BatchStep $step) => (int) $step->workstation_id === $stationId)
+            );
+    }
+
+    /**
+     * May the operator act on this step? Its order runs on their selected line,
+     * or - with routing on - the step itself is assigned to their workstation.
+     * A bench on another line reaches only its own steps of a routed order.
+     */
+    public function servesStep(Request $request, BatchStep $step): bool
+    {
+        $step->loadMissing('batch.workOrder');
+        $workOrder = $step->batch?->workOrder;
+        if (! $workOrder) {
+            return false;
+        }
+        if ($this->onSelectedLine($request, $workOrder)) {
+            return true;
+        }
+
+        $stationId = $this->routedStationId($request);
+
+        return $stationId !== null && (int) $step->workstation_id === $stationId;
+    }
+
+    private function onSelectedLine(Request $request, WorkOrder $workOrder): bool
+    {
+        $user = $request->user();
+        $lineId = $request->session()->get('selected_line_id')
+            ?? ($user?->account_type === 'workstation' ? $user->workstation?->line_id : null);
+
+        return $lineId && (int) $workOrder->line_id === (int) $lineId;
+    }
+
+    /**
+     * The workstation that may reach past the selected line, with routing on:
+     * the bench this session works at, when the operator may work there - a
+     * workstation account's own bench, or one on a line they are assigned to
+     * (any bench for Admins and Supervisors). Picking some other line's bench
+     * in the station picker therefore never opens that line's orders.
+     */
+    private function routedStationId(Request $request): ?int
+    {
+        if (! ProductionRules::workstationRoutingEnabled()) {
+            return null;
+        }
+
+        $user = $request->user();
+        $stationId = $this->storedWorkstationId($request);
+        if (! $user || ! $stationId) {
+            return null;
+        }
+        if ($user->account_type === 'workstation') {
+            return (int) $user->workstation_id === $stationId ? $stationId : null;
+        }
+        if ($user->hasRole('Admin') || $user->hasRole('Supervisor')) {
+            return $stationId;
+        }
+
+        $stationLine = Workstation::whereKey($stationId)->value('line_id');
+
+        return $stationLine && $user->lines()->where('lines.id', $stationLine)->exists() ? $stationId : null;
     }
 
     public function resolve(Request $request, int $lineId, bool $allowOtherLines = false, bool $fallBackToAccount = true): ?Workstation

@@ -897,9 +897,10 @@ class WorkOrderService
             return;
         }
 
-        // Otherwise keep as pending
-        if ($workOrder->status !== WorkOrder::STATUS_PENDING &&
-            $workOrder->status !== WorkOrder::STATUS_DONE) {
+        // Nothing run yet: back to waiting - but an order a supervisor already
+        // accepted stays accepted (skipping an optional step ahead of time must
+        // not undo the acceptance).
+        if (! in_array($workOrder->status, [WorkOrder::STATUS_PENDING, WorkOrder::STATUS_ACCEPTED, WorkOrder::STATUS_DONE], true)) {
             $workOrder->update(['status' => WorkOrder::STATUS_PENDING]);
         }
     }

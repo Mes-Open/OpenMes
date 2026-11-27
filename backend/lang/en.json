@@ -8046,5 +8046,18 @@
     "Send to rework": "Send to rework",
     "Found at": "Found at",
     "Send back to": "Send back to",
-    "Rework not sent": "Rework not sent"
+    "Rework not sent": "Rework not sent",
+    "Skip step": "Skip step",
+    "Skip :step": "Skip :step",
+    "This step is optional. Skipping it moves the batch on to the next step.": "This step is optional. Skipping it moves the batch on to the next step.",
+    "The reason may be at most 255 characters.": "The reason may be at most 255 characters.",
+    "Step skipped.": "Step skipped.",
+    "This step is required and cannot be skipped.": "This step is required and cannot be skipped.",
+    "Step completed.": "Step completed.",
+    "This document does not belong to the selected line.": "This document does not belong to the selected line.",
+    "This checklist item does not belong to this step.": "This checklist item does not belong to this step.",
+    "Checklist item unchecked.": "Checklist item unchecked.",
+    "Checklist item checked.": "Checklist item checked.",
+    "This output does not belong to this step.": "This output does not belong to this step.",
+    "Variant selected.": "Variant selected."
 }
