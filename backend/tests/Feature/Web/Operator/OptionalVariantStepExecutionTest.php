@@ -89,9 +89,43 @@ class OptionalVariantStepExecutionTest extends TestCase
         $batch = $this->makeBatch();
 
         $this->assertSame(BatchStep::STATUS_SKIPPED, $this->step($batch, 3)->status); // matte
-        // Gloss (default variant) is active; its sibling is skipped so it's the
-        // next actionable step → READY.
-        $this->assertSame(BatchStep::STATUS_READY, $this->step($batch, 4)->status);  // gloss (default)
+        // Gloss (default variant) is the active one, but cut (1) and polish (2)
+        // come first: its skipped sibling must not open it ahead of them.
+        $this->assertSame(BatchStep::STATUS_PENDING, $this->step($batch, 4)->status);  // gloss (default)
+
+        $svc = app(BatchService::class);
+        $svc->startStep($this->step($batch, 1), $this->operator);
+        $svc->completeStep($this->step($batch, 1)->fresh(), $this->operator);
+        $this->assertSame(BatchStep::STATUS_PENDING, $this->step($batch, 4)->fresh()->status);
+
+        $svc->skipStep($this->step($batch, 2), $this->operator);
+        $this->assertSame(BatchStep::STATUS_READY, $this->step($batch, 4)->fresh()->status);
+    }
+
+    public function test_skipping_an_optional_step_ahead_does_not_open_the_steps_after_it(): void
+    {
+        $batch = $this->makeBatch();
+        $polish = $this->step($batch, 2);
+
+        // Polish is dropped before cut (1) has even started.
+        $this->actingOperator($batch)
+            ->post("/operator/batch-step/{$polish->id}/skip", ['skip_reason' => 'Not in this design'])
+            ->assertSessionHas('success');
+        $this->assertSame(BatchStep::STATUS_SKIPPED, $polish->fresh()->status);
+
+        // Gloss still waits for cut: not READY, and starting it is refused, naming the step.
+        $gloss = $this->step($batch, 4);
+        $this->assertSame(BatchStep::STATUS_PENDING, $gloss->status);
+        $this->actingOperator($batch)
+            ->post("/operator/batch-step/{$gloss->id}/start")
+            ->assertSessionHas('error', __('Complete step :step before starting this step.', ['step' => 1]));
+        $this->assertSame(BatchStep::STATUS_PENDING, $gloss->fresh()->status);
+
+        // Once cut is done, gloss opens.
+        $svc = app(BatchService::class);
+        $svc->startStep($this->step($batch, 1), $this->operator);
+        $svc->completeStep($this->step($batch, 1)->fresh(), $this->operator);
+        $this->assertSame(BatchStep::STATUS_READY, $gloss->fresh()->status);
     }
 
     public function test_operator_can_switch_variant(): void

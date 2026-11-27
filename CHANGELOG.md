@@ -313,6 +313,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   offered one, so operators had to start and finish a step that was not done. Both now
   show *Skip* on such steps, also on one still waiting for an earlier step, and ask for an
   optional reason, which is kept on the step. The skip messages are translated.
+- **A skipped step no longer opens the steps after it too early.** With sequential steps
+  on, a step waited only for the step right before it. A step skipped ahead of time (or
+  the skipped sibling of a default variant) therefore opened the next step while earlier
+  ones were still to be done: an operator could start "remove winding" before winding.
+  A step now waits until every earlier step is done or skipped, and a refused start names
+  the first step still open.
 
 - **Admin pages no longer scroll the whole window.** Screen-reader-only text in the page
   content (e.g. the severity of a *Needs action* row on the dashboard) escaped the scroll

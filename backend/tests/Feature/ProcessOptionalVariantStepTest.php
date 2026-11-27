@@ -66,10 +66,10 @@ class ProcessOptionalVariantStepTest extends TestCase
         $this->assertSame(BatchStep::STATUS_PENDING, $steps[2]->status);
         $this->assertTrue($steps[2]->is_optional);
 
-        // Variant group: default (step 4) active; sibling (step 3) auto-skipped,
-        // which makes the default the next actionable step → READY.
+        // Variant group: default (step 4) active; sibling (step 3) auto-skipped.
+        // The default still waits for steps 1 and 2 → PENDING, not READY.
         $this->assertSame(BatchStep::STATUS_SKIPPED, $steps[3]->status);
-        $this->assertSame(BatchStep::STATUS_READY, $steps[4]->status);
+        $this->assertSame(BatchStep::STATUS_PENDING, $steps[4]->status);
         $this->assertSame('finish', $steps[3]->variant_group);
         $this->assertSame('finish', $steps[4]->variant_group);
     }

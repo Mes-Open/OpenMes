@@ -307,17 +307,19 @@ class BatchStep extends Model
         $this->refresh();
     }
 
-    /**
-     * Whether this step's sequence prerequisites are met (so it may move from
-     * PENDING to READY): the first step, any step when sequential enforcement is
-     * off, or a step whose immediate predecessor is DONE/SKIPPED. Does NOT factor
-     * in work-order blocking — that's re-checked at start time.
-     */
     public function isPacking(): bool
     {
         return $this->kind === TemplateStep::KIND_PACKING;
     }
 
+    /**
+     * Whether this step's sequence prerequisites are met (so it may move from
+     * PENDING to READY): any step when sequential enforcement is off, else a
+     * step whose earlier steps are all DONE or SKIPPED. Every earlier step, not
+     * only the one before: an optional step skipped ahead of time must not open
+     * the step after it while the steps before it are still to be done. Does
+     * NOT factor in work-order blocking — that's re-checked at start time.
+     */
     public function prerequisitesMet(): bool
     {
         if (! \App\Support\ProductionRules::forceSequentialSteps()) {
@@ -333,15 +335,33 @@ class BatchStep extends Model
             return $this->inflowClosed() || $this->availableQty() > 0;
         }
 
-        if ($this->step_number === 1) {
-            return true;
+        return $this->firstOpenEarlierStep() === null;
+    }
+
+    /**
+     * The first earlier step of the batch that is neither DONE nor SKIPPED - what
+     * sequential enforcement waits for - or null. Reads the batch's loaded steps
+     * when the caller holds them (promoteReadySteps, the operator panel).
+     */
+    public function firstOpenEarlierStep(): ?self
+    {
+        if ($this->step_number <= 1) {
+            return null;
         }
 
-        $previousStep = $this->batch->steps()
-            ->where('step_number', $this->step_number - 1)
-            ->first();
+        $closed = [self::STATUS_DONE, self::STATUS_SKIPPED];
+        if ($this->batch->relationLoaded('steps')) {
+            return $this->batch->steps
+                ->filter(fn (self $step) => $step->step_number < $this->step_number && ! in_array($step->status, $closed, true))
+                ->sortBy('step_number')
+                ->first();
+        }
 
-        return $previousStep && in_array($previousStep->status, [self::STATUS_DONE, self::STATUS_SKIPPED], true);
+        return $this->batch->steps()
+            ->where('step_number', '<', $this->step_number)
+            ->whereNotIn('status', $closed)
+            ->reorder('step_number')
+            ->first();
     }
 
     // ── Quantity ledger ───────────────────────────────────────────────────

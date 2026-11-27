@@ -25,4 +25,9 @@ class SkipStepRequest extends FormRequest
             'skip_reason' => ['nullable', 'string', 'max:255'],
         ];
     }
+
+    public function attributes(): array
+    {
+        return ['skip_reason' => __('Reason')];
+    }
 }
