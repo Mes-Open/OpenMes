@@ -146,13 +146,14 @@ class OeeCalculationService
 
     /**
      * The active shifts set for this line — its own, or its group's
-     * (Shift::coverage) — leaving out those that run on every line.
+     * (Shift::coverage) — leaving out those that run on every line, and a
+     * group's shift where the line's own one overlaps it.
      */
     private function shiftsSetFor(Line $line, ?\Illuminate\Support\Collection $active = null): \Illuminate\Support\Collection
     {
-        return ($active ?? Shift::where('is_active', true)->get())
-            ->filter(fn (Shift $shift) => $shift->runsOnLine($line->id, plantWide: false))
-            ->values();
+        // Where the line's own shift overlaps its group's, only the narrower
+        // one counts — both would plan the same hours twice.
+        return Shift::effectiveOn($line->id, $active ?? Shift::where('is_active', true)->get(), plantWide: false);
     }
 
     private function shiftDurationMinutes(Shift $shift): int

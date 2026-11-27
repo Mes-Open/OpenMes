@@ -136,8 +136,9 @@ class WorkstationController extends Controller
         $allColumns = $this->buildAllColumns($workOrders, $line);
 
         // Shift columns: the shifts that run on this line — a shift another
-        // line (or another plant's group of lines) owns is no column here.
-        $shifts = Shift::active()->get()->filter(fn (Shift $shift) => $shift->runsOnLine((int) $lineId))->values();
+        // line (or another plant's group of lines) owns is no column here, nor
+        // a broader shift that this line's own shift overlaps and replaces.
+        $shifts = Shift::effectiveOn((int) $lineId);
 
         // Load today's shift entries for these work orders
         $today = now()->toDateString();
@@ -432,7 +433,7 @@ class WorkstationController extends Controller
     /**
      * Record production quantity for a specific shift.
      */
-    public function shiftEntry(Request $request, WorkOrder $workOrder)
+    public function shiftEntry(\App\Http\Requests\Web\Operator\ShiftEntryRequest $request, WorkOrder $workOrder)
     {
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $workOrder) {
             $current = WorkOrder::whereKey($workOrder->id)->lockForUpdate()->firstOrFail();
@@ -441,7 +442,7 @@ class WorkstationController extends Controller
         });
     }
 
-    private function shiftEntryLocked(Request $request, WorkOrder $workOrder)
+    private function shiftEntryLocked(\App\Http\Requests\Web\Operator\ShiftEntryRequest $request, WorkOrder $workOrder)
     {
         $workOrder->assertProductionAvailable();
 
@@ -467,10 +468,7 @@ class WorkstationController extends Controller
             return back()->with('error', 'This work order is machine-counted; quantities are recorded automatically from the machine.');
         }
 
-        $validated = $request->validate([
-            'shift_id' => 'required|exists:shifts,id',
-            'quantity' => 'required|numeric|min:1',
-        ]);
+        $validated = $request->validated();
 
         $today = now()->toDateString();
         $qty = (float) $validated['quantity'];

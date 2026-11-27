@@ -5204,7 +5204,7 @@
     "System fields": "System fields",
     "TOTAL SCRAP:": "TOTAL SCRAP:",
     "The file content does not match its :type extension.": "The file content does not match its :type extension.",
-    "This shift overlaps with an existing shift on this line. Adjust the times and try again.": "This shift overlaps with an existing shift on this line. Adjust the times and try again.",
+    "This shift overlaps another shift on the same lines. Adjust the times and try again.": "This shift overlaps another shift on the same lines. Adjust the times and try again.",
     "This version is already published.": "This version is already published.",
     "Title (optional)": "Title (optional)",
     "Total rows:": "Total rows:",
@@ -8046,5 +8046,6 @@
     "Send to rework": "Send to rework",
     "Found at": "Found at",
     "Send back to": "Send back to",
-    "Rework not sent": "Rework not sent"
+    "Rework not sent": "Rework not sent",
+    "This shift does not run on the work order's line.": "This shift does not run on the work order's line."
 }
