@@ -307,7 +307,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   still cannot act on steps of other workstations. The reach across lines needs routing
   on and a workstation the operator may work at: a workstation account's own, or one on
   a line they are assigned to (any for Admins and Supervisors). Picking another line's
-  workstation in the station picker opens nothing.
+  workstation in the station picker opens nothing. Such a workstation's queue and the
+  routed order's page also refresh live: a change to the order now nudges the lines of
+  the workstations it routes through as well, and the order page listens on the
+  operator's own line.
 - **Optional steps can be skipped from the operator screens.** The server accepted a skip
   of an optional or variant step, but neither the execution panel nor the order page
   offered one, so operators had to start and finish a step that was not done. Both now

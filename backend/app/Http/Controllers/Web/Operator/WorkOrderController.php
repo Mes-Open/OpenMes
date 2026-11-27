@@ -268,7 +268,10 @@ class WorkOrderController extends Controller
     public function show(Request $request, WorkOrder $workOrder)
     {
         $selection = app(OperatorWorkstationSelection::class);
-        $selection->resolveLine($request);
+        // Live nudges come on the line the operator works on: the order's own,
+        // or - for an order routed through their workstation - their line,
+        // which OperatorLineBroadcaster nudges for such orders too.
+        $syncLineId = $selection->resolveLine($request);
 
         // On the selected line, or routed through the operator's workstation.
         if (! $selection->servesWorkOrder($request, $workOrder)) {
@@ -399,7 +402,7 @@ class WorkOrderController extends Controller
         // What a new batch may still add up to; null while overproduction is allowed.
         $batchableQty = \App\Support\ProductionRules::batchableQty($workOrder);
 
-        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'materialLines', 'flowMode', 'selectedWorkstation', 'serialUnits'));
+        return Inertia::render('operator/WorkOrderDetail', compact('batchableQty', 'hooks', 'workOrder', 'issueTypes', 'scrapReasons', 'workstations', 'defaultWorkstationId', 'line', 'labelTemplates', 'processPhotos', 'stepPhotos', 'stepMedia', 'stepChecklists', 'stepOutputs', 'issueCustomFields', 'engineeringDocuments', 'materialShortages', 'materialLines', 'flowMode', 'selectedWorkstation', 'serialUnits', 'syncLineId'));
     }
 
     /**

@@ -109,7 +109,10 @@ class CrossLineRoutingTest extends TestCase
 
         $this->actingAs($this->glueAccount)
             ->get("/operator/work-order/{$this->order->id}")
-            ->assertOk();
+            ->assertOk()
+            // Live nudges come on the bench's own line, not the order's (whose
+            // channel the bench may not join); the broadcaster nudges both.
+            ->assertInertia(fn ($page) => $page->where('syncLineId', $this->insulation->id));
     }
 
     public function test_routed_bench_creates_a_batch_and_starts_its_own_step(): void

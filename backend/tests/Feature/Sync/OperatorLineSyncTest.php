@@ -109,4 +109,55 @@ class OperatorLineSyncTest extends TestCase
         DB::transaction(fn () => $order->fresh()->update(['produced_qty' => 1]));
         $this->assertCount(1, $events);
     }
+
+    /** An order of line B routed through a bench of line A (glue on A, wind on B). */
+    private function routedOrder(): array
+    {
+        $lineA = Line::factory()->create();
+        $lineB = Line::factory()->create();
+        $glue = Workstation::factory()->create(['line_id' => $lineA->id]);
+        $winder = Workstation::factory()->create(['line_id' => $lineB->id]);
+        $order = WorkOrder::factory()->create([
+            'line_id' => $lineB->id,
+            'process_snapshot' => ['steps' => [
+                ['step_number' => 1, 'name' => 'Glue', 'workstation_id' => $glue->id],
+                ['step_number' => 2, 'name' => 'Wind', 'workstation_id' => $winder->id],
+            ]],
+        ]);
+
+        return [$lineA, $lineB, $glue, $order];
+    }
+
+    private function captureNudges(callable $change): array
+    {
+        $lines = [];
+        Event::listen(OperatorLineChanged::class, function ($event) use (&$lines) {
+            $lines[] = $event->lineId;
+        });
+        DB::transaction($change);
+        sort($lines);
+
+        return $lines;
+    }
+
+    public function test_with_routing_on_a_routed_order_also_nudges_the_lines_it_passes_through(): void
+    {
+        [$lineA, $lineB, $glue, $order] = $this->routedOrder();
+        DB::table('system_settings')->updateOrInsert(['key' => 'workstation_routing_enabled'], ['value' => json_encode(true)]);
+
+        $lines = $this->captureNudges(fn () => $order->update(['priority' => 5]));
+        $this->assertSame([$lineA->id, $lineB->id], $lines);
+
+        $step = BatchStep::factory()->create(['workstation_id' => $glue->id]);
+        $step->batch->update(['work_order_id' => $order->id]);
+        $lines = $this->captureNudges(fn () => $step->fresh()->update(['passed_qty' => 1]));
+        $this->assertSame([$lineA->id, $lineB->id], $lines);
+    }
+
+    public function test_with_routing_off_only_the_order_line_is_nudged(): void
+    {
+        [, $lineB, , $order] = $this->routedOrder();
+
+        $this->assertSame([$lineB->id], $this->captureNudges(fn () => $order->update(['priority' => 5])));
+    }
 }

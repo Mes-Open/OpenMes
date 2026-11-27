@@ -2226,7 +2226,7 @@ function MaterialsTable({ lines = [], filter, onFilter }) {
 }
 
 export default function WorkOrderDetail() {
-    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], materialLines = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {}, batchableQty = null } = usePage().props;
+    const { workOrder, issueTypes = [], scrapReasons = [], workstations = [], issueCustomFields = [], defaultWorkstationId, line, labelTemplates = [], processPhotos = [], stepPhotos = {}, stepMedia = {}, stepChecklists = {}, stepOutputs = {}, engineeringDocuments = [], materialShortages = [], materialLines = [], flowMode = 'whole_batch', selectedWorkstation = null, serialUnits = { total: 0, units: [] }, hooks = {}, batchableQty = null, syncLineId = null } = usePage().props;
 
     const [engViewer, setEngViewer] = useState(null); // { url, title } for the sandboxed viewer
 
@@ -2307,7 +2307,7 @@ export default function WorkOrderDetail() {
             <Head title={`Work Order ${workOrder.order_no}`} />
 
             {/* Live-refresh when the work order changes on the line */}
-            {line && <LineSync lineId={line.id} reloadOnly={['workOrder', 'batchableQty']} />}
+            {(syncLineId || line) && <LineSync lineId={syncLineId ?? line.id} reloadOnly={['workOrder', 'batchableQty']} />}
 
             <div className="h-full flex flex-col overflow-auto xl:overflow-hidden">
                 {/* Hero — the order, how far it has got, and what can be done to it, in one row */}
