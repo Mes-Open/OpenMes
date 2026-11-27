@@ -731,6 +731,64 @@ Returns every step of every batch, for costing and reporting. Each row carries:
 `totals` sums labor and machine minutes. The same rows are available to an ERP as
 `?include=operations` on the ERP work-order export.
 
+#### Rework
+
+Pieces of a non-conformance (an issue) found at a step can be sent back to that step
+or an earlier one in the same batch.
+
+**What happens to the pieces:**
+
+- While the rework is `open` or `in_progress`, its quantity is **held** at the step where
+  the defect was found (`rework_held_qty` on the step).
+- Held pieces cannot be passed on or counted as produced.
+- That step cannot be completed until every rework holding pieces there ends (`422`).
+
+**How a rework ends:**
+
+- **Completed:** the `accepted_qty` pieces return to the step where the defect was found
+  and continue as normal. The `scrapped_qty` pieces are booked there as scrap, with a
+  scrap entry.
+- **Cancelled:** every held piece is released unchanged.
+
+**What stays unchanged:** the step being redone keeps its own record, including
+quantities, times and materials. No step is restarted and no material is allocated again.
+
+**Time spent on the rework:** operator and machine time is recorded on the step being
+redone, tagged with the rework (`rework_operation_id`). It counts on the rework
+(`actual_labor_minutes`, `actual_machine_minutes`), never on that step's own totals. The
+rules against counting time twice still apply across steps and reworks: an operator
+clocked onto a rework is clocked off their step.
+
+```http
+POST /api/v1/issues/{issueId}/rework-operations            # Supervisor / Admin
+{ "quantity": 3, "reason": "Burr on the edge", "target_batch_step_id": 41, "source_batch_step_id": 42 }
+```
+
+`source_batch_step_id` defaults to the issue's step.
+
+The request is refused (`422`) when:
+
+- the quantity is more than is waiting at the source step;
+- the quantity would push the issue's rework past its `non_conforming_qty`;
+- the target step is a later step, a skipped step, or in another batch;
+- the issue already has a disposition other than `pending` or `rework`.
+
+A `pending` disposition becomes `rework`.
+
+```http
+GET  /api/v1/rework-operations?status=open,in_progress&work_order_id=&batch_id=&issue_id=
+GET  /api/v1/rework-operations/{id}                       # + live_totals and time_entries
+GET  /api/v1/work-orders/{workOrderId}/rework-operations
+POST /api/v1/rework-operations/{id}/start
+POST /api/v1/rework-operations/{id}/time/{labor|machine}/{start|stop}   # {"workstation_id": 4} optional for machine
+POST /api/v1/rework-operations/{id}/complete               # { "accepted_qty": 2, "scrapped_qty": 1, "scrap_reason_id": 3, "notes": "…" }
+POST /api/v1/rework-operations/{id}/cancel                 # Supervisor / Admin, { "reason": "…" }
+```
+
+`accepted_qty + scrapped_qty` must equal the rework's quantity. Starting, timing and
+completing are available to anyone who may view the work order; the list shows only work
+orders the caller may see.
+
 ---
 
 ### Serial Units and Test Runs

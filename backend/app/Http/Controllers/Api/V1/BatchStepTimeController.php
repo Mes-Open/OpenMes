@@ -122,6 +122,7 @@ class BatchStepTimeController extends Controller
         return [
             'id' => $e->id,
             'batch_step_id' => $e->batch_step_id,
+            'rework_operation_id' => $e->rework_operation_id,
             'kind' => $e->kind,
             'source' => $e->source,
             'user' => $e->user ? ['id' => $e->user->id, 'name' => $e->user->name] : null,

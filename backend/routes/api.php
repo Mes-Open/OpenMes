@@ -732,6 +732,22 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
         });
     });
 
+    // Rework routing (#400): pieces of a non-conformance go back to an earlier
+    // operation; supervisors send and cancel, anyone on the order runs it.
+    Route::controller(\App\Http\Controllers\Api\V1\ReworkOperationController::class)->group(function () {
+        Route::get('/rework-operations', 'index');
+        Route::get('/rework-operations/{rework}', 'show');
+        Route::get('/work-orders/{workOrder}/rework-operations', 'forWorkOrder');
+        Route::post('/rework-operations/{rework}/start', 'start');
+        Route::post('/rework-operations/{rework}/complete', 'complete');
+        Route::post('/rework-operations/{rework}/time/{kind}/{action}', 'time')
+            ->whereIn('kind', ['labor', 'machine'])->whereIn('action', ['start', 'stop']);
+        Route::middleware('role:Supervisor|Admin')->group(function () {
+            Route::post('/issues/{issue}/rework-operations', 'store');
+            Route::post('/rework-operations/{rework}/cancel', 'cancel');
+        });
+    });
+
     // Step document control: validate a mandatory document so its step can
     // complete (any production user); attaching is Supervisor/Admin only.
     Route::post('/batch-step-documents/{batchStepDocument}/validate', [BatchStepDocumentController::class, 'validateDocument']);

@@ -175,6 +175,12 @@ class Issue extends Model
         return $this->hasOne(ScrapEntry::class);
     }
 
+    /** Rework operations sent from this non-conformance (#400). */
+    public function reworkOperations(): HasMany
+    {
+        return $this->hasMany(ReworkOperation::class);
+    }
+
     /**
      * Soft-deleting an issue also soft-deletes its CAPA actions (mirrors the
      * cascadeOnDelete FK, which doesn't fire on a soft delete).

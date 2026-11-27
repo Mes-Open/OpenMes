@@ -334,3 +334,79 @@ export function LotPickModal({ step, materials, onClose }) {
 function round4(n) {
     return Math.round((Number(n) + Number.EPSILON) * 10000) / 10000;
 }
+
+/**
+ * Complete a rework (#400): how many pieces came back good — they return to
+ * the step where the defect was found — and how many were scrapped there.
+ * The two must add up to the rework's quantity.
+ */
+export function CompleteReworkModal({ rework, onClose }) {
+    const total = Number(rework.quantity) || 0;
+    const [accepted, setAccepted] = useState(String(total));
+    const [scrapped, setScrapped] = useState('0');
+    const [notes, setNotes] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+
+    const num = (v) => (String(v).trim() === '' || Number.isNaN(Number(v)) ? null : Number(v));
+    const a = num(accepted);
+    const s = num(scrapped);
+    const mismatch = a === null || s === null || a < 0 || s < 0 || Math.abs(a + s - total) > 0.001;
+
+    const submit = () => {
+        if (mismatch) return;
+        setSaving(true);
+        setError(null);
+        router.post(`/operator/rework/${rework.id}/complete`, {
+            accepted_qty: a,
+            scrapped_qty: s,
+            notes: notes.trim() || null,
+        }, {
+            preserveScroll: true,
+            // A 422 or a refused completion stays visible instead of being dismissed.
+            onError: (errors) => setError(Object.values(errors).join(' ')),
+            onSuccess: (page) => {
+                if (page.props.flash?.error) setError(page.props.flash.error);
+                else onClose();
+            },
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    const inputCls = 'w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 font-mono text-[15px]';
+    const labelCls = 'block font-mono text-[9.5px] uppercase tracking-[0.08em] text-om-faint mb-1';
+
+    return (
+        <ModalShell title={__('Complete rework')} subtitle={__(':qty pcs · :reason', { qty: formatNumber(total), reason: rework.reason })} onClose={onClose}>
+            <div className="px-[18px] py-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <div className={labelCls}>{__('Accepted')}</div>
+                        <input aria-label={__('Accepted')} type="number" min="0" step="any" value={accepted} onChange={(e) => setAccepted(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                        <div className={labelCls}>{__('Scrapped')}</div>
+                        <input aria-label={__('Scrapped')} type="number" min="0" step="any" value={scrapped} onChange={(e) => setScrapped(e.target.value)} className={inputCls} />
+                    </div>
+                </div>
+                <div>
+                    <div className={labelCls}>{__('Notes')}</div>
+                    <textarea aria-label={__('Notes')} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-om-sm border border-om-line bg-om-card px-3 py-2 text-[13px]" />
+                </div>
+                <p className={mismatch ? 'text-om-blocked text-xs m-0' : 'text-om-muted text-xs m-0'}>
+                    {__('Accepted pieces go back to :step; scrapped pieces are booked as scrap there. Together they must make :qty.', {
+                        step: rework.source_step?.name ?? '',
+                        qty: formatNumber(total),
+                    })}
+                </p>
+                {error && <p role="alert" className={errorCls}>{error}</p>}
+            </div>
+            <div className={modalFooterCls}>
+                <Button variant="secondary" onClick={onClose}>{__('Cancel')}</Button>
+                <Button variant="primary" disabled={mismatch || saving} onClick={submit}>
+                    {saving ? '…' : __('Complete rework')}
+                </Button>
+            </div>
+        </ModalShell>
+    );
+}
