@@ -84,9 +84,46 @@ class Shift extends Model
 
         $coverage = app(\App\Extension\FilterRegistry::class)->filter('shifts.coverage', $default, ['shift' => $this]);
 
-        return $this->coverage = is_array($coverage) && isset($coverage['key']) && array_key_exists('line_ids', $coverage)
-            ? ['key' => (string) $coverage['key'], 'line_ids' => $coverage['line_ids'] === null ? null : array_map('intval', $coverage['line_ids'])]
-            : $default;
+        if (! is_array($coverage) || ! isset($coverage['key']) || ! array_key_exists('line_ids', $coverage)) {
+            return $this->coverage = $default;
+        }
+
+        // A module may hand back a Collection (`$site->lines->pluck('id')`);
+        // anything that is not a list of ids keeps the shift's own coverage
+        // rather than breaking every shift lookup in the request.
+        $lines = $coverage['line_ids'];
+        if ($lines instanceof \Illuminate\Contracts\Support\Arrayable) {
+            $lines = $lines->toArray();
+        }
+        if ($lines !== null && ! is_array($lines)) {
+            return $this->coverage = $default;
+        }
+
+        return $this->coverage = [
+            'key' => (string) $coverage['key'],
+            'line_ids' => $lines === null ? null : array_values(array_map('intval', $lines)),
+        ];
+    }
+
+    /**
+     * Fired after a shift is saved — from the admin screens and the API alike —
+     * inside the save's transaction, before the overlap check, which may still
+     * roll it back. Listeners write to the database only; anything outside it
+     * belongs on ResourceChanged, fired once the save is committed.
+     */
+    public const PERSIST_HOOK = 'persist.admin.shifts';
+
+    /**
+     * Does another active shift with the same coverage (the same line, every
+     * line, or the same group a module defined) overlap this one's times?
+     * Shifts of different coverage may overlap — see effectiveOn().
+     */
+    public function overlapsAnotherActive(): bool
+    {
+        $key = $this->coverage()['key'];
+
+        return static::where('is_active', true)->whereKeyNot($this->getKey())->get()
+            ->contains(fn (self $other) => $other->coverage()['key'] === $key && $this->clockOverlaps($other));
     }
 
     /** The lines this shift runs on; null = every line. */
@@ -111,6 +148,118 @@ class Shift extends Model
         return $lines === null ? $plantWide : in_array($lineId, $lines, true);
     }
 
+    /**
+     * How narrowly this shift is set: 2 for one line, 1 for a group of lines a
+     * module defined, 0 for every line. When two shifts that may overlap (they
+     * have different coverage) both run on a line, the narrower one is that
+     * line's shift — a plant's own morning shift wins over a global one.
+     */
+    public function specificity(): int
+    {
+        $coverage = $this->coverage();
+
+        if ($coverage['line_ids'] === null) {
+            return 0;
+        }
+
+        // Read from the coverage, not line_id: a module may widen a shift that
+        // has a line to a group, and it then ranks as that group's shift.
+        return str_starts_with($coverage['key'], 'line:') ? 2 : 1;
+    }
+
+    /** Does the shift run on this ISO weekday? Unset days = every day. */
+    public function runsOnDay(int $isoDow): bool
+    {
+        $days = $this->days_of_week;
+
+        return ! is_array($days) || in_array($isoDow, array_map('intval', $days), true);
+    }
+
+    /** Is there a weekday both shifts run on? */
+    public function sharesDayWith(self $other): bool
+    {
+        foreach (range(1, 7) as $dow) {
+            if ($this->runsOnDay($dow) && $other->runsOnDay($dow)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Do the two shifts' clock times overlap, overnight shifts included?
+     * Days are not compared — see sharesDayWith().
+     */
+    public function clockOverlaps(self $other): bool
+    {
+        $toMin = fn ($t) => (int) substr((string) $t, 0, 2) * 60 + (int) substr((string) $t, 3, 2);
+
+        $ns = $toMin($this->start_time);
+        $ne = $toMin($this->end_time);
+        $es = $toMin($other->start_time);
+        $ee = $toMin($other->end_time);
+
+        // Overnight (22:00–06:00) ends the next day.
+        $ne += $ne < $ns ? 1440 : 0;
+        $ee += $ee < $es ? 1440 : 0;
+
+        // Compare in the original and in both ±24h positions.
+        return ($ns < $ee && $ne > $es)
+            || ($ns < $ee + 1440 && $ne > $es + 1440)
+            || ($ns + 1440 < $ee && $ne + 1440 > $es);
+    }
+
+    /**
+     * The shifts that really run on a line: those set for it (its own, its
+     * group's and — with $plantWide — the ones for every line), minus any that
+     * a narrower shift on the line overlaps. Shifts of different coverage may
+     * overlap (Shift::coverage), and where they do the narrower is the line's
+     * shift; counting both would plan the same hours twice.
+     *
+     * With $isoDow only shifts running that weekday are considered; without
+     * it a shift gives way only to a narrower one sharing one of its days.
+     *
+     * @param  \Illuminate\Support\Collection<int, self>|null  $shifts  active shifts, when already loaded
+     * @return \Illuminate\Support\Collection<int, self>
+     */
+    public static function effectiveOn(int $lineId, ?\Illuminate\Support\Collection $shifts = null, bool $plantWide = true, ?int $isoDow = null): \Illuminate\Support\Collection
+    {
+        $running = ($shifts ?? static::active()->get())
+            ->filter(fn (self $s) => $s->runsOnLine($lineId, $plantWide) && ($isoDow === null || $s->runsOnDay($isoDow)))
+            ->values();
+
+        return $running
+            ->reject(fn (self $s) => $running->contains(fn (self $o) => $o->specificity() > $s->specificity()
+                && $o->clockOverlaps($s)
+                && ($isoDow !== null || $o->sharesDayWith($s))))
+            ->values();
+    }
+
+    /**
+     * Active shifts that run on the line, the narrowest first (see
+     * specificity()) and otherwise in sort order.
+     *
+     * A null line asks about the plant as a whole: every shift, the broadest
+     * first — the plant's shift, not some line's own override, is what the
+     * whole-plant screens (shift board, plant overview) mean by "now".
+     *
+     * @return \Illuminate\Support\Collection<int, self>
+     */
+    public static function runningOn(?int $lineId): \Illuminate\Support\Collection
+    {
+        $lineId = $lineId ?: null;
+        $shifts = static::active()
+            ->get()
+            ->filter(fn (self $shift) => $shift->runsOnLine($lineId));
+
+        // Stable sorts: same specificity keeps the sort_order from active().
+        return ($lineId === null
+            ? $shifts->sortBy(fn (self $shift) => $shift->specificity())
+            : $shifts->sortByDesc(fn (self $shift) => $shift->specificity())
+        )->values();
+    }
+
     public function shiftEntries(): HasMany
     {
         return $this->hasMany(WorkOrderShiftEntry::class);
@@ -125,9 +274,7 @@ class Shift extends Model
         $dayOfWeek = (int) $now->format('N');
         $time = $now->format('H:i:s');
 
-        return static::where('is_active', true)
-            ->get()
-            ->filter(fn (self $shift) => $shift->runsOnLine($lineId ?: null))
+        return static::runningOn($lineId)
             ->first(function (self $shift) use ($dayOfWeek, $time) {
                 if (is_array($shift->days_of_week) && ! in_array($dayOfWeek, $shift->days_of_week)) {
                     return false;

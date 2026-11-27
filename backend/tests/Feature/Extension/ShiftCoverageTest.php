@@ -219,6 +219,244 @@ class ShiftCoverageTest extends TestCase
         $this->assertCount(1, Storage::allFiles());
     }
 
+    public function test_a_module_hears_each_write_as_it_was_even_after_a_later_save(): void
+    {
+        $shift = $this->shift('DAY', '06:00', '14:00');
+        $heard = [];
+        Event::listen(ResourceChanged::class, function (ResourceChanged $e) use (&$heard) {
+            if ($e->model instanceof Shift && $e->action === 'updated') {
+                $heard[] = [array_keys(array_diff_key($e->model->getChanges(), ['updated_at' => 1])), substr((string) $e->model->getOriginal('start_time'), 0, 5)];
+            }
+        });
+
+        // Two saves in one transaction: each event still shows its own change.
+        \Illuminate\Support\Facades\DB::transaction(function () use ($shift) {
+            $shift->update(['start_time' => '07:00']);
+            $shift->update(['name' => 'Day shift']);
+        });
+
+        $this->assertSame([[['start_time'], '06:00'], [['name'], '07:00']], $heard);
+    }
+
+    public function test_the_narrowest_shift_running_on_a_line_is_its_current_shift(): void
+    {
+        $this->northShiftsOnNorthLine();
+        $this->travelTo(Carbon::parse('2026-11-25 10:00'));
+        $this->shift('G', '06:00', '14:00', ['sort_order' => 0]);
+        $this->shift('N-AM', '06:00', '14:00', ['sort_order' => 5]);
+
+        $this->assertSame('N-AM', Shift::current($this->north->id)?->code);
+        $this->assertSame('N-AM', ShiftWindow::at($this->north->id, now())?->shift->code);
+        $this->assertSame('N-AM', ShiftWindow::startingOnDate($this->north->id, now()->startOfDay())?->shift->code);
+        $this->assertSame('G', Shift::current($this->south->id)?->code);
+
+        $this->shift('S-OWN', '06:00', '14:00', ['line_id' => $this->south->id, 'sort_order' => 9]);
+        $this->assertSame('S-OWN', Shift::current($this->south->id)?->code);
+    }
+
+    public function test_only_an_admin_may_add_or_change_a_shift(): void
+    {
+        Role::findOrCreate('Supervisor');
+        $supervisor = User::factory()->create();
+        $supervisor->assignRole('Supervisor');
+        $shift = $this->shift('DAY', '06:00', '14:00');
+        $payload = ['code' => 'X', 'name' => 'X', 'start_time' => '14:00', 'end_time' => '22:00'];
+
+        $this->actingAs($supervisor)->post('/admin/shifts', $payload)->assertForbidden();
+        $this->actingAs($supervisor)->put("/admin/shifts/{$shift->id}", $payload)->assertForbidden();
+        $this->actingAs($supervisor)->delete("/admin/shifts/{$shift->id}")->assertForbidden();
+
+        $this->assertDatabaseMissing('shifts', ['code' => 'X']);
+        $this->assertNotSoftDeleted('shifts', ['id' => $shift->id, 'code' => 'DAY']);
+    }
+
+    public function test_the_operator_station_only_offers_the_shifts_that_run_on_its_line(): void
+    {
+        $this->northShiftsOnNorthLine();
+        $this->shift('G', '06:00', '14:00');
+        $this->shift('N-AM', '06:00', '14:00');
+        $this->shift('S-OWN', '14:00', '22:00', ['line_id' => $this->south->id]);
+        Role::findOrCreate('Operator');
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+        $operator->lines()->attach($this->south->id);
+
+        $response = $this->actingAs($operator)->withSession(['selected_line_id' => $this->south->id])
+            ->get(route('operator.workstation'))->assertOk();
+
+        $codes = collect($response->viewData('page')['props']['shifts'])->pluck('code')->sort()->values()->all();
+        $this->assertSame(['G', 'S-OWN'], $codes);
+    }
+
+    public function test_the_whole_plant_reads_the_plant_shift_not_a_line_override(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-25 07:30'));
+        // The override sorts first, so only the plant-wide rule can pick the global shift.
+        $this->shift('L5', '07:00', '15:00', ['line_id' => $this->north->id, 'sort_order' => 0]);
+        $this->shift('G', '06:00', '14:00', ['sort_order' => 5]);
+
+        $this->assertSame('G', Shift::current()?->code);
+        $this->assertSame('G', ShiftWindow::current()->shift?->code);
+        $this->assertSame('L5', Shift::current($this->north->id)?->code, 'the line itself still runs its own shift');
+    }
+
+    public function test_a_narrower_shift_replaces_a_broader_one_it_overlaps_instead_of_adding_to_it(): void
+    {
+        $this->northShiftsOnNorthLine();
+        $this->shift('G', '06:00', '14:00');
+        $this->shift('N-AM', '06:00', '14:00');
+        $this->shift('N-PM', '14:00', '22:00');
+        $this->shift('OWN', '06:00', '14:00', ['line_id' => $this->north->id]);
+
+        $codes = fn ($shifts) => $shifts->pluck('code')->sort()->values()->all();
+        // The line's own morning replaces its plant's, which replaced the global one.
+        $this->assertSame(['N-PM', 'OWN'], $codes(Shift::effectiveOn($this->north->id)));
+        $this->assertSame(['G'], $codes(Shift::effectiveOn($this->south->id)));
+
+        // OEE plans the morning once, not twice (480 min, not 960 + the afternoon).
+        $oee = app(\App\Services\Production\OeeCalculationService::class);
+        $planned = (new \ReflectionMethod($oee, 'getPlannedMinutes'))->invoke($oee, $this->north, Carbon::parse('2026-11-25'), null);
+        $this->assertSame(960, $planned, 'own 06–14 plus the plant\'s 14–22');
+    }
+
+    public function test_capacity_counts_overlapping_shifts_of_a_line_once(): void
+    {
+        $this->northShiftsOnNorthLine();
+        $this->shift('N-AM', '06:00', '14:00');
+        $this->shift('OWN', '06:00', '14:00', ['line_id' => $this->north->id]);
+
+        $capacity = app(\App\Services\Schedule\CapacityService::class);
+        $index = (new \ReflectionMethod($capacity, 'buildShiftIndex'))->invoke($capacity, Shift::where('is_active', true)->get());
+        $minutes = new \ReflectionMethod($capacity, 'shiftMinutesForLine');
+
+        $this->assertSame(480, $minutes->invoke($capacity, $index, $this->north->id, 3));
+        $this->assertSame(0, $minutes->invoke($capacity, $index, $this->south->id, 3));
+    }
+
+    public function test_a_module_may_hand_back_a_collection_of_lines(): void
+    {
+        app(FilterRegistry::class)->addFilter('shifts.coverage', fn (array $coverage, array $ctx) => $ctx['shift']->code === 'GRP'
+            ? ['key' => 'group:x', 'line_ids' => collect([$this->north->id])]
+            : ($ctx['shift']->code === 'BAD' ? ['key' => 'group:y', 'line_ids' => 'nonsense'] : $coverage));
+
+        $group = $this->shift('GRP', '06:00', '14:00');
+        $bad = $this->shift('BAD', '14:00', '22:00');
+
+        $this->assertSame([$this->north->id], $group->lineIds());
+        $this->assertNull($bad->lineIds(), 'an unusable answer keeps the shift\'s own coverage');
+        $this->travelTo(Carbon::parse('2026-11-25 09:00'));
+        $this->assertSame('GRP', Shift::current($this->north->id)?->code);
+        $this->assertNull(Shift::current($this->south->id));
+    }
+
+    public function test_a_shift_widened_by_a_module_ranks_by_its_coverage(): void
+    {
+        app(FilterRegistry::class)->addFilter('shifts.coverage', fn (array $coverage, array $ctx) => $ctx['shift']->code === 'WIDE'
+            ? ['key' => 'group:both', 'line_ids' => [$this->north->id, $this->south->id]]
+            : $coverage);
+
+        $wide = $this->shift('WIDE', '06:00', '14:00', ['line_id' => $this->north->id]);
+        $own = $this->shift('OWN', '06:00', '14:00', ['line_id' => $this->south->id]);
+
+        $this->assertSame(1, $wide->specificity());
+        $this->assertSame(2, $own->specificity());
+        $this->travelTo(Carbon::parse('2026-11-25 09:00'));
+        $this->assertSame('OWN', Shift::current($this->south->id)?->code);
+    }
+
+    public function test_a_new_shift_with_custom_fields_is_one_write(): void
+    {
+        CustomFieldDefinition::create(['entity_type' => 'shift', 'key' => 'f_crew', 'label' => 'Crew', 'type' => 'text', 'required' => false, 'position' => 0, 'config' => []]);
+        $heard = [];
+        $seen = null;
+        Event::listen(ResourceChanged::class, function (ResourceChanged $e) use (&$heard) {
+            if ($e->model instanceof Shift) {
+                $heard[] = $e->action;
+            }
+        });
+        app(HookRegistry::class)->listen('persist.admin.shifts', function (array $ctx) use (&$seen) {
+            $seen = $ctx['shift']->custom_fields;
+        });
+
+        $this->actingAs($this->admin())->post('/admin/shifts', ['code' => 'AM', 'name' => 'Morning', 'start_time' => '06:00', 'end_time' => '14:00', 'custom_fields' => ['f_crew' => 'Blue']])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(['created'], $heard);
+        $this->assertSame(['f_crew' => 'Blue'], $seen, 'the persist hook sees the custom fields');
+        $this->assertSame('Blue', Shift::where('code', 'AM')->firstOrFail()->custom_fields['f_crew']);
+    }
+
+    public function test_a_refused_new_shift_leaves_no_uploaded_file_behind(): void
+    {
+        Storage::fake();
+        CustomFieldDefinition::create(['entity_type' => 'shift', 'key' => 'f_file', 'label' => 'Rota', 'type' => 'file', 'required' => false, 'position' => 0, 'config' => []]);
+        $this->shift('DAY', '06:00', '14:00');
+
+        $this->actingAs($this->admin())->post('/admin/shifts', ['code' => 'CLASH', 'name' => 'Clash', 'start_time' => '10:00', 'end_time' => '18:00',
+            'custom_field_files' => ['f_file' => UploadedFile::fake()->create('rota.pdf', 20, 'application/pdf')]])->assertSessionHas('error');
+
+        $this->assertDatabaseMissing('shifts', ['code' => 'CLASH']);
+        $this->assertSame([], Storage::allFiles());
+    }
+
+    public function test_the_overlap_message_speaks_of_the_same_lines(): void
+    {
+        $this->shift('DAY', '06:00', '14:00');
+
+        $this->actingAs($this->admin())->post('/admin/shifts', ['code' => 'X', 'name' => 'X', 'start_time' => '10:00', 'end_time' => '18:00'])
+            ->assertSessionHas('error', 'This shift overlaps another shift on the same lines. Adjust the times and try again.');
+    }
+
+    public function test_the_api_refuses_overlapping_shifts_like_the_admin_form(): void
+    {
+        $this->shift('DAY', '06:00', '14:00');
+        $api = $this->actingAs($this->admin(), 'sanctum');
+
+        $api->postJson('/api/v1/shifts', ['name' => 'Clash', 'start_time' => '10:00', 'end_time' => '18:00'])
+            ->assertStatus(422)->assertJsonValidationErrors('start_time');
+        $this->assertDatabaseMissing('shifts', ['name' => 'Clash']);
+
+        $late = $api->postJson('/api/v1/shifts', ['name' => 'Late', 'start_time' => '14:00', 'end_time' => '22:00'])->assertCreated()->json('data.id');
+        $api->patchJson("/api/v1/shifts/{$late}", ['start_time' => '12:00'])->assertStatus(422);
+        $this->assertSame('14:00', substr((string) Shift::find($late)->start_time, 0, 5));
+        $api->patchJson("/api/v1/shifts/{$late}", ['name' => 'Evening'])->assertOk()->assertJsonPath('data.name', 'Evening');
+    }
+
+    public function test_the_api_hands_module_fields_to_the_module_and_checks_its_coverage(): void
+    {
+        // The module moves a shift to the north group when asked to over the API.
+        app(FilterRegistry::class)->addFilter('validation.admin.shifts', fn (array $rules) => $rules + ['module_example_group' => ['nullable', 'in:north']]);
+        app(HookRegistry::class)->listen('persist.admin.shifts', function (array $ctx) {
+            if (($ctx['input']['module_example_group'] ?? null) === 'north') {
+                $ctx['shift']->forceFill(['code' => 'N-'.$ctx['shift']->id])->save();
+            }
+        });
+        $this->northShiftsOnNorthLine();
+        $this->shift('G', '06:00', '14:00');
+        $api = $this->actingAs($this->admin(), 'sanctum');
+
+        // Same hours as the global shift, but the north group's: no clash.
+        $id = $api->postJson('/api/v1/shifts', ['name' => 'North AM', 'start_time' => '06:00', 'end_time' => '14:00', 'module_example_group' => 'north'])
+            ->assertCreated()->json('data.id');
+        $this->assertSame([$this->north->id], Shift::find($id)->lineIds());
+
+        $api->postJson('/api/v1/shifts', ['name' => 'X', 'start_time' => '06:00', 'end_time' => '14:00', 'module_example_group' => 'south'])
+            ->assertStatus(422)->assertJsonValidationErrors('module_example_group');
+    }
+
+    public function test_only_an_admin_may_write_shifts_over_the_api(): void
+    {
+        Role::findOrCreate('Operator');
+        $operator = User::factory()->create();
+        $operator->assignRole('Operator');
+        $shift = $this->shift('DAY', '06:00', '14:00');
+
+        // Refused before validation: even an invalid body is a 403.
+        $this->actingAs($operator, 'sanctum')->postJson('/api/v1/shifts', ['name' => ''])->assertForbidden();
+        $this->actingAs($operator, 'sanctum')->patchJson("/api/v1/shifts/{$shift->id}", ['name' => 'X'])->assertForbidden();
+        $this->assertSame('DAY', $shift->fresh()->name);
+    }
+
     private function admin(): User
     {
         Role::findOrCreate('Admin');

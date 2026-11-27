@@ -727,21 +727,18 @@ class CapacityService
      */
     private function buildShiftIndex(Collection $shifts): array
     {
-        $index = ['global' => [], 'line' => []];
+        // 'line' is an object so the per-line memo survives the index being
+        // passed around by value.
+        $index = ['shifts' => $shifts->values(), 'global' => [], 'line' => new \ArrayObject];
 
         foreach ($shifts as $shift) {
+            if ($shift->lineIds() !== null) {
+                continue;
+            }
             $minutes = $this->shiftMinutes($shift);
             for ($dow = 1; $dow <= 7; $dow++) {
-                if (! $this->shiftRunsOn($shift, $dow)) {
-                    continue;
-                }
-                $lines = $shift->lineIds();
-                if ($lines === null) {
+                if ($this->shiftRunsOn($shift, $dow)) {
                     $index['global'][$dow] = ($index['global'][$dow] ?? 0) + $minutes;
-                } else {
-                    foreach ($lines as $lineId) {
-                        $index['line'][$lineId][$dow] = ($index['line'][$lineId][$dow] ?? 0) + $minutes;
-                    }
                 }
             }
         }
@@ -750,15 +747,25 @@ class CapacityService
     }
 
     /**
-     * Shift minutes available to a given line on an ISO weekday: global shifts
-     * plus that line's own shifts. A null line resolves to global shifts only.
+     * Shift minutes available to a given line on an ISO weekday: the shifts
+     * that really run on it (Shift::effectiveOn) — global ones plus its own
+     * and its group's, where a narrower shift replaces a broader one it
+     * overlaps instead of adding to it. A null line resolves to global shifts
+     * only. Worked out once per line and weekday.
      */
     private function shiftMinutesForLine(array $index, ?int $lineId, int $isoDow): int
     {
-        $global = $index['global'][$isoDow] ?? 0;
-        $line = $lineId !== null ? ($index['line'][$lineId][$isoDow] ?? 0) : 0;
+        if ($lineId === null) {
+            return $index['global'][$isoDow] ?? 0;
+        }
 
-        return $global + $line;
+        $key = $lineId.':'.$isoDow;
+        if (! $index['line']->offsetExists($key)) {
+            $index['line'][$key] = (int) Shift::effectiveOn($lineId, $index['shifts'], plantWide: true, isoDow: $isoDow)
+                ->sum(fn (Shift $shift) => $this->shiftMinutes($shift));
+        }
+
+        return $index['line'][$key];
     }
 
     /**

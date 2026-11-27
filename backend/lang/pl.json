@@ -5208,7 +5208,7 @@
     "System fields": "Pola systemowe",
     "TOTAL SCRAP:": "BRAKI ŁĄCZNIE:",
     "The file content does not match its :type extension.": "Zawartość pliku nie odpowiada rozszerzeniu :type.",
-    "This shift overlaps with an existing shift on this line. Adjust the times and try again.": "Ta zmiana nakłada się na istniejącą zmianę na tej linii. Popraw godziny i spróbuj ponownie.",
+    "This shift overlaps another shift on the same lines. Adjust the times and try again.": "Ta zmiana nakłada się na inną zmianę na tych samych liniach. Popraw godziny i spróbuj ponownie.",
     "This version is already published.": "Ta wersja jest już opublikowana.",
     "Title (optional)": "Tytuł (opcjonalnie)",
     "Total rows:": "Łączna liczba wierszy:",
@@ -8046,5 +8046,6 @@
     "Send to rework": "Skieruj do poprawki",
     "Found at": "Wykryto na kroku",
     "Send back to": "Odeślij do kroku",
-    "Rework not sent": "Nie wysłano do poprawki"
+    "Rework not sent": "Nie wysłano do poprawki",
+    "This shift does not run on the work order's line.": "Ta zmiana nie obejmuje linii tego zlecenia."
 }

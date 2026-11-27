@@ -20,8 +20,8 @@ class ShiftController extends Controller
     /** Where an installed module hangs its own fields on the shift form. */
     private const FIELDS_HOOK = 'display.admin.shifts.form.fields';
 
-    /** Fired after a shift is saved, inside the same transaction. */
-    private const SAVED_HOOK = 'persist.admin.shifts';
+    /** See Shift::PERSIST_HOOK — the API fires the same one. */
+    private const SAVED_HOOK = Shift::PERSIST_HOOK;
 
     public function index()
     {
@@ -53,7 +53,7 @@ class ShiftController extends Controller
         $validated['sort_order'] ??= Shift::max('sort_order') + 1;
 
         if ($this->persist($request, $validated) === null) {
-            return back()->withInput()->with('error', __('This shift overlaps with an existing shift on this line. Adjust the times and try again.'));
+            return back()->withInput()->with('error', __('This shift overlaps another shift on the same lines. Adjust the times and try again.'));
         }
 
         return $this->saved($request, redirect()->route('admin.shifts.index'), __('Shift created.'));
@@ -77,7 +77,7 @@ class ShiftController extends Controller
         $validated['sort_order'] ??= $shift->sort_order;
 
         if ($this->persist($request, $validated, $shift) === null) {
-            return back()->withInput()->with('error', __('This shift overlaps with an existing shift on this line. Adjust the times and try again.'));
+            return back()->withInput()->with('error', __('This shift overlaps another shift on the same lines. Adjust the times and try again.'));
         }
 
         return $this->saved($request, redirect()->route('admin.shifts.index'), __('Shift updated.'));
@@ -100,9 +100,11 @@ class ShiftController extends Controller
      * module that moves the shift to a group of lines is checked against that
      * group. Null (and nothing saved) when the shift would overlap another.
      *
-     * Custom fields go last, once the shift is known to be kept: storing them
-     * writes uploaded files and deletes the ones they replace, which a database
-     * rollback could not undo.
+     * Custom fields are written with the shift's columns — one save, so modules
+     * get one ResourceChanged and the persist hook sees them — except when an
+     * edit replaces or removes a stored file: deleting the old file cannot be
+     * rolled back, so that waits until the shift is known to be kept. Files a
+     * new shift uploaded are discarded if the overlap check refuses it.
      */
     private function persist(ShiftRequest $request, array $validated, ?Shift $shift = null): ?Shift
     {
@@ -113,28 +115,36 @@ class ShiftController extends Controller
         // are not columns of this table and must not reach the model.
         $own = array_filter($validated, fn ($key) => ! str_starts_with((string) $key, 'module_'), ARRAY_FILTER_USE_KEY);
 
+        $isNew = $shift === null;
+        $touchesStoredFiles = ! empty($request->file('custom_field_files')) || ! empty($request->input('custom_field_files_remove'));
+        $fieldsNow = $cf->touched($request) && ($isNew || ! $touchesStoredFiles);
+        $fields = $fieldsNow ? ($cf->fromRequest($request, 'shift', $shift?->custom_fields) ?: null) : null;
+
         DB::beginTransaction();
         try {
-            $action = $shift === null ? 'store' : 'update';
-            if ($shift === null) {
-                $shift = Shift::create($own);
-            } else {
-                $shift->update($own);
+            $shift ??= new Shift;
+            $shift->fill($own);
+            if ($fieldsNow) {
+                $shift->forceFill(['custom_fields' => $fields]);
             }
+            $shift->save();
 
             app(HookRegistry::class)->dispatch(self::SAVED_HOOK, [
-                'action' => $action,
+                'action' => $isNew ? 'store' : 'update',
                 'shift' => $shift,
                 'input' => $validated,
             ]);
 
-            if ($this->overlaps($shift->refresh())) {
+            if ($shift->refresh()->overlapsAnotherActive()) {
                 DB::rollBack();
+                if ($isNew && $fields) {
+                    $cf->discardFiles($fields, 'shift');
+                }
 
                 return null;
             }
 
-            if ($cf->touched($request)) {
+            if ($cf->touched($request) && ! $fieldsNow) {
                 $shift->forceFill([
                     'custom_fields' => $cf->fromRequest($request, 'shift', $shift->custom_fields) ?: null,
                 ])->save();
@@ -145,6 +155,9 @@ class ShiftController extends Controller
             return $shift;
         } catch (\Throwable $e) {
             DB::rollBack();
+            if ($isNew && $fields) {
+                $cf->discardFiles($fields, 'shift');
+            }
 
             throw $e;
         }
@@ -159,46 +172,5 @@ class ShiftController extends Controller
         $shift->delete();
 
         return redirect()->route('admin.shifts.index')->with('success', __('Shift deleted.'));
-    }
-
-    /**
-     * Does this shift overlap another active shift set for the same
-     * lines? Only shifts with the same coverage clash (Shift::coverage): the
-     * same line, every line, or the same group a module defined — same-time
-     * shifts on different lines are fine.
-     */
-    private function overlaps(Shift $shift): bool
-    {
-        $start = substr($shift->start_time, 0, 5);
-        $end = substr($shift->end_time, 0, 5);
-        $key = $shift->coverage()['key'];
-
-        $query = Shift::where('is_active', true)->where('id', '!=', $shift->id);
-
-        return $query->get()->filter(fn (Shift $other) => $other->coverage()['key'] === $key)->contains(function (Shift $existing) use ($start, $end) {
-            $eStart = substr($existing->start_time, 0, 5);
-            $eEnd = substr($existing->end_time, 0, 5);
-
-            // Handle overnight shifts (e.g. 22:00 - 06:00)
-            $newCrossesMidnight = $start > $end;
-            $existCrossesMidnight = $eStart > $eEnd;
-
-            if (! $newCrossesMidnight && ! $existCrossesMidnight) {
-                // Both within same day
-                return $start < $eEnd && $end > $eStart;
-            }
-
-            // At least one crosses midnight — normalize to minutes and check
-            $toMin = fn ($t) => (int) substr($t, 0, 2) * 60 + (int) substr($t, 3, 2);
-            $ns = $toMin($start);
-            $ne = $toMin($end) + ($newCrossesMidnight ? 1440 : 0);
-            $es = $toMin($eStart);
-            $ee = $toMin($eEnd) + ($existCrossesMidnight ? 1440 : 0);
-
-            // Check overlap in both original and +24h shifted positions
-            return ($ns < $ee && $ne > $es)
-                || ($ns < $ee + 1440 && $ne > $es + 1440)
-                || ($ns + 1440 < $ee && $ne + 1440 > $es);
-        });
     }
 }

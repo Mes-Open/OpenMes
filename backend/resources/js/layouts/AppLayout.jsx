@@ -497,18 +497,23 @@ function ScopeSwitcher({ className = '' }) {
             <label className="flex items-center gap-2 text-[13px] text-om-faint">
                 <UiIcon name="factory" size={14} />
                 <span className="hidden sm:inline">{s.label}</span>
-                <select
-                    name="scope"
-                    data-testid="scope-switcher"
-                    aria-label={s.label}
-                    defaultValue={s.current}
-                    onChange={() => formRef.current?.submit()}
-                    className="max-w-[14rem] cursor-pointer rounded-om-sm border border-om-line bg-om-bg px-2 py-1 text-[13px] text-om-ink outline-none focus:border-om-accent"
-                >
-                    {s.options.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                </select>
+                {/* The native arrow sits flush against the border and can't be
+                    padded, so it is drawn here instead, with room either side. */}
+                <span className="relative inline-flex items-center">
+                    <select
+                        name="scope"
+                        data-testid="scope-switcher"
+                        aria-label={s.label}
+                        defaultValue={s.current}
+                        onChange={() => formRef.current?.submit()}
+                        className="max-w-[14rem] cursor-pointer appearance-none truncate rounded-om-sm border border-om-line bg-om-bg py-1 pl-2.5 pr-8 text-[13px] text-om-ink outline-none transition-colors hover:border-om-faintest focus:border-om-accent"
+                    >
+                        {s.options.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                    </select>
+                    <UiIcon name="chevron-down" size={14} aria-hidden className="pointer-events-none absolute right-2.5 text-om-muted" />
+                </span>
             </label>
         </form>
     );

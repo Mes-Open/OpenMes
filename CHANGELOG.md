@@ -18,11 +18,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   - shift windows;
   - capacity and the finite scheduler;
   - staffing;
-  - OEE.
+  - OEE;
+  - the shift columns on the operator station.
 
+  When shifts with different coverage run at the same time on a line, the narrowest is
+  that line's shift: its own, then its group's, then the one for every line.
   Shifts only clash with shifts set for the same lines. The shift form takes module
   fields (`display.admin.shifts.form.fields`, `validation.admin.shifts`,
-  `persist.admin.shifts`). The shift list can name such a group in its Line column
+  `persist.admin.shifts`; it runs inside the save's transaction, before the overlap check,
+  so its listeners only write to the database). The shift list can name such a group in its Line column
   (`admin.shifts.coverage_column`). Shift validation moved to a Form Request.
 
 - **Extension points for dividing one installation into scopes (several plants).** Core
@@ -202,7 +206,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Modules hear about a change only once it is committed.** `ResourceChanged` now waits for the
   database commit, as webhooks and live broadcasts already did. A write that is rolled back no
   longer reaches a module listener, for example a shift refused for overlapping another.
-  Outside a transaction it still fires at once.
+  Outside a transaction it still fires at once. The listener gets the model as that write left
+  it, so `getOriginal()` and `wasChanged()` still describe that write even when a later save in
+  the same transaction changed it again.
 
 - **Flash messages float instead of pushing the page down.** "Step completed.", "Saved." and
   every other message after a redirect now appears as a floating notice, so nothing on the
@@ -299,6 +305,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 
+- **Whole-plant screens show the plant's shift again, not one line's.** With a shift set
+  for one line next to a plant-wide one, the shift board, plant overview, shift KPIs and
+  schedule could take the line's shift as "the current shift" of the whole plant. With no
+  line given, the broadest shift now comes first.
+- **Overlapping shifts of a line are planned once.** Where a line's own shift overlaps its
+  plant's shift (or a plant's shift the global one), the narrower one replaces the
+  broader one instead of adding to it. This applies to OEE planned time, capacity, the
+  finite scheduler and the operator station's shift columns.
+- **The operator station only books output under a shift of the order's line.** Any
+  other shift id is refused (new `ShiftEntryRequest`).
+- **The shift API checks overlaps and takes module fields like the admin form.**
+  `POST`/`PATCH /api/v1/shifts` refuse an overlapping shift with a 422, accept the fields
+  a module adds (`validation.admin.shifts`) and fire `persist.admin.shifts`. Validation
+  moved to a Form Request, and a non-admin gets a 403 before validation.
+- **Saving a shift with custom fields is one write.** Modules hear one `created`, and the
+  persist hook sees the custom fields. Files a refused new shift uploaded are removed.
+- A module's `shifts.coverage` filter may return the lines as a Collection. An unusable
+  answer keeps the shift's own coverage instead of breaking every shift lookup. A shift's
+  rank follows its coverage, not its `line_id`. The overlap message now says "on the
+  same lines".
+- **The site switcher's arrow sits inside its border.**
 - **Admin pages no longer scroll the whole window.** Screen-reader-only text in the page
   content (e.g. the severity of a *Needs action* row on the dashboard) escaped the scroll
   area and stretched the document, so scrolling moved the sidebar and page away and left a

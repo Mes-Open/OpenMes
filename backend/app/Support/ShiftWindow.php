@@ -77,9 +77,8 @@ class ShiftWindow
      */
     public static function startingOnDate(?int $lineId, Carbon $date): ?self
     {
-        return Shift::where('is_active', true)
-            ->get()
-            ->filter(fn (Shift $shift) => $shift->runsOnLine($lineId ?: null))
+        // Earliest start first; at the same start the narrower shift (runningOn's order) wins.
+        return Shift::runningOn($lineId)
             ->map(fn (Shift $shift) => self::startingOn($shift, $date))
             ->filter(fn (self $window) => $window->isScheduled() && $window->start->isSameDay($date))
             ->sortBy(fn (self $window) => $window->start->getTimestamp())
@@ -136,9 +135,7 @@ class ShiftWindow
      */
     public static function at(?int $lineId, Carbon $at): ?self
     {
-        return Shift::where('is_active', true)
-            ->get()
-            ->filter(fn (Shift $shift) => $shift->runsOnLine($lineId ?: null))
+        return Shift::runningOn($lineId)
             ->map(fn (Shift $shift) => self::occurrence($shift, $at))
             ->first(fn (self $window) => $window->contains($at) && $window->isScheduled());
     }

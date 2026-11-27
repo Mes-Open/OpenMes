@@ -5529,7 +5529,7 @@
     "System fields": "Trường hệ thống",
     "TOTAL SCRAP:": "TỔNG PHẾ LIỆU:",
     "The file content does not match its :type extension.": "Nội dung tệp không khớp với phần mở rộng :type của nó.",
-    "This shift overlaps with an existing shift on this line. Adjust the times and try again.": "Ca này trùng với một ca hiện có trên dây chuyền này. Hãy điều chỉnh thời gian và thử lại.",
+    "This shift overlaps another shift on the same lines. Adjust the times and try again.": "Ca này trùng với một ca khác trên cùng các dây chuyền. Hãy điều chỉnh thời gian và thử lại.",
     "This version is already published.": "Phiên bản này đã được xuất bản.",
     "Title (optional)": "Tiêu đề (tùy chọn)",
     "Unknown reason": "Lý do không xác định",

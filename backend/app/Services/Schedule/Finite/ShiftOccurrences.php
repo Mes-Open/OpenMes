@@ -40,7 +40,7 @@ final class ShiftOccurrences
         $day = ResourceCalendar::toCarbon($from)->startOfDay()->subDay();
         $last = ResourceCalendar::toCarbon(max($from, $to))->startOfDay();
         while ($day->lte($last)) {
-            foreach (self::runsOn($shifts, $day) as $run) {
+            foreach (self::runsOn($shifts, $day, $lineId) as $run) {
                 $overlaps = $to > $from
                     ? $run['start'] < $to && $run['end'] > $from
                     : $run['start'] <= $from && $run['end'] > $from;
@@ -112,7 +112,7 @@ final class ShiftOccurrences
         $day = ResourceCalendar::toCarbon($t)->startOfDay();
         while (ResourceCalendar::toMinutes($day) < $to) {
             $next = null;
-            foreach (self::runsOn($shifts, $day) as $run) {
+            foreach (self::runsOn($shifts, $day, $lineId) as $run) {
                 if ($run['start'] > $t && $run['start'] < $to) {
                     $next = $next === null ? $run['start'] : min($next, $run['start']);
                 }
@@ -141,11 +141,17 @@ final class ShiftOccurrences
      * @param  Collection<int, Shift>  $shifts
      * @return list<array{start: int, end: int, date: string, shift_id: int, shift_name: string}>
      */
-    private static function runsOn(Collection $shifts, Carbon $day): array
+    private static function runsOn(Collection $shifts, Carbon $day, ?int $lineId = null): array
     {
         $dow = (int) $day->format('N');
         $date = $day->toDateString();
         $runs = [];
+        // On a line, a narrower shift replaces a broader one it overlaps that
+        // day (Shift::effectiveOn) — two runs over the same hours would
+        // double the line's time.
+        if ($lineId !== null) {
+            $shifts = Shift::effectiveOn($lineId, $shifts, plantWide: true, isoDow: $dow);
+        }
         foreach ($shifts as $shift) {
             $days = $shift->days_of_week;
             if (is_array($days) && ! in_array($dow, $days, true)) {
