@@ -509,7 +509,7 @@ class BatchService
             $this->guardWorkstationRouting($step, $user);
 
             if (! $step->canSkip()) {
-                throw new \Exception('This step is required and cannot be skipped.');
+                throw new \Exception(__('This step is required and cannot be skipped.'));
             }
 
             // Pieces held here by open rework (#400) must come back first.

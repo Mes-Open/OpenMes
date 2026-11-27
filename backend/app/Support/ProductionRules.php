@@ -20,6 +20,17 @@ final class ProductionRules
 
     public const FORCE_SEQUENTIAL_STEPS = 'force_sequential_steps';
 
+    public const WORKSTATION_ROUTING_ENABLED = 'workstation_routing_enabled';
+
+    /**
+     * Do steps route to the workstation they are assigned to, even one on
+     * another line? Off, every order is worked on its own line only.
+     */
+    public static function workstationRoutingEnabled(): bool
+    {
+        return self::flag(self::WORKSTATION_ROUTING_ENABLED, false);
+    }
+
     /** May the batches of a work order add up to more than its planned quantity? */
     public static function allowOverproduction(): bool
     {

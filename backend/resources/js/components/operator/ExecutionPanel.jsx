@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import { Icon } from '@openmes/ui';
 import LabelPrintMenu from '../LabelPrintMenu';
-import { CompleteReworkModal, ConfirmTimesModal, LotPickModal } from './StepModals';
+import { CompleteReworkModal, ConfirmTimesModal, LotPickModal, SkipStepModal, canSkipStep } from './StepModals';
 import { apiGet } from '../../lib/http';
 import { __, formatNumber } from '../../lib/i18n';
 import { batchLabel, dueInfo, fmtQty, monoLabelCls, statusMeta } from './operatorUi';
@@ -33,6 +33,7 @@ export default function ExecutionPanel({ workOrderId, fallback = null, labelTemp
     const [pickModal, setPickModal] = useState(null);
     const [timesModal, setTimesModal] = useState(null);
     const [reworkModal, setReworkModal] = useState(null);
+    const [skipModal, setSkipModal] = useState(null);
     const [zoom, setZoom] = useState(null);
 
     // Every finished visit may have changed the order: read it again.
@@ -223,6 +224,16 @@ export default function ExecutionPanel({ workOrderId, fallback = null, labelTemp
                             {action.label}
                         </button>
                     )}
+                    {target && canSkipStep(target) && head?.status !== 'BLOCKED' && (
+                        <button
+                            type="button"
+                            onClick={() => { setActionError(null); setSkipModal(target); }}
+                            title={__('Skip :step', { step: target.name })}
+                            className="text-[13.5px] font-semibold text-om-muted bg-om-chip rounded-[10px] px-4 py-[13px] cursor-pointer hover:brightness-95 whitespace-nowrap"
+                        >
+                            {__('Skip')}
+                        </button>
+                    )}
                     {onReportIssue && (
                         <button
                             type="button"
@@ -238,6 +249,7 @@ export default function ExecutionPanel({ workOrderId, fallback = null, labelTemp
             {pickModal && <LotPickModal step={pickModal.step} materials={pickModal.materials} onClose={() => setPickModal(null)} />}
             {timesModal && <ConfirmTimesModal step={timesModal.step} onClose={() => setTimesModal(null)} />}
             {reworkModal && <CompleteReworkModal rework={reworkModal} onClose={() => setReworkModal(null)} />}
+            {skipModal && <SkipStepModal step={skipModal} onClose={() => setSkipModal(null)} />}
             {zoom && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-6" onClick={() => setZoom(null)}>
                     <figure className="max-w-3xl max-h-full m-0" onClick={(e) => e.stopPropagation()}>
